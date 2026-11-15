@@ -11,7 +11,8 @@ import { performance } from "node:perf_hooks";
 import { indexMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { editorMarkdown, editorEnd, selectEditorText, replaceEditorText, appendEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
+import { editorMarkdown as exactEditorMarkdown, editorEnd, selectEditorText, replaceEditorText, appendEditorText, undoEditor, showSidebar } from "./editor-smoke-helpers.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const apiKey = "page-reference-disposable-smoke-key";
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-page-reference-smoke-"));
@@ -102,6 +103,16 @@ async function putFixture(item, body, crlf = false) {
 async function bytes(item = source) { return readFile(fixturePath(item)); }
 async function canonical(item = source) { return (await bytes(item)).toString("utf8"); }
 function endpoint(request, suffix) { return new URL(request.url()).pathname === `/memories/all/${suffix}`; }
+// The live editor serializes with the canonical source's newline (CRLF here);
+// compare drafts newline-normalized, while canonical bytes stay exact.
+async function editorMarkdown(page) { return (await exactEditorMarkdown(page)).replace(/\r\n/g, "\n"); }
+// Editor saves publish over the live WebSocket (not PUT); count mutating RPCs there.
+function liveWrites(transport) { return transport.observed.filter((message) => ["edit", "title"].includes(message.method)).length; }
+// Hosted browsers hold the key in an HttpOnly cookie; requests carry only this marker.
+function assertCookieSession(request) {
+  assert.equal(request.headers().authorization, "Bearer browser-session");
+  assert.ok(!JSON.stringify(request.headers()).includes(apiKey), "the raw key never leaves the session cookie");
+}
 function reference(page, title = target.title) {
   return page.locator(referenceSelector).filter({ hasText: `[[${title}]]` }).first();
 }
@@ -115,6 +126,8 @@ async function opened(page, item = source) {
   await page.waitForURL((url) => url.searchParams.get("note") === item.id);
   await page.locator("#note-editor").waitFor({ state: "visible" });
   await page.waitForFunction((title) => document.querySelector("#note-name")?.value === title, item.title);
+  // Editing needs an opened live session; until then the note is locked.
+  await page.waitForFunction(() => state.editor?.state.liveHasOpened);
 }
 async function state(page, text) {
   await page.waitForFunction((text) => document.querySelector("#note-save-state")?.textContent === text, text);
@@ -125,7 +138,7 @@ async function settle(page) {
   await page.waitForTimeout(950);
 }
 async function markdownIs(page, value) {
-  await page.waitForFunction((value) => richEditor.getMarkdown() === value, value);
+  await page.waitForFunction((value) => richEditor.getMarkdown().replace(/\r\n/g, "\n") === value, value);
 }
 async function feedback(page, pattern = /./) {
   await page.waitForFunction((pattern) => {
@@ -152,8 +165,10 @@ async function activate(page, title = target.title, mobile = false) {
   if (mobile) { await page.waitForTimeout(550); await reference(page, title).tap(); }
   else await reference(page, title).click();
 }
+// Narrow note views auto-collapse the sidebar; reveal it before its controls.
+async function sidebarClick(page, selector) { await showSidebar(page); await page.locator(selector).click(); }
 async function connection(page, key) {
-  await page.locator("#open-connection").click();
+  await sidebarClick(page, "#open-connection");
   await page.locator("#api-key").fill(key);
   await page.locator("#connection-form button[type=submit]").click();
   await page.locator("#connection").waitFor({ state: "hidden" });
@@ -182,7 +197,7 @@ async function hold(page, pattern, matches = () => true) {
       await released.promise;
       await route.fulfill({ response });
     } catch (error) {
-      if (!/closed|disposed|aborted|canceled|cancelled/i.test(String(error))) throw error;
+      if (!/closed|disposed|aborted|canceled|cancelled|already handled/i.test(String(error))) throw error;
     } finally { finished.resolve(); }
   };
   await page.route(pattern, handler);
@@ -211,9 +226,11 @@ async function run(name, test, mobile) {
     if (message.type() === "error" && !/^Failed to load resource:|^Access to fetch/.test(message.text())) errors.push(message.text());
   });
   page.on("request", (request) => requests.push(request));
+  // Install before navigation; the transport forwards real frames unless a rule fires.
+  const transport = await installCollaborationSmokeTransport(page);
   try {
     await open(page);
-    await test(page, { mobile, requests, name });
+    await test(page, { mobile, requests, name, transport });
     assert.deepEqual(errors, [], "no uncaught browser errors");
     assert.equal(requests.filter((request) => !request.url().startsWith(server.url)).length, 0, "no external browser requests");
     passed++;
@@ -237,19 +254,20 @@ async function run(name, test, mobile) {
   } finally { await context.close(); }
 }
 
-async function navigationAndBytes(page, { mobile, requests }) {
+async function navigationAndBytes(page, { mobile, requests, transport }) {
   const original = await bytes(), targetOriginal = await bytes(target);
   assert.equal(await editorMarkdown(page), sourceBody);
   assert.equal(await reference(page).getAttribute("role"), "link");
   assert.equal(await reference(page).getAttribute("tabindex"), "0");
   await settle(page);
   assert.equal(requests.filter((request) => request.method() === "PUT").length, 0);
+  assert.equal(liveWrites(transport), 0);
   await activate(page, target.title, mobile);
   await opened(page, target);
   const resolve = requests.filter((request) => endpoint(request, "resolve-title"));
   assert.equal(resolve.length, 1);
   assert.equal(resolve[0].method(), "POST");
-  assert.equal(resolve[0].headers().authorization, `Bearer ${apiKey}`);
+  assertCookieSession(resolve[0]);
   assert.deepEqual(resolve[0].postDataJSON(), { title: target.title });
   assert.ok(!resolve[0].url().includes("Luminous"), "title only in POST body");
   await page.goBack(); await opened(page);
@@ -266,35 +284,35 @@ async function navigationAndBytes(page, { mobile, requests }) {
   await page.keyboard.press("Enter");
   await opened(page, target);
   await settle(page);
-  assert.equal(requests.filter((request) => request.method() === "PUT").length, 0, "hydration, clicks, keyboard activation and history never dirty Markdown");
+  assert.equal(requests.filter((request) => request.method() === "PUT").length + liveWrites(transport), 0, "hydration, clicks, keyboard activation and history never dirty Markdown");
   assert.deepEqual(await bytes(), original, "source including CRLF/frontmatter is byte-identical");
   assert.deepEqual(await bytes(target), targetOriginal);
 }
 
-async function failedSaveGuard(page, { mobile, requests }) {
+async function failedSaveGuard(page, { mobile, requests, transport }) {
   const original = await bytes();
-  const pattern = `**/memories/all/documents/${source.id}`;
-  const fail = (route) => route.request().method() === "PUT" ? route.fulfill({ status: 500, contentType: "application/json",
-    body: JSON.stringify({ error: { code: "smoke_save_failure", message: "Controlled disposable save failure" } }) }) : route.continue();
-  await page.route(pattern, fail);
+  // A rejected live publication retains the draft and requires explicit review.
+  const rejected = transport.rejectNext("edit", { code: "source_unavailable", message: "Controlled disposable save failure" });
   await appendEditorText(page, "Unsaved guard evidence.");
   const draft = await editorMarkdown(page);
-  await state(page, "Save failed");
+  await rejected.arrived;
+  await state(page, "Changes need review");
   await activate(page, target.title, mobile);
-  await feedback(page, /save|leave|retry/);
+  await feedback(page, /save|leave|retry|review/);
   assert.equal(new URL(page.url()).searchParams.get("note"), source.id);
   assert.equal(await editorMarkdown(page), draft);
   assert.deepEqual(await bytes(), original);
   assert.equal(requests.filter((r) => endpoint(r, `documents/${target.id}`)).length, 0, "failed guard never reads the target");
-  await page.unroute(pattern, fail);
-  await page.locator("#note-retry").click(); await saved(page);
+  await page.locator("#note-recover").click();
+  await page.waitForFunction(() => document.getElementById("document-recovery").open && !document.getElementById("recovery-publish").disabled);
+  await page.getByRole("button", { name: "Keep my changes", exact: true }).click(); await saved(page);
   assert.ok((await canonical()).replace(/\r\n/g, "\n").endsWith(draft));
   await activate(page, target.title, mobile); await opened(page, target);
   await page.goBack(); await opened(page);
-  assert.equal(await editorMarkdown(page), draft, "guarded retry retained and persisted source draft");
+  assert.equal(await editorMarkdown(page), draft, "guarded review retained and persisted source draft");
 }
 
-async function resolutionOutcomes(page, { mobile, requests }) {
+async function resolutionOutcomes(page, { mobile, requests, transport }) {
   const original = await bytes();
   for (const [title, outcome] of [[missing, "missing"], [duplicate.title, "ambiguous"], [idless.title, "unopenable"]]) {
     const [received] = await Promise.all([
@@ -307,16 +325,19 @@ async function resolutionOutcomes(page, { mobile, requests }) {
     assert.equal(new URL(page.url()).searchParams.get("note"), source.id);
     assert.equal(await editorMarkdown(page), sourceBody);
   }
+  // A changed hosted credential replaces the cookie session and reopens the note
+  // under it, so a wrong key can no longer render references to activate. Prove
+  // the resolver itself rejects the changed credential, then recover the note.
   await connection(page, "wrong-reference-key");
-  const [rejected] = await Promise.all([
-    page.waitForResponse((response) => endpoint(response, "resolve-title")),
-    activate(page, target.title, mobile),
-  ]);
-  assert.equal(rejected.status(), 401, "real authenticated resolution rejects changed credentials");
-  await feedback(page, /connect|key|access/);
+  await page.waitForFunction(() => state.editor === null || !state.editor.state.loaded);
+  assert.equal(await page.locator(referenceSelector).count(), 0, "a rejected credential renders no activatable references");
+  const rejected = await page.evaluate(async (title) => (await fetch("/memories/all/resolve-title", { method: "POST",
+    headers: { Authorization: "Bearer wrong-reference-key", "Content-Type": "application/json" }, body: JSON.stringify({ title }) })).status, target.title);
+  assert.equal(rejected, 401, "real authenticated resolution rejects changed credentials");
+  await connection(page, apiKey); await opened(page);
   assert.equal(await editorMarkdown(page), sourceBody);
   assert.deepEqual(await bytes(), original);
-  assert.equal(requests.filter((r) => r.method() === "PUT").length, 0);
+  assert.equal(requests.filter((r) => r.method() === "PUT").length + liveWrites(transport), 0);
 }
 
 async function repeatedActivation(page, { mobile }) {
@@ -338,7 +359,7 @@ async function resolutionCancellation(page, { mobile }) {
     const gate = await hold(page, "**/memories/all/resolve-title");
     try {
       await activate(page, target.title, mobile); await gate.started;
-      await page.locator(selector).click();
+      await sidebarClick(page, selector);
       await page.locator(selector === "#open-search" ? "#note-search" : "#connection").waitFor({ state: "visible" });
       await gate.release(); await gate.close(); await settle(page);
       assert.equal(new URL(page.url()).searchParams.get("note"), source.id, "obsolete title resolution cannot navigate behind modal");
@@ -491,7 +512,7 @@ async function inlineInsertion(page, { requests, mobile }) {
     query: "luminous", results: await options(page).allTextContents(), elapsedMs: +(performance.now() - started).toFixed(1) });
   const search = requests.filter((r) => endpoint(r, "search"));
   assert.ok(search.length, "inline uses real indexed search");
-  for (const request of search) assert.equal(request.headers().authorization, `Bearer ${apiKey}`);
+  for (const request of search) assertCookieSession(request);
   assert.equal(await page.locator("#note-search").isVisible(), false, "[[ never opens the explicit modal");
   assert.equal(await page.locator("#note-editor").evaluate((element) => document.activeElement === element), true);
   await checkAria(page);
@@ -536,7 +557,7 @@ async function checkAria(page) {
   assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width + 1 && box.y + box.height <= viewport.height + 1, "popup remains in viewport");
 }
 
-async function inlineFeedback(page) {
+async function inlineFeedback(page, { transport }) {
   await replaceEditorText(page, "Feedback: "); await saved(page);
   await editorEnd(page); await page.keyboard.type("[[");
   await inlineStatus(page, /type.*title/);
@@ -544,7 +565,7 @@ async function inlineFeedback(page) {
   try {
     await page.keyboard.type("luminous"); await gate.started;
     await inlineStatus(page, /search|loading/);
-    // A real successful PUT, not a mocked stale bit, marks the independent inline
+    // A real confirmed live save, not a mocked stale bit, marks the independent inline
     // search stale even while its original pre-save indexed response is delayed.
     await saved(page);
     await gate.release();
@@ -554,25 +575,45 @@ async function inlineFeedback(page) {
       "matching suggestions omit status text while retaining stale-index state");
   } finally { await gate.close(); }
   await page.keyboard.press("Escape");
-  await beginInline(page, "Empty: ", "zzqneverindexedreference987654");
-  await inlineStatus(page, /no .*match|no .*result|no .*found|nothing/);
-  assert.equal(await options(page).count(), 0);
-  const beforeEnter = await editorMarkdown(page);
-  await page.keyboard.press("Enter");
-  assert.notEqual(await editorMarkdown(page), beforeEnter, "ordinary Enter remains an edit when there is no selectable result");
+  // Live publication confirms typed text within ~35ms, after which this very
+  // source matches the query as a confirmed write (and serves as the local
+  // fallback for a failed search). Hold that publication while each query runs
+  // so it genuinely has no indexed or confirmed match.
+  async function unpublished(prefix, query, check) {
+    await replaceEditorText(page, prefix); await saved(page);
+    const held = transport.holdNextRequest("edit");
+    try {
+      await editorEnd(page); await page.keyboard.type("[[" + query);
+      await popup(page).waitFor({ state: "visible" });
+      await check();
+    } finally { held.release(); }
+    await saved(page);
+  }
+  await unpublished("Empty: ", "zzqneverindexedreference987654", async () => {
+    await inlineStatus(page, /no .*match|no .*result|no .*found|nothing/);
+    assert.equal(await options(page).count(), 0);
+    const beforeEnter = await editorMarkdown(page);
+    await page.keyboard.press("Enter");
+    assert.notEqual(await editorMarkdown(page), beforeEnter, "ordinary Enter remains an edit when there is no selectable result");
+  });
   await page.route("**/memories/all/search", (route) => route.fulfill({ status: 503, contentType: "application/json",
     body: JSON.stringify({ error: { code: "smoke_search_failure", message: "Controlled disposable search outage" } }) }));
-  await beginInline(page, "Error: "); await inlineStatus(page, /could not|error|unavailable|failed/);
-  await page.keyboard.press("Escape");
+  await unpublished("Error: ", "luminous", async () => {
+    await inlineStatus(page, /could not|error|unavailable|failed/);
+    await page.keyboard.press("Escape");
+  });
   await page.unroute("**/memories/all/search");
-  await saved(page);
-  await connection(page, "wrong-inline-key");
-  await editorEnd(page); await page.keyboard.type("\nAuth: [[luminous");
-  await inlineStatus(page, /connect|access|key|auth/);
-  const draft = await editorMarkdown(page);
-  await state(page, "Save failed");
-  await connection(page, apiKey);
-  await page.locator("#note-retry").click(); await saved(page);
+  // An ended HTTP session (cookie gone) rejects the inline search. The open live
+  // socket authenticated at upgrade, so the draft still publishes; reconnecting
+  // reopens the note without consuming or rewriting it.
+  await page.context().clearCookies();
+  let draft;
+  await unpublished("Auth: ", "luminous", async () => {
+    await inlineStatus(page, /connect|access|key|auth/);
+    draft = await editorMarkdown(page);
+  });
+  assert.ok((await canonical()).replace(/\r\n/g, "\n").endsWith(draft), "the draft reached the canonical file");
+  await connection(page, apiKey); await opened(page);
   assert.equal(await editorMarkdown(page), draft, "auth failure does not consume or rewrite the draft");
 }
 
@@ -582,10 +623,10 @@ async function inlineCancellation(page) {
     try {
       await beginInline(page, `${transition}: `); await gate.started;
       const draft = await editorMarkdown(page);
-      if (transition === "search") await page.locator("#open-search").click();
-      if (transition === "connection") await page.locator("#open-connection").click();
+      if (transition === "search") await sidebarClick(page, "#open-search");
+      if (transition === "connection") await sidebarClick(page, "#open-connection");
       if (transition === "credentials") await connection(page, apiKey);
-      if (transition === "document") { await page.locator("#home-link").click(); await page.locator("#home-new").waitFor({ state: "visible" }); }
+      if (transition === "document") { await sidebarClick(page, "#home-link"); await page.locator("#home-new").waitFor({ state: "visible" }); }
       await popup(page).waitFor({ state: "hidden" });
       await gate.release(); await gate.close(); await settle(page);
       assert.equal(await popup(page).isVisible(), false, `old response cannot reopen after ${transition}`);
@@ -596,21 +637,21 @@ async function inlineCancellation(page) {
   }
 }
 
-async function readonlyCancellation(page) {
+async function readonlyCancellation(page, { transport }) {
   await replaceEditorText(page, "Read only transition: "); await saved(page);
-  const gate = await hold(page, `**/memories/all/documents/${source.id}`, (r) => r.method() === "PUT");
+  const gate = transport.holdNextRequest("edit");
   try {
     await editorEnd(page); await page.keyboard.type("[[luminous");
     await options(page).filter({ hasText: target.title }).first().waitFor({ state: "visible" });
-    // Guarded Home navigation locks the actual editor while PUT is pending.
-    await page.locator("#home-link").click(); await gate.started;
+    // Guarded Home navigation locks the actual editor while the live edit is pending.
+    await sidebarClick(page, "#home-link"); await bounded(gate.arrived, "held live edit");
     await page.waitForFunction(() => document.querySelector("#note-editor").getAttribute("aria-readonly") === "true");
     await popup(page).waitFor({ state: "hidden" });
-    await gate.release(); await page.locator("#home-new").waitFor({ state: "visible" });
+    gate.release(); await page.locator("#home-new").waitFor({ state: "visible" });
     assert.equal(await popup(page).isVisible(), false);
     await page.goBack(); await opened(page);
     assert.equal(await editorMarkdown(page), "Read only transition: [[luminous");
-  } finally { await gate.close(); }
+  } finally { gate.release(); }
 }
 
 async function shortcuts(page) {
