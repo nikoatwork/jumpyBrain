@@ -57,7 +57,7 @@ try {
   assert.deepEqual(consoleErrors, [], "graph browser console errors");
 } catch (error) {
   await capture(page, "graph-ui-failure.png").catch(() => undefined);
-  console.error("FAIL:", error && error.message ? error.message : error);
+  console.error("FAIL:", error && (error.stack || error.message) ? error.stack || error.message : error);
   process.exitCode = 1;
 } finally {
   await browser.close();
@@ -145,8 +145,15 @@ async function validateGraph(width) {
   await panel.waitFor({ state: "visible" });
   await page.getByTestId("graph-note-editor").waitFor({ state: "visible", timeout: 15_000 });
   assert.equal(await page.getByTestId("graph-svg").isVisible(), false, "graph should yield to the full-page note editor");
-  assert.equal(await page.locator("#home-link").isVisible(), true);
-  assert.equal(await page.locator("#graph-link").isVisible(), true);
+  if (width > 680) {
+    assert.equal(await page.locator("#home-link").isVisible(), true);
+    assert.equal(await page.locator("#graph-link").isVisible(), true);
+  } else {
+    // Narrow note entry dismisses the sidebar so the note shows first; navigation
+    // remains one explicit toggle away.
+    assert.equal(await page.locator("#app-sidebar").isVisible(), false, "narrow note entry shows the note first");
+    assert.equal(await page.locator("#toggle-sidebar").isVisible(), true, "navigation remains reachable");
+  }
   assert.equal(await page.locator("#graph-note-close, #graph-note-edit, #graph-note-content").count(), 0,
     "removed slide-in controls should not return");
   assert.doesNotMatch(await editorMarkdown(page), /^---(?:\r?\n|$)/,
@@ -171,11 +178,23 @@ async function validateGraph(width) {
   await reloadGraph(page);
   const unresolved = page.locator(".node.unresolved[data-testid='graph-node']");
   if (await unresolved.count()) {
+    // Missing targets open a transient topic preview, not a note or a dead end.
+    const missingId = await unresolved.first().getAttribute("data-node-id");
+    const missingTitle = await page.evaluate((id) => {
+      const node = state.graph.nodes.find((item) => item.id === id);
+      return String(node?.title || node?.label || "");
+    }, missingId);
     await unresolved.first().focus();
     await page.keyboard.press("Enter");
-    assert.match(await page.locator("#toast-message").innerText(), /doesn't exist yet:/i);
+    const topic = page.locator("#graph-topic");
+    await topic.waitFor({ state: "visible" });
+    if (missingTitle) assert.equal(await page.locator("#graph-topic-title").innerText(), missingTitle);
+    assert.equal(await page.locator("#graph-topic-create").isVisible(), false, "hosted previews never create pages");
     assert.match(new URL(page.url()).pathname, /^\/graph\/?$/);
-    console.log("  ok - unresolved node remains non-navigable");
+    await page.keyboard.press("Escape");
+    await topic.waitFor({ state: "hidden" });
+    assert.match(new URL(page.url()).pathname, /^\/graph\/?$/);
+    console.log("  ok - unresolved node opens a topic preview and remains non-navigable");
   }
 
   await capture(page, "graph-ui-" + width + ".png");
@@ -236,7 +255,12 @@ async function validateMapStates(targetPage, width) {
     await capture(targetPage, "map-dense-" + width + ".png");
     await targetPage.locator(".node.unresolved").focus();
     await targetPage.keyboard.press("Enter");
-    assert.match(await targetPage.locator("#toast-message").innerText(), /doesn't exist yet/);
+    // A missing target opens its topic preview in place; closing returns to the map.
+    await targetPage.locator("#graph-topic").waitFor({ state: "visible" });
+    assert.equal(await targetPage.locator("#graph-topic-title").innerText(), "Missing follow-up");
+    assert.match(new URL(targetPage.url()).pathname, /^\/graph\/?$/);
+    await targetPage.keyboard.press("Escape");
+    await targetPage.locator("#graph-topic").waitFor({ state: "hidden" });
     await targetPage.locator("#graph-filters summary").click();
     assert.equal(await targetPage.locator("#focus").evaluate((input) => {
       const r = input.getBoundingClientRect();
@@ -258,9 +282,12 @@ async function readCamera(targetPage) {
 }
 
 async function validateCamera(targetPage) {
-  // A caller with auto-indexing disabled can have a persistent stale-index notice.
-  // Dismiss it through its real control before checking the map controls below it.
-  if (await targetPage.locator("#app-toast").isVisible() && await targetPage.locator("#app-toast").getAttribute("data-source") === "search-maintenance") {
+  // A caller with auto-indexing disabled and a lexical index can have persistent
+  // stale-index and related-note notices. Dismiss them through their real control
+  // before checking the map controls below them (one may queue behind another).
+  for (let shown = 0; shown < 3 && await targetPage.locator("#app-toast").isVisible(); shown++) {
+    const source = await targetPage.locator("#app-toast").getAttribute("data-source");
+    if (!["search-maintenance", "graph-warnings"].includes(source)) break;
     await targetPage.locator("#toast-close").click();
   }
   const rect = await targetPage.getByTestId("graph-svg").boundingBox();

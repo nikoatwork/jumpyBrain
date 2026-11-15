@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 import { indexMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
+import { showSidebar } from "./editor-smoke-helpers.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
@@ -72,7 +74,7 @@ try {
   const desktopMarkdown = await readFile(path.join(root, fixtures.desktop.file), "utf8");
   const mobileMarkdown = await readFile(path.join(root, fixtures.mobile.file), "utf8");
   assert.match(desktopMarkdown, /Saved from desktop notes UI smoke\./);
-  assert.match(desktopMarkdown, /Recovered desktop draft after failed PUT\./);
+  assert.match(desktopMarkdown, /Recovered desktop draft after failed save\./);
   assert.match(mobileMarkdown, /Saved from mobile notes UI smoke\./);
   assertFrontmatterPreserved(desktopMarkdown, fixtures.desktop);
   assertFrontmatterPreserved(mobileMarkdown, fixtures.mobile);
@@ -86,6 +88,7 @@ try {
 async function validateSearchClicks() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 820 } });
   const page = await context.newPage();
+  const transport = await installCollaborationSmokeTransport(page);
   let releaseSave;
   try {
     await openEmptyHome(page, "click");
@@ -93,19 +96,12 @@ async function validateSearchClicks() {
     await searchAndOpen(page, fixtures.desktop, { choose: "click" });
     await assertFullPageEditor(page, fixtures.desktop);
 
-    let saveStarted;
-    const started = new Promise((resolve) => { saveStarted = resolve; });
-    const release = new Promise((resolve) => { releaseSave = resolve; });
-    await page.route(`**/memories/all/documents/${fixtures.desktop.id}`, async (route) => {
-      if (route.request().method() === "PUT") {
-        saveStarted();
-        await release;
-      }
-      await route.continue();
-    });
+    // Hold the live edit (the autosave) while the result gesture is in flight.
+    const heldSave = transport.holdNextRequest("edit");
+    releaseSave = heldSave.release;
     await appendEditorLine(page, "Saved while choosing another search result.");
     await page.locator("#open-search").click();
-    await started;
+    await heldSave.arrived;
     await page.locator("#note-search-input").fill(fixtures.mobile.query);
     const result = page.locator("#search-results [role='option']").filter({ hasText: fixtures.mobile.title }).first();
     await result.waitFor({ state: "visible", timeout: 15_000 });
@@ -132,17 +128,11 @@ async function validateDesktop() {
   const fixture = fixtures.desktop;
   const context = await browser.newContext({ viewport: { width: 1280, height: 820 } });
   const page = await context.newPage();
-  let allowedInjectedPutFailures = 0;
-  let releaseDelayedPut = null;
-  const browserErrors = collectBrowserErrors(page, (response) => {
-    const request = response.request();
-    const matches = allowedInjectedPutFailures > 0
-      && response.status() === 500
-      && request.method() === "PUT"
-      && new URL(response.url()).pathname === `/memories/all/documents/${fixture.id}`;
-    if (matches) allowedInjectedPutFailures -= 1;
-    return matches;
-  });
+  // The shipped editor publishes body edits as live WebSocket source operations
+  // (no body PUT autosave), so faults are injected on the real `/ws` frames.
+  const transport = await installCollaborationSmokeTransport(page);
+  let releaseDelayedEdit = null;
+  const browserErrors = collectBrowserErrors(page);
   await page.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
 
   try {
@@ -158,22 +148,10 @@ async function validateDesktop() {
     const initialBody = await editorMarkdown(page);
     assert.ok(initialBody.length > 5_000, "desktop fixture should exercise a long document");
 
-    // Hold a real PUT until a controlled stale=false search packet has rendered.
+    // Hold a real live edit until a controlled stale=false search packet has rendered.
     // The completed local write must then make the still-open search visibly stale.
-    let delayedPutPending = true;
-    let resolvePutSeen;
-    const putSeen = new Promise((resolve) => { resolvePutSeen = resolve; });
-    const putRelease = new Promise((resolve) => { releaseDelayedPut = resolve; });
-    const documentPattern = `**/memories/all/documents/${fixture.id}`;
-    const delayedPutHandler = async (route) => {
-      if (route.request().method() === "PUT" && delayedPutPending) {
-        delayedPutPending = false;
-        resolvePutSeen();
-        await putRelease;
-      }
-      await route.continue();
-    };
-    await page.route(documentPattern, delayedPutHandler);
+    const delayedEdit = transport.holdNextRequest("edit");
+    releaseDelayedEdit = delayedEdit.release;
 
     const controlledQuery = "controlled-freshness-packet";
     const searchHandler = async (route) => {
@@ -193,7 +171,8 @@ async function validateDesktop() {
         contentType: "application/json",
         body: JSON.stringify({
           recognition: { version: 1, candidateLimit: 120, candidates: 16, matched: 16, partial: true, metadataUnavailable: 16 },
-          results: [...idless, searchHit(fixture, "Controlled fresh search response")],
+          // The open note is hidden from navigation search; another usable note leads.
+          results: [...idless, searchHit(fixture, "Controlled fresh search response"), searchHit(fixtures.mobile, "Controlled fresh search response")],
           index: { stale: false },
         }),
       });
@@ -213,7 +192,7 @@ async function validateDesktop() {
     assert.equal(await editorAtEnd(page), true, "typing leaves a collapsed caret at the end");
     const scrollAfterInput = await panel.evaluate((element) => element.scrollTop);
     assert.ok(Math.abs(scrollAfterInput - scrollBefore) < 150, "typing may reveal its caret but must not jump away from the end of a long note");
-    await putSeen;
+    await delayedEdit.arrived;
 
     // Explicitly cover Command+K in addition to the Control+K entry path above.
     await page.keyboard.press("Meta+k");
@@ -227,13 +206,14 @@ async function validateDesktop() {
     await page.locator("#note-search-input").focus();
     const controlledResult = page.locator("#search-results [role='option']").first();
     await controlledResult.waitFor({ state: "visible", timeout: 15_000 });
-    assert.match(await controlledResult.innerText(), new RegExp(fixture.title));
+    assert.match(await controlledResult.innerText(), new RegExp(fixtures.mobile.title));
     assert.equal(await controlledResult.getAttribute("aria-disabled"), "false", "usable result should lead ID-less hits");
     assert.equal(await page.locator("#search-results [role='option']").count(), 16, "usable and legacy results fit within the current 24-result page");
+    assert.equal(await page.locator("#search-results [role='option']").filter({ hasText: fixture.title }).count(), 0, "the open note is hidden from navigation search");
     assert.equal(await page.locator("#search-refresh-index").isVisible(), false, "controlled packet starts fresh");
 
-    releaseDelayedPut();
-    releaseDelayedPut = null;
+    releaseDelayedEdit();
+    releaseDelayedEdit = null;
     await waitForSaveState(page, "Saved");
     await page.locator("#search-refresh-index").waitFor({ state: "visible", timeout: 15_000 });
     await assertCanonicalBody(fixture, /Saved from desktop notes UI smoke\./);
@@ -247,7 +227,6 @@ async function validateDesktop() {
     assert.equal(await panel.evaluate((element) => element.scrollTop), scrollAfterInput, "modal close should restore long-note scroll");
     assert.equal(await editorMarkdown(page), initialBody + inserted, "search and reconcile must not replace the draft");
     await page.unroute("**/memories/all/search", searchHandler);
-    await page.unroute(documentPattern, delayedPutHandler);
 
     // The note URL is durable and reloads directly into raw-body editing.
     const savedDraft = await editorMarkdown(page);
@@ -279,32 +258,21 @@ async function validateDesktop() {
     await page.goBack();
     await assertFullPageEditor(page, fixture);
 
-    // Fail exactly one PUT, then undo back to the previously saved body. The
-    // response is still unconfirmed: navigation remains guarded until Retry.
-    let failNextPut = true;
-    const failedPutHandler = async (route) => {
-      if (route.request().method() === "PUT" && failNextPut) {
-        failNextPut = false;
-        allowedInjectedPutFailures += 1;
-        await route.fulfill({
-          status: 500,
-          contentType: "application/json",
-          body: JSON.stringify({ error: { code: "smoke_injected_failure", message: "Controlled smoke PUT failure." } }),
-        });
-        return;
-      }
-      await route.continue();
-    };
-    await page.route(documentPattern, failedPutHandler);
+    // Reject exactly one live edit. The private draft needs explicit review:
+    // Undo cannot silently rewrite it and navigation stays guarded until a choice.
+    const failedEdit = transport.rejectNext("edit", { code: "source_unavailable", message: "Controlled smoke live edit failure." });
 
-    const failedDraft = appendLine(await editorMarkdown(page), "Unconfirmed desktop draft after failed PUT.");
-    await appendEditorLine(page, "Unconfirmed desktop draft after failed PUT.");
+    const beforeFailure = await readFile(path.join(root, fixture.file), "utf8");
+    const failedDraft = appendLine(await editorMarkdown(page), "Unconfirmed desktop draft after failed save.");
+    await appendEditorLine(page, "Unconfirmed desktop draft after failed save.");
     assert.equal(await editorMarkdown(page), failedDraft);
-    await waitForSaveState(page, "Save failed");
-    assert.equal(failNextPut, false, "the controlled PUT failure should be consumed");
+    await failedEdit.arrived;
+    await waitForSaveState(page, "Changes need review");
+    assert.equal(failedEdit.used, true, "the controlled live edit failure should be consumed");
     await undoEditor(page);
-    await waitForSaveState(page, "Save failed");
-    assert.equal(await page.getByTestId("graph-note-retry").isVisible(), true, "undo must remain explicitly retryable");
+    await waitForSaveState(page, "Changes need review");
+    assert.equal(await editorMarkdown(page), failedDraft, "undo must not discard a draft awaiting review");
+    assert.equal(await page.locator("#note-recover").isVisible(), true, "the failed draft must remain explicitly reviewable");
 
     await page.evaluate(() => {
       window.__notesSmokePopUrls = [];
@@ -319,27 +287,30 @@ async function validateDesktop() {
     }, noteUrl, { timeout: 15_000 });
     assert.ok((await page.evaluate(() => window.__notesSmokePopUrls)).some((url) => url === "/"),
       "failed popstate save should observe its Back target before restoration");
-    assert.equal(await editorMarkdown(page), savedDraft, "guarded navigation should retain the unconfirmed body");
-    assert.equal(await page.getByTestId("graph-note-retry").isVisible(), true);
+    assert.equal(await editorMarkdown(page), failedDraft, "guarded navigation should retain the unconfirmed body");
+    assert.equal(await page.locator("#note-recover").isVisible(), true);
+    assert.equal(await readFile(path.join(root, fixture.file), "utf8"), beforeFailure, "a rejected edit is not published");
 
-    await page.getByTestId("graph-note-retry").click();
+    await page.locator("#note-recover").click();
+    await page.locator("#document-recovery").waitFor({ state: "visible" });
+    await page.locator("#recovery-reload").click();
     await waitForSaveState(page, "Saved");
     assert.equal(await editorMarkdown(page), savedDraft);
     const confirmedMarkdown = await readFile(path.join(root, fixture.file), "utf8");
-    assert.doesNotMatch(confirmedMarkdown, /Unconfirmed desktop draft after failed PUT\./,
-      "Retry after undo should persist the original body, not the failed draft");
+    assert.equal(confirmedMarkdown, beforeFailure, "choosing the saved version makes no canonical write");
+    assert.doesNotMatch(confirmedMarkdown, /Unconfirmed desktop draft after failed save\./,
+      "the saved version, not the failed draft, should remain canonical");
 
-    const recoveredDraft = appendLine(savedDraft, "Recovered desktop draft after failed PUT.");
-    await appendEditorLine(page, "Recovered desktop draft after failed PUT.");
+    const recoveredDraft = appendLine(savedDraft, "Recovered desktop draft after failed save.");
+    await appendEditorLine(page, "Recovered desktop draft after failed save.");
     assert.equal(await editorMarkdown(page), recoveredDraft);
     await waitForSaveState(page, "Saved");
-    await assertCanonicalBody(fixture, /Recovered desktop draft after failed PUT\./);
+    await assertCanonicalBody(fixture, /Recovered desktop draft after failed save\./);
     await capture(page, "notes-desktop.png");
-    assert.equal(allowedInjectedPutFailures, 0, "exactly one controlled HTTP failure should be observed");
     assert.deepEqual(browserErrors, [], "desktop browser console errors");
     console.log("  ok - desktop search/freshness/long-note/history/failure recovery");
   } finally {
-    if (releaseDelayedPut) releaseDelayedPut();
+    if (releaseDelayedEdit) releaseDelayedEdit();
     await context.close();
   }
 }
@@ -351,29 +322,15 @@ async function validateMobile() {
     hasTouch: true,
   });
   const page = await context.newPage();
-  let allowedAuthFailures = 0;
-  let allowedConnectionChecks = 0;
+  const transport = await installCollaborationSmokeTransport(page);
   const wrongKey = "deliberately-wrong-mobile-key";
-  const browserErrors = collectBrowserErrors(page, (response) => {
-    const request = response.request();
-    // The editor can reconcile its open document while credentials are wrong.
-    // Scope this expected failure to that fixture and the injected credential,
-    // including an in-flight response that arrives after credentials recover.
-    if (response.status() === 401 && request.method() === "GET"
-        && [`/memories/all/documents/${fixture.id}`, "/memories/all/attention"].includes(new URL(response.url()).pathname)
-        && request.headers().authorization === `Bearer ${wrongKey}`) return true;
-    if (allowedConnectionChecks > 0 && response.status() === 401 && request.method() === "GET"
-        && new URL(response.url()).pathname === "/memories/all/recent") {
-      allowedConnectionChecks--;
-      return true;
-    }
-    const matches = allowedAuthFailures > 0
-      && response.status() === 401
-      && request.method() === "PUT"
-      && new URL(response.url()).pathname === `/memories/all/documents/${fixture.id}`;
-    if (matches) allowedAuthFailures -= 1;
-    return matches;
-  });
+  // Reads made with the injected credential fail (document, sidebar, session,
+  // capability and drawing reads); only GETs carrying that key are expected,
+  // including late in-flight responses. Any rejected mutation stays an error.
+  const rejectedKeyRead = (response) => response.status() === 401
+    && response.request().method() === "GET"
+    && response.request().headers().authorization === `Bearer ${wrongKey}`;
+  const browserErrors = collectBrowserErrors(page, rejectedKeyRead);
   await page.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
 
   try {
@@ -381,41 +338,52 @@ async function validateMobile() {
     await page.locator("#home-search").tap();
     await searchAndOpen(page, fixture, { choose: "tap" });
     await assertFullPageEditor(page, fixture);
+    const beforeFailure = await readFile(path.join(root, fixture.file), "utf8");
 
-    allowedConnectionChecks = 1;
-    const connectionCheck = page.waitForResponse((response) => response.status() === 401
-      && response.request().method() === "GET" && new URL(response.url()).pathname === "/memories/all/recent");
+    // A rejected key locks live editing with an explicit explanation and retry;
+    // nothing is written and navigation (including Connect) stays usable.
+    const connectionCheck = page.waitForResponse(rejectedKeyRead);
     await setConnectionKey(page, wrongKey);
     await connectionCheck;
-    assert.equal(allowedConnectionChecks, 0, "wrong key should fail the explicit connection check once");
-    allowedAuthFailures += 1;
+    await page.locator("#note-load-retry").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#note-editor").getAttribute("contenteditable"), "false", "a rejected key cannot edit");
+    assert.match(await page.locator("#connection-message").textContent(), /access key was not accepted/i);
+    await assertMobileLayout(page, { failureControl: "#note-load-retry" });
+    await capture(page, "notes-mobile-auth-failure.png");
+
+    // Connect is itself one of the wrapped controls; the accepted key reopens editing.
+    await setConnectionKey(page, apiKey);
+    await page.waitForFunction(() => document.querySelector("#note-editor")?.isContentEditable === true);
+    assert.equal(await readFile(path.join(root, fixture.file), "utf8"), beforeFailure, "auth failure makes no write");
+
+    // A failed live save keeps the draft visible and reviewable within the phone layout.
+    const rejected = transport.rejectNext("edit", { code: "source_unavailable", message: "Controlled mobile live edit failure." });
     const mobileDraft = appendLine(await editorMarkdown(page), "Saved from mobile notes UI smoke.");
     await appendEditorLine(page, "Saved from mobile notes UI smoke.");
     assert.equal(await editorMarkdown(page), mobileDraft);
-    await waitForSaveState(page, "Save failed");
-    assert.equal(allowedAuthFailures, 0, "mobile save should receive exactly one real auth failure");
-    assert.match(await page.getByTestId("graph-note-save-state").getAttribute("aria-label"), /401|Unauthorized|Invalid API key/i);
-
-    // Failure controls wrap without widening the document, and every nav action
-    // remains on-screen and enabled at a narrow mobile viewport.
-    await assertMobileLayout(page);
+    await rejected.arrived;
+    await waitForSaveState(page, "Changes need review");
+    assert.match(await page.getByTestId("graph-note-save-state").getAttribute("aria-label"), /haven't been saved/i);
+    assert.equal(await readFile(path.join(root, fixture.file), "utf8"), beforeFailure, "a rejected edit is not published");
+    await assertMobileLayout(page, { failureControl: "#note-recover" });
     await capture(page, "notes-mobile-save-failure.png");
 
-    // Connect is itself one of the wrapped controls; correct credentials and
-    // use the explicit Retry to preserve and persist the failed draft.
-    await setConnectionKey(page, apiKey);
-    assert.equal(await editorMarkdown(page), mobileDraft, "auth recovery should retain the failed draft");
-    await page.getByTestId("graph-note-retry").tap();
+    // Explicit review publishes the retained draft.
+    await page.locator("#note-recover").tap();
+    await page.locator("#document-recovery").waitFor({ state: "visible" });
+    await page.waitForFunction(() => !document.getElementById("recovery-publish").disabled && !document.getElementById("recovery-publish").hidden);
+    await page.locator("#recovery-publish").tap();
     await waitForSaveState(page, "Saved");
+    assert.equal(await editorMarkdown(page), mobileDraft, "review should retain the failed draft");
     await assertCanonicalBody(fixture, /Saved from mobile notes UI smoke\./);
-    await assertMobileLayout(page, { includeRetry: false });
+    await assertMobileLayout(page);
 
     await page.reload();
     await assertFullPageEditor(page, fixture);
     assert.equal(await editorMarkdown(page), mobileDraft);
     await capture(page, "notes-mobile.png");
     assert.deepEqual(browserErrors, [], "mobile browser console errors");
-    console.log("  ok - mobile failed-save layout/auth/retry/reload");
+    console.log("  ok - mobile auth failure/live save review/recovery/reload");
   } finally {
     await context.close();
   }
@@ -495,11 +463,19 @@ async function assertFullPageEditor(page, fixture) {
   assert.doesNotMatch(body, /^---(?:\r?\n|$)/);
   assert.doesNotMatch(body, new RegExp(`^id:\\s*${fixture.id}`, "m"));
   assert.equal(await page.getByTestId("graph-svg").isVisible(), false);
-  assert.equal(await page.locator("#home-link").isVisible(), true);
-  assert.equal(await page.locator("#graph-link").isVisible(), true);
+  if (page.viewportSize().width > 680) {
+    assert.equal(await page.locator("#home-link").isVisible(), true);
+    assert.equal(await page.locator("#graph-link").isVisible(), true);
+  } else {
+    // Narrow note entry dismisses the sidebar so the body is visible first;
+    // navigation stays one explicit toggle away.
+    assert.equal(await page.locator("#app-sidebar").isVisible(), false, "narrow note entry shows the note first");
+    assert.equal(await page.locator("#toggle-sidebar").isVisible(), true, "navigation remains reachable");
+  }
 }
 
 async function setConnectionKey(page, key) {
+  await showSidebar(page);
   await page.locator("#open-connection").tap();
   const dialog = page.locator("#connection");
   await dialog.waitFor({ state: "visible" });
@@ -509,10 +485,12 @@ async function setConnectionKey(page, key) {
   await dialog.waitFor({ state: "hidden" });
 }
 
-async function assertMobileLayout(page, { includeRetry = true } = {}) {
-  const layout = await page.evaluate((shouldIncludeRetry) => {
+async function assertMobileLayout(page, { failureControl = null } = {}) {
+  // Narrow note entry dismisses the sidebar; its navigation is one toggle away.
+  await showSidebar(page);
+  const layout = await page.evaluate((failureSelector) => {
     const selectors = ["#home-link", "#open-search", "#graph-link", "#open-connection"];
-    if (shouldIncludeRetry) selectors.splice(1, 0, "#note-retry");
+    if (failureSelector) selectors.splice(1, 0, failureSelector);
     return {
       viewportWidth: window.innerWidth,
       documentWidth: document.documentElement.scrollWidth,
@@ -531,7 +509,7 @@ async function assertMobileLayout(page, { includeRetry = true } = {}) {
         };
       }),
     };
-  }, includeRetry);
+  }, failureControl);
   assert.ok(layout.documentWidth <= layout.viewportWidth,
     `document scrollWidth ${layout.documentWidth} must fit viewport ${layout.viewportWidth}`);
   assert.ok(layout.bodyWidth <= layout.viewportWidth,
@@ -602,7 +580,7 @@ function collectBrowserErrors(page, expectedHttpFailure = () => false) {
   const errors = [];
   page.on("console", (message) => {
     // Chromium mirrors HTTP failures to console without URL details. Response
-    // events below retain enough provenance to allow only the injected PUT.
+    // events below retain enough provenance to allow only injected failures.
     if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) errors.push(message.text());
   });
   page.on("pageerror", (error) => errors.push(error.message));
@@ -612,6 +590,9 @@ function collectBrowserErrors(page, expectedHttpFailure = () => false) {
     // Keep unexpected transport failures and every mutation failure visible.
     if (request.method() === "GET" && code === "net::ERR_ABORTED"
         && ["/memories/all/recent", "/memories/all/attention"].includes(new URL(request.url()).pathname)) return;
+    // Related-page discovery aborts superseded read-only searches on navigation.
+    if (request.method() === "POST" && code === "net::ERR_ABORTED"
+        && new URL(request.url()).pathname === "/memories/all/search") return;
     errors.push(`request failed: ${request.method()} ${request.url()} (${code})`);
   });
   page.on("response", (response) => {

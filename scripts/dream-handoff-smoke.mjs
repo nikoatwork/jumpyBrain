@@ -56,7 +56,9 @@ export async function validateDreamHandoff({ browser, url, apiKey, screenshotDir
       await page.locator("#graph-link").click();
       const response = await graphResponse;
       assert.equal(response.status(), 200, "graph must come from the real authenticated fixture");
-      assert.equal(await response.request().headerValue("authorization"), `Bearer ${apiKey}`);
+      // Hosted pages exchange the fragment key for an HttpOnly /session cookie and
+      // send only the session marker afterwards; the raw key is not reused.
+      assert.equal(await response.request().headerValue("authorization"), "Bearer browser-session");
       const graph = await response.json();
       const nodes = graph.nodes.filter((node) => node.nodeKind === "document" && node.documentId);
       assert.ok(nodes.length > 0, "real graph needs canonical fixture documents");
@@ -87,9 +89,12 @@ export async function validateDreamHandoff({ browser, url, apiKey, screenshotDir
       assert.equal((await filtered).status(), 200);
       await readyGraph(page);
       assert.ok(await page.getByTestId("graph-node").count() > 0, "filtered real graph remains behind dialog");
-      // This caller disables automatic indexing; dismiss its persistent stale-index
-      // notice through the UI before exercising the narrow map controls below it.
-      if (await page.locator("#app-toast").isVisible() && await page.locator("#app-toast").getAttribute("data-source") === "search-maintenance") {
+      // This caller disables automatic indexing and uses a lexical index; dismiss
+      // the persistent stale-index and related-note notices through the UI before
+      // exercising the narrow map controls below them (one may queue behind another).
+      for (let shown = 0; shown < 3 && await page.locator("#app-toast").isVisible(); shown++) {
+        const source = await page.locator("#app-toast").getAttribute("data-source");
+        if (!["search-maintenance", "graph-warnings"].includes(source)) break;
         await page.locator("#toast-close").click();
       }
       const originalCamera = await page.locator("#viewport").getAttribute("transform");

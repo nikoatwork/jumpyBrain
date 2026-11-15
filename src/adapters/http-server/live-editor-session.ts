@@ -153,7 +153,9 @@ export function createLiveEditorSession(options: Options): LiveEditorSession {
       if (!active()) return false;
       if (blocked) return !state.dirty;
       if (!current()) return false;
-      const saved = collaboration ? await collaboration.flush() : loaded && !state.dirty;
+      // Before live editing opens there is no draft to protect, including when the
+      // initial read failed (for example a rejected key): leaving must stay possible.
+      const saved = collaboration ? await collaboration.flush() : !state.dirty;
       return current() && saved;
     },
     async retry() { return current() && Boolean(await collaboration?.resolveConflict("draft")); },

@@ -216,3 +216,16 @@ test("read-only and unavailable editing keep confirmed source readable without p
   assert.equal(await h.session.flush(), true); assert.equal(await h.session.reloadSaved(), true);
   assert.equal(h.frames.some(f => ["edit", "title", "resync"].includes(f.method)), false);
 });
+
+test("an editor whose initial read never loaded has no draft and does not block leaving", async () => {
+  const session = createLiveEditorSession({ generation: 1, documentId: "note", clientId: "tab",
+    drafts: createCollaborationDraftStore(memoryStorage()), isCurrent: () => true, scope: () => "scope",
+    connection: async () => { throw new Error("unused"); }, reopen: async () => true,
+    editor: { getMarkdown: () => "", applyCollaborativeMarkdown: () => ({ status: "applied" }) },
+    onChange() {},
+  });
+  try {
+    assert.equal(session.state.loaded, false); assert.equal(session.state.dirty, false);
+    assert.equal(await session.flush(), true, "a failed or pending initial read must not trap navigation or credential changes");
+  } finally { session.cancel(); }
+});
