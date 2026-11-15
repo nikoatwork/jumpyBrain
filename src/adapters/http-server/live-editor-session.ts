@@ -153,8 +153,9 @@ export function createLiveEditorSession(options: Options): LiveEditorSession {
       if (!active()) return false;
       if (blocked) return !state.dirty;
       if (!current()) return false;
-      // Before live editing opens there is no draft to protect, including when the
-      // initial read failed (for example a rejected key): leaving must stay possible.
+      // Without a live owner nothing can have been typed (input needs one), so a
+      // note that never opened, e.g. after a rejected credential, has nothing to
+      // save and must not block navigation or a credential change.
       const saved = collaboration ? await collaboration.flush() : !state.dirty;
       return current() && saved;
     },
