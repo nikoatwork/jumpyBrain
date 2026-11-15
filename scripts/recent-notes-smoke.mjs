@@ -1,16 +1,21 @@
 // Disposable browser test: no QMD, real memory, or stored credentials required.
 // npm run build && npx --package=playwright node scripts/recent-notes-smoke.mjs
 import assert from "node:assert/strict";
-import { replaceEditorText } from "./editor-smoke-helpers.mjs";
+import { replaceEditorText, showSidebar } from "./editor-smoke-helpers.mjs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-recent-smoke-"));
 const key = "disposable-recent-key";
 let server, browser;
+// The connection control is icon-only; its accessible name carries the state.
+const connectionName = (page) => page.locator("#open-connection").getAttribute("aria-label");
+// Hosted browser credentials live only in an HttpOnly session cookie, never in JavaScript storage.
+const sessionCookies = async (page) => (await page.context().cookies()).filter((cookie) => cookie.name.startsWith("jumpybrain_session_v2_"));
 try {
   await mkdir(path.join(root, "notes"));
   for (let n = 1; n <= 10; n++) {
@@ -29,31 +34,35 @@ try {
     const errors = [], requests = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("request", (request) => requests.push(request.url()));
+    // Editor saves publish over the live WebSocket; inject failures there.
+    const liveTransport = await installCollaborationSmokeTransport(page);
     await page.goto(server.url);
     await page.locator("#recent-connect").waitFor({ state: "visible" });
-    assert.equal(await page.locator("#open-connection").innerText(), "Connect");
+    assert.equal(await connectionName(page), "Connect · Connection settings");
     await page.locator("#recent-connect").click();
     await page.locator("#api-key").fill("wrong-key");
     await page.locator('#connection-form button[type="submit"]').click();
     await page.locator("#recent-connect").waitFor({ state: "visible" });
-    assert.equal(await page.locator("#open-connection").innerText(), "Connect");
+    assert.equal(await connectionName(page), "Connect · Connection settings");
     await page.locator("#open-connection").click();
     await page.locator("#api-key").fill(key);
     await page.locator('#connection-form button[type="submit"]').click();
     await page.waitForFunction(() => document.querySelectorAll(".recent-link").length === 8);
-    assert.equal(await page.locator("#open-connection").innerText(), "Connected");
+    assert.equal(await connectionName(page), "Connected · Connection settings");
     await page.reload();
-    await page.waitForFunction(() => document.querySelector("#open-connection").textContent === "Connected");
+    await page.waitForFunction(() => document.querySelector("#open-connection").getAttribute("aria-label") === "Connected · Connection settings");
+    assert.equal((await sessionCookies(page)).every((cookie) => cookie.httpOnly), true);
+    assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage })).then((stored) => stored.includes(key)), false, "the key never enters JavaScript storage");
     await page.locator("#open-connection").click();
     assert.equal(await page.locator("#api-key").getAttribute("type"), "password");
+    assert.equal(await page.locator("#api-key").inputValue(), "", "a cookie session never re-exposes the key");
+    await page.locator("#api-key").fill("canceled-edit");
     await page.locator("#toggle-api-key").click();
     assert.equal(await page.locator("#api-key").getAttribute("type"), "text");
-    assert.equal(await page.locator("#api-key").inputValue(), key);
-    await page.locator("#api-key").fill("canceled-edit");
     await page.keyboard.press("Escape");
     await page.locator("#open-connection").click();
-    assert.equal(await page.locator("#api-key").getAttribute("type"), "password");
-    assert.equal(await page.locator("#api-key").inputValue(), key);
+    assert.equal(await page.locator("#api-key").getAttribute("type"), "password", "reopening masks the field");
+    assert.equal(await page.locator("#api-key").inputValue(), "", "canceled edits are discarded");
     await page.locator("#close-connection").click();
     assert.equal(requests.some((url) => /graph\.json|\/documents\//.test(url)), false);
     assert.equal(await page.locator("#recent-list img").count(), 0);
@@ -64,6 +73,8 @@ try {
     await page.locator("#note-editor").waitFor({ state: "visible" });
     const editedBody = `Edited from recent notes at ${width}px.`;
     await replaceEditorText(page, editedBody);
+    // Narrow note routes dismiss the sidebar transiently; reopening it is explicit.
+    await showSidebar(page);
     await page.locator("#home-link").click();
     await page.waitForFunction(() => document.querySelector(".recent-link span")?.textContent === "Note 3");
     await page.locator(".recent-link").first().focus();
@@ -85,30 +96,36 @@ try {
     // Disconnect must not discard a draft if saving fails.
     await page.locator(".recent-link").first().click();
     await page.locator("#note-editor").waitFor({ state: "visible" });
-    await page.route("**/memories/all/documents/*", (route) => route.request().method() === "PUT"
-      ? route.fulfill({ status: 500, contentType: "application/json", body: '{}' }) : route.continue());
+    const failedEdit = liveTransport.rejectNext("edit", { code: "source_unavailable" });
     const pendingBody = `Pending disconnect draft ${width}`;
     await replaceEditorText(page, pendingBody);
+    await failedEdit.arrived;
+    await showSidebar(page);
     await page.locator("#open-connection").click();
     await page.locator("#disconnect").click();
     await page.waitForFunction(() => document.querySelector("#connection-message").textContent.includes("Could not disconnect"));
-    assert.equal(await page.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), key);
-    await page.unroute("**/memories/all/documents/*");
+    assert.equal((await sessionCookies(page)).length, 1, "failed disconnect keeps the session");
+    assert.equal(await connectionName(page), "Connected · Connection settings");
     await page.locator("#close-connection").click();
-    await page.locator("#note-retry").click();
+    // A rejected live save requires explicit review before publishing the draft.
+    await page.locator("#note-recover").click();
+    await page.waitForFunction(() => document.getElementById("document-recovery").open && !document.getElementById("recovery-publish").disabled);
+    await page.locator("#recovery-publish").click();
     await page.waitForFunction(() => document.querySelector("#note-save-state").textContent === "Saved");
+    assert.ok((await readFile(path.join(root, "notes/3.md"), "utf8")).includes(pendingBody));
     await replaceEditorText(page, pendingBody + " saved on disconnect");
+    await showSidebar(page);
     await page.locator("#open-connection").click();
     await page.locator("#disconnect").click();
     await page.locator("#connection").waitFor({ state: "hidden" });
     await page.locator("#recent-connect").waitFor({ state: "visible" });
-    assert.equal(await page.locator("#open-connection").innerText(), "Connect");
-    assert.equal(await page.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), null);
+    assert.equal(await connectionName(page), "Connect · Connection settings");
+    assert.equal((await sessionCookies(page)).length, 0, "disconnect clears the session cookie");
     assert.equal(await page.locator(".recent-link").count(), 0);
-    assert.ok((await readFile(path.join(root, "notes/3.md"), "utf8")).includes(pendingBody));
+    assert.ok((await readFile(path.join(root, "notes/3.md"), "utf8")).includes(pendingBody + " saved on disconnect"), "disconnect saves the pending note first");
     await page.reload();
     await page.locator("#recent-connect").waitFor({ state: "visible" });
-    assert.equal(await page.locator("#open-connection").innerText(), "Connect");
+    assert.equal(await connectionName(page), "Connect · Connection settings");
     assert.deepEqual(errors, []);
     await page.close();
     console.log(`PASS recent notes browser ${width}px`);
@@ -129,8 +146,7 @@ try {
       `title: Activity ${n + 1}`, metadata, "type: note", "---", "Current body.", ""].join("\n"));
     for (let n = 0; n < paths.length; n++) await writeFile(paths[n], contents[n]);
     const page = await browser.newPage({ viewport: { width, height: 820 }, timezoneId: "America/Los_Angeles" });
-    await page.addInitScript((key) => localStorage.setItem("jumpybrain.graph.apiKey", key), key);
-    await page.goto(server.url);
+    await page.goto(`${server.url}/#apiKey=${key}`);
     await page.locator(".recent-link").nth(2).waitFor();
     assert.equal(await page.locator("#recent-title").innerText(), "Recent activity");
     assert.deepEqual(await page.locator(".recent-date").allTextContents(), ["Updated Mar 2, 2024", "Created Feb 1, 2024", "Date unknown"]);
