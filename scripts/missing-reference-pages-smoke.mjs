@@ -13,6 +13,7 @@ import { startCompanionGateway } from "../integrations/macos-companion/gateway.m
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { appendEditorText, editorEnd, editorMarkdown, editorSelection, replaceEditorText, selectEditorText } from "./editor-smoke-helpers.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -24,7 +25,6 @@ async function until(predicate, message) {
   while (Date.now() < deadline) { if (await predicate()) return; await delay(30); }
   throw new Error(message || "condition timed out");
 }
-function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; }
 async function saved(page) { await page.waitForFunction(() => document.querySelector("#note-save-state")?.textContent === "Saved"); }
 async function settle(page) { await page.waitForTimeout(1100); }
 function endpoint(request, suffix) { return new URL(request.url()).pathname === "/memories/all/" + suffix; }
@@ -71,12 +71,15 @@ async function fixture(mobile) {
     await writeFile(file, `---\nid: ${JSON.stringify(id)}\ntype: note\ntitle: ${JSON.stringify(title)}\n---\n${body}\n`);
     return { id, title, file };
   }
-  async function open(source) {
+  // Editor saves publish over the live WebSocket; faults are injected there.
+  async function open(source, withTransport = false) {
     const page = await context.newPage();
+    const transport = withTransport ? await installCollaborationSmokeTransport(page) : undefined;
     await page.goto(gateway.url + "/?note=" + source.id + "&brain=" + gateway.state().activeId + "#companion=" + controlKey);
     await page.locator("#note-editor").waitFor();
     await page.waitForFunction(title => companionRegistered && !companionFrozen && document.querySelector("#note-name")?.value === title, source.title);
     assert.equal(await page.locator("#reference-creation-retry").count(), 1, "rebuild dist: production missing-reference creation controls are required");
+    if (transport) { await page.waitForFunction(() => state.editor?.state.liveHasOpened); return { page, transport }; }
     return page;
   }
   async function resolve(title) {
@@ -120,7 +123,8 @@ async function activation(f, mobile) {
     const target = await f.found(missing);
     await page.waitForURL(url => url.searchParams.get("note") === target.id);
     await page.waitForFunction(title => document.querySelector("#note-name")?.value === title, missing);
-    assert.equal((await editorMarkdown(page)).trim(), `# ${missing}`, "new page contains only its title heading");
+    // Since ac2e3fcf the frontmatter title is canonical: a reference page is frontmatter only.
+    assert.equal((await editorMarkdown(page)).trim(), "", "new page has an empty body; the title is its heading");
     await appendEditorText(page, "Blank page can be edited"); await saved(page);
     await page.reload();
     await page.waitForFunction(() => richEditor?.getMarkdown().includes("Blank page can be edited"));
@@ -131,22 +135,21 @@ async function activation(f, mobile) {
 async function completed(f, mobile, method) {
   const old = "Hydrated old " + randomUUID(), title = method + " completed " + randomUUID();
   const source = await f.put(`Source [[${old}]]\n\nWork: `);
-  const page = await f.open(source), requests = [];
+  const { page, transport } = await f.open(source, true), requests = [];
   page.on("request", request => { if (endpoint(request, "ensure-title")) requests.push(request); });
   let release;
   try {
     await settle(page);
-    const gate = deferred(); let saving = false;
-    release = gate.resolve;
-    await page.route("**/memories/all/documents/*", async route => {
-      if (route.request().method() === "PUT") { saving = true; await gate.promise; }
-      await route.continue();
-    });
+    // Hold the live edit carrying the completed reference until it is inspected.
+    const held = transport.holdNextRequest("edit");
+    release = held.release;
     await editorEnd(page);
     if (method === "typed") await page.keyboard.type(`[[${title}]]`);
     else await paste(page, `[[${title}]]`);
     const selection = await editorSelection(page), draft = await editorMarkdown(page);
-    await until(() => saving, "completed reference did not trigger a source save");
+    const edit = await Promise.race([held.arrived, delay(15000).then(() => { throw new Error("completed reference did not trigger a source save"); })]);
+    assert.ok(edit.params.operations.some(operation => operation.insert.includes(`[[${title}]]`)), "the held edit carries the completed reference");
+    await settle(page);
     assert.equal(requests.length, 0, "target creation must wait for confirmed source save");
     assert.equal((await f.resolve(title)).status, "missing");
     release();
@@ -176,20 +179,24 @@ async function inert(f) {
 }
 
 async function failedSave(f) {
-  const title = "Failed save " + randomUUID(), source = await f.put("Source paragraph"), page = await f.open(source), requests = [];
+  const title = "Failed save " + randomUUID(), source = await f.put("Source paragraph"), { page, transport } = await f.open(source, true), requests = [];
   page.on("request", request => { if (endpoint(request, "ensure-title")) requests.push(request); });
   try {
-    await page.route("**/memories/all/documents/*", route => route.request().method() === "PUT"
-      ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { code: "smoke_save_failed", message: "Disposable save outage" } }) }) : route.continue());
+    // A rejected live publication needs explicit review: Review -> Keep my changes.
+    const rejected = transport.rejectNext("edit", { code: "source_unavailable", message: "Disposable save outage" });
     await appendEditorText(page, ` [[${title}]]`);
-    await page.waitForFunction(() => document.querySelector("#note-save-state")?.textContent === "Save failed");
+    await rejected.arrived;
+    await page.waitForFunction(() => document.querySelector("#note-save-state")?.textContent === "Changes need review");
     await settle(page);
     assert.equal(requests.length, 0);
     assert.equal((await f.resolve(title)).status, "missing");
     assert.ok((await editorMarkdown(page)).includes(`[[${title}]]`), "failed save retains the draft");
     assert.ok(!(await readFile(source.file, "utf8")).includes(title));
-    await page.unroute("**/memories/all/documents/*");
-    await page.locator("#note-retry").click(); await saved(page); await f.found(title);
+    await page.locator("#note-recover").click();
+    await page.waitForFunction(() => document.getElementById("document-recovery").open && !document.getElementById("recovery-publish").disabled);
+    await page.getByRole("button", { name: "Keep my changes", exact: true }).click();
+    await saved(page); await f.found(title);
+    assert.ok((await readFile(source.file, "utf8")).includes(`[[${title}]]`), "kept draft reaches the canonical file");
     assert.equal(await f.count(title), 1, "explicit source-save recovery creates the target once");
   } finally { await f.close(page); }
 }
