@@ -1,12 +1,13 @@
 // Production shell, disposable memory, and real navigation/persistence; no QMD required.
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { appendEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-sidebar-"));
 const apiKey = "disposable-sidebar-key";
@@ -28,6 +29,8 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 850 } });
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
+  // Editor saves publish over the live WebSocket; inject failures there.
+  const liveTransport = await installCollaborationSmokeTransport(page);
   await page.goto(`${server.url}/?note=${ids[0]}#apiKey=${apiKey}`);
   await page.locator("#note-editor").waitFor();
   await page.locator("#toggle-sidebar").click();
@@ -38,7 +41,7 @@ try {
   assert.equal(await page.locator("#app-sidebar").isVisible(), true);
   await page.locator("#sidebar-resize").focus();
   await page.keyboard.press("ArrowRight");
-  assert.equal(await page.locator("#sidebar-resize").getAttribute("aria-valuenow"), "296");
+  assert.equal(await page.locator("#sidebar-resize").getAttribute("aria-valuenow"), "336", "ArrowRight widens the 320px default by 16px");
   const grip = await page.locator("#sidebar-resize").boundingBox();
   await page.mouse.move(grip.x + 2, grip.y + grip.height / 2);
   await page.mouse.down(); await page.mouse.move(340, grip.y + grip.height / 2); await page.mouse.up();
@@ -109,22 +112,27 @@ try {
   await page.locator("#note-editor").waitFor();
   assert.equal(await page.locator(`#sidebar-recent .is-pinned [data-page-pin="${ids[0]}"]`).getAttribute("aria-pressed"), "true");
   // A failed save blocks page-row navigation and retains the draft and current row.
-  await page.route("**/memories/all/documents/**", async (route) => {
-    if (route.request().method() === "PUT") await route.fulfill({ status: 500, contentType: "application/json", body: '{"error":{"message":"Fixture save unavailable"}}' });
-    else await route.continue();
-  });
+  // Rejected live publication requires explicit review (Review changes -> Keep my changes).
+  const failedEdit = liveTransport.rejectNext("edit", { code: "source_unavailable", message: "Fixture save unavailable" });
   await appendEditorText(page, " Keep this draft.");
+  await failedEdit.arrived;
   const draft = await editorMarkdown(page);
   await page.locator("#sidebar-recent li:not(.is-pinned) a").first().click();
-  await page.waitForFunction(() => document.querySelector("#note-save-state").dataset.state === "failed");
-  assert.equal(new URL(page.url()).searchParams.get("note"), ids[0]);
+  await page.waitForFunction(() => state.editor.state.saveStatus === "failed" && !state.editor.state.navigationPending);
+  assert.equal(new URL(page.url()).searchParams.get("note"), ids[0], "failed save blocks sidebar navigation");
   assert.equal(await editorMarkdown(page), draft);
-  await page.unroute("**/memories/all/documents/**");
-  await page.locator("#note-retry").click();
+  assert.equal(await page.locator('#sidebar-recent .is-pinned [aria-current="page"]').count(), 1, "current row stays selected");
+  assert.doesNotMatch(await readFile(path.join(root, "pages/page-0.md"), "utf8"), /Keep this draft/);
+  await page.locator("#note-recover").click();
+  await page.waitForFunction(() => document.getElementById("document-recovery").open && !document.getElementById("recovery-publish").disabled);
+  await page.locator("#recovery-publish").click();
   await page.waitForFunction(() => document.querySelector("#note-save-state").dataset.state === "saved");
+  assert.match(await readFile(path.join(root, "pages/page-0.md"), "utf8"), /Keep this draft\./, "reviewed draft is published");
   const graph = await page.locator("#graph-link").boundingBox();
-  const recent = await page.locator("#sidebar-recent").boundingBox();
-  assert.ok(graph.y > recent.y + recent.height, "Graph sits below the page lists");
+  // Page lists scroll independently inside .nav-library; the footer stays below that region.
+  const library = await page.locator(".nav-library").boundingBox();
+  assert.ok(graph.y >= library.y + library.height, "Graph sits below the page lists");
+  assert.equal(await page.locator(".sidebar-attention-scroll").evaluate(el => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto"), true, "long page lists scroll within the sidebar");
   const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
   if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
   for (const theme of ["light", "dark"]) {
