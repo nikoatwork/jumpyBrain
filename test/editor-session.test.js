@@ -216,3 +216,19 @@ test("read-only and unavailable editing keep confirmed source readable without p
   assert.equal(await h.session.flush(), true); assert.equal(await h.session.reloadSaved(), true);
   assert.equal(h.frames.some(f => ["edit", "title", "resync"].includes(f.method)), false);
 });
+
+test("a note whose read and live connection were both rejected has nothing to flush", async () => {
+  // E.g. a changed, rejected hosted key: neither the canonical read nor /capabilities
+  // succeeds, so nothing was shown or typed; a corrected key must be able to replace it.
+  const rejected = Object.assign(new Error("Unauthorized"), { status: 401 });
+  const session = createLiveEditorSession({ generation: 1, documentId: "note", clientId: "tab",
+    isCurrent: () => true, scope: () => "brain/principal/tab",
+    connection: async () => { throw rejected; }, reopen: async () => false,
+    editor: { getMarkdown: () => "", applyCollaborativeMarkdown: () => ({ status: "applied" }) }, onChange() {} });
+  await assert.rejects(session.connect(), rejected);
+  assert.equal(session.state.loaded, false); assert.equal(session.state.liveHasOpened, false);
+  assert.equal(session.state.dirty, false);
+  assert.equal(await session.flush(), true);
+  session.cancel();
+  assert.equal(await session.flush(), false, "a retired session still never approves navigation");
+});
