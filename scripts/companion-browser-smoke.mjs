@@ -48,7 +48,7 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/favicon.svg") { response.writeHead(204); response.end(); return; }
     let raw = ""; for await (const chunk of request) raw += chunk;
     const body = raw ? JSON.parse(raw) : undefined;
-    requests.push({ path: url.pathname, body, generation, headers: request.headers });
+    requests.push({ path: url.pathname, method: request.method, body, generation, headers: request.headers });
     if (url.pathname === "/companion/session") {
       if (body?.token !== "fixture-token") { error(response, "session_invalid", 401); return; }
       response.setHeader("Set-Cookie", "fixture-session=ok; HttpOnly; SameSite=Strict; Path=/"); json(response, {}); return;
@@ -176,7 +176,9 @@ try {
   await settings.evaluate(() => colorTheme.setPreference("system"));
   assert.equal(new URL(settings.url()).hash, "");
   assert.equal(await settings.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), null, "legacy local-server credential must be forgotten");
-  assert.equal(requests.some((item) => item.path.startsWith("/memories/")), false, "settings startup needs no memory fetch");
+  // Boards live in the brain (Settings → Boards and the sidebar list them), so the board
+  // collection is the only memory read Settings startup may make: no notes, attention or search.
+  assert.deepEqual(requests.filter((item) => item.path.startsWith("/memories/") && !(item.path === "/memories/all/boards" && item.method === "GET")).map((item) => item.path), [], "settings startup needs no memory fetch beyond the board collection");
   await settings.waitForFunction(() => document.getElementById("extension-status").textContent === "No extensions installed.");
   assert.equal(await settings.locator(".extension-palette").isVisible(), false, "no palette control without custom themes");
   // Inspect the shipped Settings, including long destinations and touch-sized icon actions.
