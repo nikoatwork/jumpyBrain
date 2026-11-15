@@ -6,7 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
-import { editorMarkdown, replaceEditorText, selectEditorText, undoEditor, appendEditorText, openNoteFormatting } from './editor-smoke-helpers.mjs';
+import { editorMarkdown as editorSource, replaceEditorText, selectEditorText, undoEditor, appendEditorText, openNoteFormatting } from './editor-smoke-helpers.mjs';
+import { installCollaborationSmokeTransport } from './collaboration-smoke-transport.mjs';
+// The live editor keeps the canonical source's newline style once it adopts a
+// published snapshot; exact CRLF bytes are asserted on the file instead.
+const editorMarkdown = async page => (await editorSource(page)).replace(/\r\n/g, '\n');
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-editor-feedback-'));
 const output = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || '/tmp/jumpybrain-editor-feedback-qa';
 const id = 'mem_96000000-0000-4000-8000-000000000001', key = 'disposable-editor-feedback';
@@ -23,11 +27,14 @@ try {
     await writeFile(file, (prefix + body).replace(/\n/g, '\r\n'));
     const page = await browser.newPage({ viewport: { width, height: 1000 } });
     page.setDefaultTimeout(8000);
-    const errors = [], puts = [];
+    const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('request', request => { if (request.method() === 'PUT') puts.push(request.postDataJSON()); });
+    // Editor saves publish over the live WebSocket; count mutating RPCs and inject failures there.
+    const liveTransport = await installCollaborationSmokeTransport(page);
+    const readOnlyMethods = new Set(['hello', 'ping', 'open', 'close', 'presence', 'resync', 'history.read', 'recovery.read']);
+    const writes = () => liveTransport.observed.filter(message => !readOnlyMethods.has(message.method)).length;
     await page.goto(`${server.url}/?note=${id}#apiKey=${key}`);
-    await page.locator('#note-editor').waitFor({ state: 'visible' });
+    await liveReady(page);
     assert.equal(await editorMarkdown(page), body);
     assert.equal(await page.locator('#note-editor .editor-bold').count(), 2, 'valid bold renders; spaced delimiters stay literal');
     assert.equal(await page.locator('#note-editor table').count(), 1, 'only supported table renders');
@@ -53,11 +60,12 @@ try {
       assert.equal(await page.locator('.markdown-table-preview').evaluate(e => e.scrollWidth > e.clientWidth), true, 'wide cells scroll inside table');
       await page.screenshot({ path: path.join(output, `${width}-${theme}-reading.png`), fullPage: true });
     }
-    await page.waitForTimeout(850); assert.equal(puts.length, 0, 'hydration/focus/themes have no save');
+    await page.waitForTimeout(850); assert.equal(writes(), 0, 'hydration/focus/themes have no save');
     assert.equal(await readFile(file, 'utf8'), (prefix + body).replace(/\n/g, '\r\n'));
     await appendEditorText(page, ' edited'); await saved(page);
-    assert.ok(puts.at(-1).content.endsWith((body + ' edited').replace(/\n/g, '\r\n')));
-    assert.equal(puts.at(-1).content.endsWith('\n'), false);
+    const savedSource = await readFile(file, 'utf8');
+    assert.ok(savedSource.endsWith('---\r\n' + (body + ' edited').replace(/\n/g, '\r\n')), 'saves keep canonical CRLF body and no final newline');
+    assert.match(savedSource, /^custom: "?retained"?\r$/m, 'unrelated frontmatter is retained');
     await undoEditor(page); await saved(page); assert.equal(await editorMarkdown(page), body);
     await page.locator('.markdown-table summary').click();
     await pointIn(page, '.markdown-table pre', '42', 2);
@@ -73,33 +81,37 @@ try {
     assert.equal(await page.locator('.markdown-table details').evaluate(e => e.open), true);
     await undoEditor(page); await saved(page); assert.equal(await editorMarkdown(page), body);
     // External table revision is accepted without echo-saving or stale undo.
-    const beforeRefresh = puts.length;
+    const beforeRefresh = writes();
     await page.locator('#note-name').blur();
     await writeFile(file, prefix + body.replace('42 |', '84 |'));
     await page.waitForFunction(value => richEditor.getMarkdown() === value, body.replace('42 |', '84 |'));
     assert.equal(await page.locator('table td').nth(1).textContent(), '84');
-    assert.equal(puts.length, beforeRefresh);
-    await page.reload(); await page.locator('#note-editor').waitFor({ state: 'visible' });
+    assert.equal(writes(), beforeRefresh, 'external refresh does not echo a save');
+    await page.reload(); await liveReady(page);
     assert.equal(await editorMarkdown(page), body.replace('42 |', '84 |'));
     // Reference title edit keeps canonical brackets, then reopens exactly.
     await pointIn(page, '[data-page-reference]', 'One', 3);
     await page.keyboard.type(' revised'); await saved(page);
     assert.ok((await editorMarkdown(page)).includes('[[One revised]] [[Two]] [[Missing]]'));
-    await page.reload(); await page.locator('#note-editor').waitFor({ state: 'visible' });
+    await page.reload(); await liveReady(page);
     assert.equal(await page.locator('[data-page-reference]').first().textContent(), '[[One revised]]');
 
     for (const [alias, selector, expected] of [
       ['text', 'p', 'Content'], ['h1', 'h1', '# Content'], ['h2', 'h2', '## Content'], ['h3', 'h3', '### Content'],
       ['checkbox', '.markdown-task', '- [ ] Content'], ['code-block', '.markdown-code-block', '```\nContent\n```'],
     ]) {
-      await replaceEditorText(page, '/' + alias + 'Content');
+      // Publish the typed text first: live Undo reverts one published edit, and input
+      // within the 35 ms publish debounce would share the command's undo unit.
+      await replaceEditorText(page, '/' + alias + 'Content'); await saved(page);
       await selectEditorText(page, alias.length + 1);
       await page.getByRole('listbox', { name: 'Formatting commands' }).waitFor({ state: 'visible' });
       await page.keyboard.press('Enter');
       await saved(page);
       assert.equal(await editorMarkdown(page), expected, alias + ' consumes only token and preserves suffix');
       assert.ok(await page.locator('#note-editor > ' + selector).count());
-      await undoEditor(page); assert.equal(await editorMarkdown(page), '/' + alias + 'Content', 'command is one undo step');
+      // Live Undo is a server round trip; wait for it to settle before reading.
+      await undoEditor(page); await page.waitForFunction(value => richEditor.getMarkdown() === value, '/' + alias + 'Content').catch(() => {});
+      assert.equal(await editorMarkdown(page), '/' + alias + 'Content', 'command is one undo step');
       await saved(page);
     }
     for (const [alias, marker] of [['bold', '**'], ['italic', '*'], ['code', '`']]) {
@@ -122,11 +134,11 @@ try {
     }
     await page.keyboard.press('Enter'); await page.keyboard.type('Chosen'); await saved(page);
     assert.equal(await editorMarkdown(page), '## Chosen');
-    await page.reload(); await page.locator('#note-editor').waitFor({ state: 'visible' });
+    await page.reload(); await liveReady(page);
     assert.equal(await page.locator('#note-editor h2').textContent(), 'Chosen');
     await replaceEditorText(page, '# /text'); await selectEditorText(page, 5);
     await menu.waitFor({ state: 'visible' });
-    await menu.getByRole('option', { name: 'Text /text' }).click();
+    await menu.getByRole('option', { name: 'Text', exact: true }).click();
     await saved(page); assert.equal(await editorMarkdown(page), '', 'Text converts an empty heading by pointer');
     await replaceEditorText(page, '/h1'); await selectEditorText(page, 3);
     await menu.waitFor({ state: 'visible' }); await page.keyboard.press('Escape');
@@ -150,21 +162,28 @@ try {
     assert.equal(await page.evaluate(() => { richEditor.setReadOnly(true); richEditor.format('h2'); return richEditor.getMarkdown(); }), '/h1');
     assert.equal(await menu.isVisible(), false);
     await page.evaluate(() => richEditor.setReadOnly(false));
-    // A formatting command still uses the guarded save controller after failure.
+    // A formatting command still uses the guarded save controller after failure;
+    // rejected live publication is recovered through explicit review.
     await replaceEditorText(page, '/h2'); await selectEditorText(page, 3); await menu.waitFor({ state: 'visible' });
-    await page.route('**/documents/' + id, route => route.request().method() === 'PUT'
-      ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { code: 'fixture_failed', message: 'Save failed' } }) }) : route.continue());
-    await page.keyboard.press('Enter'); await page.keyboard.type('Retained draft');
+    const failedEdit = liveTransport.rejectNext('edit', { code: 'fixture_failed', message: 'Save failed' });
+    await page.keyboard.press('Enter'); await failedEdit.arrived; await page.keyboard.type('Retained draft');
     await page.waitForFunction(() => state.editor.state.saveStatus === 'failed');
     assert.equal(await editorMarkdown(page), '## Retained draft');
-    await page.unroute('**/documents/' + id);
-    await page.getByRole('button', { name: 'Retry save', exact: true }).click(); await saved(page);
+    assert.equal((await readFile(file, 'utf8')).endsWith('## Retained draft'), false, 'failed draft stays private');
+    await page.getByRole('button', { name: 'Review changes', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('document-recovery').open && !document.getElementById('recovery-publish').disabled);
+    await page.getByRole('button', { name: 'Keep my changes', exact: true }).click(); await saved(page);
     assert.ok((await readFile(file, 'utf8')).endsWith('## Retained draft'));
     assert.deepEqual(errors, []);
     await page.close(); console.log(`PASS editor feedback tables/references/slash/guarded save ${width}px`);
   }
   console.log(`Screenshots: ${output}`);
 } finally { if (browser) await browser.close(); if (server) await server.close(); await rm(root, { recursive: true, force: true }); }
+// Visibility is not editing-ready: the live open snapshot may still repaint the note.
+async function liveReady(page) {
+  await page.locator('#note-editor').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved' && document.querySelector('#note-editor')?.isContentEditable);
+}
 async function saved(page) { await page.waitForFunction(() => document.querySelector('#note-save-state').textContent === 'Saved'); }
 async function pointIn(page, selector, needle, offset) {
   await page.locator('#note-editor ' + selector).first().evaluate((element, { needle, offset }) => {
