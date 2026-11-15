@@ -1,6 +1,6 @@
 # Design system: shared tokens and components
 
-Status: completed in source on branch `design-system-components` (not merged to `master`). Pending release.
+Status: completed in source and merged into `master` (fast-forward). Pending release.
 
 Goal: centralize browser UI tokens and reusable components so future designs are predictable. Trigger: the sidebar brain switcher (`● Local brain ▼`) showed a hover fill that excluded its status dot, used the native triangle instead of the app chevron, and was a 48px row among 36px rows; footer controls beside it used different hover models.
 

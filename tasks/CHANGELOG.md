@@ -2,7 +2,7 @@
 
 ## 2026-11-15 — Browser design system: shared tokens and components
 
-- Browser UI now composes shared tokens and primitives (buttons, list rows and disclosures, dropdowns incl. a `.dropdown--switcher`, dialogs, cards, popovers, fields, status dots, badges, status text) instead of per-view styles. One chevron glyph replaces seven implementations; the brain switcher hover now covers the whole row. `test/design-tokens.test.js` guards against raw literals and primitive re-declaration. Audited by five parallel agents and reviewed by Codex and Mistral. On branch `design-system-components`, not yet merged. [Rulings, verification and limits](done/2026-11-15_tasks-design-system-components.md).
+- Browser UI now composes shared tokens and primitives (buttons, list rows and disclosures, dropdowns incl. a `.dropdown--switcher`, dialogs, cards, popovers, fields, status dots, badges, status text) instead of per-view styles. One chevron glyph replaces seven implementations; the brain switcher hover now covers the whole row. `test/design-tokens.test.js` guards against raw literals and primitive re-declaration. Audited by five parallel agents and reviewed by Codex and Mistral. Merged into `master`. [Rulings, verification and limits](done/2026-11-15_tasks-design-system-components.md).
 
 ## 2026-11-14 — Public demo retired
 
