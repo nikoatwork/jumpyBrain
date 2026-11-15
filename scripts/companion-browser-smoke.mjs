@@ -1,28 +1,49 @@
 // Disposable control-plane fixture + production nonce shell/Lexical. No native app,
 // key files, user folders, real remote targets, or installed companion are touched.
+// Each profile is a real disposable backend; the production companion live bridge
+// (attachCompanionLive) carries /ws editing, since editor saves are live-only.
 // npm run build && npx --package=playwright node scripts/companion-browser-smoke.mjs
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
+import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
+import { attachCompanionLive } from "../integrations/macos-companion/live-gateway.mjs";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { appendEditorText, replaceEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
+import { appendEditorText, replaceEditorText, editorMarkdown, selectEditorText } from "./editor-smoke-helpers.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-companion-browser-"));
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const id = "mem_a0000000-0000-4000-8000-000000000001";
+// Navigation search hides the open page, so Search from a note needs a sibling.
+const siblingId = "mem_a0000000-0000-4000-8000-000000000002";
 const profiles = [
   { id: "a", name: "Fixture A", kind: "local", root: path.join(root, "a"), allowWrites: true },
   { id: "b", name: "Fixture B", kind: "local", root: path.join(root, "b"), allowWrites: true },
   { id: "r", name: "Fixture remote", kind: "remote", url: "https://fixture.invalid", allowWrites: false },
 ];
-const documents = new Map(["a", "b", "r"].map((brain) => [brain, { content: `Fixture ${brain}\n` + (brain === "r" ? "- [ ] Read-only task\n```js\n[[Inert]]\n```\n" : ""), hash: "h1" }]));
+// Canonical Markdown lives in real disposable brains, one backend per profile.
+const initialBodies = { a: "Fixture a\n", b: "Fixture b\n", r: "Fixture r\n- [ ] Read-only task\n```js\n[[Inert]]\n```\n" };
+const noteFile = (brain, file = "fixture.md") => path.join(root, "brains", brain, "notes", file);
+const canonical = (brain, file) => readFileSync(noteFile(brain, file), "utf8");
+const canonicalBody = (brain) => canonical(brain).replace(/^---\n[\s\S]*?\n---\n/, "");
+const backends = {}, backendKeys = {};
+for (const brain of ["a", "b", "r"]) {
+  const brainRoot = path.join(root, "brains", brain);
+  await createServerMemoryRuntime({ root: brainRoot }).initializeMemoryRoot();
+  await writeFile(noteFile(brain), `---\nid: ${id}\ntype: note\ntitle: Fixture ${brain}\n---\n${initialBodies[brain]}`);
+  await writeFile(noteFile(brain, "sibling.md"), `---\nid: ${siblingId}\ntype: note\ntitle: Fixture ${brain} sibling\n---\nSibling ${brain}\n`);
+  backendKeys[brain] = "disposable-companion-browser-" + brain;
+  backends[brain] = await startJumpyBrainHttpServer({ root: brainRoot, apiKeys: [backendKeys[brain]], host: "127.0.0.1", port: 0, autoIndex: false });
+}
 let activeId = "a", generation = 1, revision = 1, phase = "idle", switchId = null, target = null;
-let switchSequence = 0, pendingSwitch = null, failWrites = false, failCapture = false, writeDelay = 0, pollDelay = 0;
-let failIndex = false, searchDelay = 0, failTransientWrites = false;
-const tabs = new Map(), requests = [], profileWrites = [], violations = [], pollCounts = new Map();
+let switchSequence = 0, pendingSwitch = null, failCapture = false, pollDelay = 0;
+let failIndex = false, searchDelay = 0;
+const tabs = new Map(), requests = [], profileWrites = [], violations = [], pollCounts = new Map(), switchCommits = [];
 const snapshot = () => ({ profiles, activeId, generation, revision, phase, switchId, target,
   extensions: { revision: "fixture-extensions-1" }, health: { status: "connected" }, active: profiles.find((item) => item.id === activeId) });
 const json = (response, body, status = 200) => {
@@ -30,13 +51,39 @@ const json = (response, body, status = 200) => {
   response.end(JSON.stringify(body));
 };
 const error = (response, code, status = 409) => json(response, { error: { code, message: code } }, status);
+// Minimal switch coordinator for the production live bridge: generation fence,
+// registered tabs, and admitted live writes that a committing switch must drain.
+const transitions = new Set();
+let liveWritesInFlight = 0;
+const coordinator = {
+  get generation() { return generation; }, closing: false,
+  onTransition(listener) { transitions.add(listener); return () => transitions.delete(listener); },
+  enter(tabGeneration, tabId) {
+    if (tabGeneration !== generation || !tabs.has(tabId)) throw Object.assign(new Error("This tab belongs to an old brain session."), { code: "stale_generation" });
+    liveWritesInFlight++;
+    let done = false;
+    return () => { if (!done) { done = true; liveWritesInFlight--; commitSwitchWhenDrained(); } };
+  },
+};
+const announceTransition = () => { for (const listener of transitions) listener(); };
+function commitSwitchWhenDrained() {
+  if (pendingSwitch?.acknowledged && !liveWritesInFlight) finishSwitch(true);
+}
 function finishSwitch(ok) {
   const pending = pendingSwitch;
   if (!pending) return;
   clearTimeout(pending.timer);
-  if (ok) { activeId = target; generation++; revision++; }
+  // Evidence that every acknowledged save reached canonical Markdown before activation.
+  if (ok) { switchCommits.push({ from: activeId, to: target, content: canonical(activeId) }); activeId = target; generation++; revision++; }
   phase = "idle"; target = null; switchId = null; pendingSwitch = null;
+  if (ok) announceTransition();
   if (ok) json(pending.response, snapshot()); else error(pending.response, "switch_blocked");
+}
+async function proxy(response, route, method = "GET") {
+  const backend = backends[activeId];
+  const upstream = await fetch(backend.url + route, { method, headers: { Authorization: "Bearer " + backendKeys[activeId] } });
+  response.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/json", "Cache-Control": "no-store" });
+  response.end(Buffer.from(await upstream.arrayBuffer()));
 }
 const server = createServer(async (request, response) => {
   try {
@@ -54,6 +101,12 @@ const server = createServer(async (request, response) => {
       response.setHeader("Set-Cookie", "fixture-session=ok; HttpOnly; SameSite=Strict; Path=/"); json(response, {}); return;
     }
     if (!request.headers.cookie?.includes("fixture-session=ok")) { error(response, "session_required", 401); return; }
+    // The live session handshake: the selected brain's real identity and protocol.
+    if (url.pathname === "/capabilities" && request.method === "GET") {
+      if (request.headers.authorization) violations.push("browser bearer credential");
+      if (Number(request.headers["x-companion-generation"]) !== generation) { error(response, "stale_generation"); return; }
+      await proxy(response, "/capabilities"); return;
+    }
     if (url.pathname.startsWith("/companion/")) {
       const route = url.pathname.slice(11);
       if (route === "extensions") { json(response, { apiVersion: 1, revision: "fixture-extensions-1", safeMode: false, extensions: [] }); return; }
@@ -81,15 +134,15 @@ const server = createServer(async (request, response) => {
       if (route === "switch") {
         if (pendingSwitch) { error(response, "switch_busy"); return; }
         phase = "preparing"; switchId = "s" + ++switchSequence; target = body.id;
-        pendingSwitch = { response, waiting: new Set(tabs.keys()), timer: setTimeout(() => finishSwitch(false), 7000) };
-        if (!pendingSwitch.waiting.size) finishSwitch(true);
+        pendingSwitch = { response, waiting: new Set(tabs.keys()), acknowledged: false, timer: setTimeout(() => finishSwitch(false), 7000) };
+        if (!pendingSwitch.waiting.size) { pendingSwitch.acknowledged = true; commitSwitchWhenDrained(); }
         return;
       }
       if (route === "ack") {
         json(response, {});
         if (!pendingSwitch || body.switchId !== switchId) return;
         if (!body.ok) finishSwitch(false);
-        else { pendingSwitch.waiting.delete(body.tabId); if (!pendingSwitch.waiting.size) finishSwitch(true); }
+        else { pendingSwitch.waiting.delete(body.tabId); if (!pendingSwitch.waiting.size) { pendingSwitch.acknowledged = true; commitSwitchWhenDrained(); } }
         return;
       }
     }
@@ -108,7 +161,9 @@ const server = createServer(async (request, response) => {
       }
       if (url.pathname === "/memories/all/search") {
         await new Promise((resolve) => setTimeout(resolve, searchDelay));
-        json(response, { results: [{ provenance: { file: "notes/fixture.md", metadata: { id, title: "Fixture " + activeId } }, snippet: "Synthetic search result" }], recognition: { version: 1, candidateLimit: 120, candidates: 1, matched: 1, partial: true, metadataUnavailable: 1 }, index: { stale: false } }); return;
+        json(response, { results: [{ provenance: { file: "notes/fixture.md", metadata: { id, title: "Fixture " + activeId } }, snippet: "Synthetic search result" },
+          { provenance: { file: "notes/sibling.md", metadata: { id: siblingId, title: "Fixture " + activeId + " sibling" } }, snippet: "Synthetic sibling result" }],
+        recognition: { version: 1, candidateLimit: 120, candidates: 2, matched: 2, partial: true, metadataUnavailable: 2 }, index: { stale: false } }); return;
       }
       if (url.pathname === "/memories/all/ensure-title") {
         assert.equal(request.method, "POST");
@@ -126,16 +181,10 @@ const server = createServer(async (request, response) => {
         json(response, { id }); return;
       }
       if (url.pathname === "/memories/all/graph.json") { json(response, { nodes: [], edges: [] }); return; }
-      if (url.pathname === "/memories/all/documents/" + id) {
-        const doc = documents.get(activeId);
-        if (request.method === "PUT") {
-          await new Promise((resolve) => setTimeout(resolve, writeDelay));
-          if (failTransientWrites) { error(response, "fixture_save_unavailable", 503); return; }
-          if (failWrites || request.headers["if-match"] !== doc.hash) { error(response, "fixture_conflict", 412); return; }
-          doc.content = body.content; doc.hash = "h" + (Number(doc.hash.slice(1)) + 1);
-          json(response, { newContentHash: doc.hash }); return;
-        }
-        json(response, { content: doc.content, contentHash: doc.hash, title: "Fixture " + activeId, file: "notes/fixture.md", frontmatter: { id } }); return;
+      if ([id, siblingId].some((documentId) => url.pathname === "/memories/all/documents/" + documentId)) {
+        // Saves publish over the live socket only; an HTTP write would bypass it.
+        if (request.method !== "GET") { violations.push("HTTP document write " + request.method); error(response, "fixture_live_only", 405); return; }
+        await proxy(response, url.pathname); return;
       }
     }
     error(response, "not_found", 404);
@@ -143,6 +192,18 @@ const server = createServer(async (request, response) => {
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const origin = "http://127.0.0.1:" + server.address().port;
+const live = attachCompanionLive({ server, coordinator, origin: () => origin,
+  authenticate: (request) => { if (!request.headers.cookie?.includes("fixture-session=ok")) throw new Error("session_required"); },
+  active: () => profiles.find((profile) => profile.id === activeId),
+  destination: async (profile) => ({ url: backends[profile.id].url, key: backendKeys[profile.id] }) });
+const liveEdits = (transport) => transport.observed.filter((message) => message.method === "edit").length;
+const saved = (page) => page.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
+async function keepMyChanges(page) {
+  await page.locator("#note-recover").click();
+  await page.waitForFunction(() => document.getElementById("document-recovery").open && !document.getElementById("recovery-publish").disabled);
+  await page.getByRole("button", { name: "Keep my changes", exact: true }).click();
+  await saved(page);
+}
 // Count completed production polls rather than relying on an arbitrary sleep.
 async function idlePolls(page, count = 3) {
   for (let poll = 0; poll < count; poll++) {
@@ -319,6 +380,8 @@ try {
   assert.equal(Object.hasOwn(profileWrites[1].profile, "key"), false, "blank preserves existing key");
 
   const editor = await context.newPage(); editor.on("pageerror", (exception) => pageErrors.push(exception.message));
+  // Editor saves publish over the live socket; inject faults there (before navigation).
+  const editorWire = await installCollaborationSmokeTransport(editor);
   const failedSearches = [];
   editor.on("requestfailed", (request) => { if (request.url() === origin + "/memories/all/search") failedSearches.push(request.failure()?.errorText); });
   await editor.goto(origin + "/");
@@ -367,41 +430,56 @@ try {
   await editor.locator("#note-search-input").press("Enter");
   await editor.waitForURL("**/?note=" + id + "&brain=a");
   await editor.locator("#note-editor").waitFor();
+  // Editing is locked until the live session through the companion bridge opens.
+  await editor.waitForFunction(() => state.editor?.state.liveHasOpened && document.querySelector("#note-editor").isContentEditable);
 
   // A permission change can hide a focused formatting control. Keep focus on a
   // visible, non-mutating header action, including when the body is read-only.
   await editor.locator('#toggle-note-format').click();
   await editor.locator('[data-format=bold]').focus();
-  const beforePermissionChange = documents.get('a').content;
+  const beforePermissionChange = canonical('a');
   profiles.find(profile => profile.id === 'a').allowWrites = false;
   await editor.locator('#toggle-note-format').waitFor({ state: 'hidden' });
   assert.equal(await editor.evaluate(() => document.activeElement.id), 'copy-note-draft');
   assert.equal(await editor.locator('#format-controls').isHidden(), true);
-  assert.equal(documents.get('a').content, beforePermissionChange);
+  assert.equal(canonical('a'), beforePermissionChange);
   profiles.find(profile => profile.id === 'a').allowWrites = true;
   await editor.locator('#toggle-note-format').waitFor({ state: 'visible' });
 
   // Settings entry saves first, replaces note navigation, and Back restores this note.
+  // Hold the live edit: Settings must wait until the canonical file has it.
+  const settingsSave = editorWire.holdNextRequest("edit");
   await appendEditorText(editor, " Saved before Settings.");
+  await settingsSave.arrived;
   await editor.locator("#open-connection").click();
+  await editor.waitForFunction(() => state.editor?.state.navigationPending);
+  assert.equal(await editor.locator("#settings-navigation").isVisible(), false, "Settings waits for the in-flight save");
+  assert.doesNotMatch(canonical("a"), /Saved before Settings/);
+  settingsSave.release();
   await editor.locator("#settings-navigation").waitFor({ state: "visible" });
-  assert.equal(await editor.locator(".workspace-history").isVisible(), false);
-  assert.match(documents.get("a").content, /Saved before Settings/);
+  // Settings is a modal card: note navigation stays behind it, inert.
+  const historyInert = () => editor.locator(".workspace-history").evaluate((element) => Boolean(element.closest("[inert]")));
+  assert.equal(await historyInert(), true);
+  assert.match(canonical("a"), /Saved before Settings\./, "the canonical file has the edit before Settings opens");
   await editor.locator('[data-settings-section="appearance"]').click();
   await editor.locator("#settings-back").click();
   await editor.locator("#note-editor").waitFor({ state: "visible" });
   assert.equal(new URL(editor.url()).searchParams.get("note"), id);
   assert.equal(await editor.locator(".workspace-history").isVisible(), true);
+  assert.equal(await historyInert(), false);
+  assert.match(await editorMarkdown(editor), /Saved before Settings\./, "the Settings round trip keeps the draft");
   // A failed save keeps the note and its draft; Settings must never take over.
-  failTransientWrites = true;
+  // A rejected live publication needs explicit review: Review -> Keep my changes.
+  const rejectedSave = editorWire.rejectNext("edit", { code: "source_unavailable", message: "Disposable publication failure" });
   await appendEditorText(editor, " Failed Settings draft.");
+  await rejectedSave.arrived;
   await editor.locator("#open-connection").click();
-  await editor.locator("#note-save-state").filter({ hasText: /Save failed|Changes need review/ }).waitFor();
+  await editor.locator("#note-save-state").filter({ hasText: "Changes need review" }).waitFor();
   assert.equal(await editor.locator("#settings-navigation").isVisible(), false);
   assert.match(await editorMarkdown(editor), /Failed Settings draft/);
-  failTransientWrites = false;
-  await editor.locator("#note-retry").click();
-  await editor.waitForFunction(() => state.editor?.state.saveStatus === "saved");
+  assert.doesNotMatch(canonical("a"), /Failed Settings draft/);
+  await keepMyChanges(editor);
+  assert.match(canonical("a"), /Failed Settings draft\./, "the kept draft reaches the canonical file");
   // Temporarily reveal Settings when notes navigation is collapsed; restore on exit.
   await editor.locator("#toggle-sidebar").click();
   await editor.evaluate(() => openConnection(false));
@@ -438,6 +516,7 @@ try {
   assert.equal(await editor.locator("#note-search").evaluate((dialog) => dialog.open), true, "a delayed query completes across idle polls");
   await editor.locator("#note-search-input").press("Enter");
   await editor.locator("#note-search").waitFor({ state: "hidden" });
+  await editor.waitForURL("**/?note=" + siblingId + "&brain=a");
 
   await editor.waitForFunction(() => state.editor?.state.loaded && !state.editor.state.navigationPending && document.querySelector("#note-editor").isContentEditable);
   await Promise.all([
@@ -450,12 +529,15 @@ try {
   await suggestion.evaluate((row) => { row.dataset.pollContinuity = "retained"; });
   await idlePolls(editor);
   assert.equal(await suggestion.getAttribute("data-poll-continuity"), "retained", "suggestion row and selection survive healthy polls and autosave");
+  // This sibling's own confirmed write may rank first; choose the other note.
+  for (let step = 0; step < 4 && (await suggestion.locator(":scope > div").first().textContent()) !== "Fixture a"; step++) await editor.keyboard.press("ArrowDown");
+  assert.equal(await suggestion.locator(":scope > div").first().textContent(), "Fixture a");
   await editor.keyboard.press("Enter");
   await editor.locator("[data-reference-autocomplete]").waitFor({ state: "hidden" });
   assert.match(await editorMarkdown(editor), /\[\[Fixture a\]\]/, "reference remains insertable after idle polls");
   await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
-  assert.ok(documents.get("a").content.includes("[[Fixture a]]"), "@ selection saves as canonical brackets");
-  assert.ok(!documents.get("a").content.includes("@Fix"), "the transient @ query is replaced");
+  assert.ok(canonical("a", "sibling.md").includes("[[Fixture a]]"), "@ selection saves as canonical brackets");
+  assert.ok(!canonical("a", "sibling.md").includes("@Fix"), "the transient @ query is replaced");
   assert.equal(await editor.locator("#insert-reference").count(), 0);
   assert.deepEqual(failedSearches, [], "healthy polls must not abort Search or reference queries");
   searchDelay = 0;
@@ -469,11 +551,15 @@ try {
   await editor.locator("#dream-close").click();
   await editor.goto(origin + "/?note=" + id + "&brain=a");
   await editor.locator("#note-editor").waitFor();
+  // Two-tab switch flush: the live save is still in flight when the switch starts,
+  // so the barrier must wait for its canonical confirmation before activating B.
+  const switchSave = editorWire.holdNextRequest("edit");
   await replaceEditorText(editor, (await editorMarkdown(editor)) + "\n- [ ] Pending A task\n```js\n[[Inert code]]\n```\nPending A draft");
+  await switchSave.arrived;
   await editor.getByRole("checkbox").waitFor();
   assert.equal(await editor.locator("#note-editor pre").count(), 1);
   await editor.locator("#open-search").click();
-  writeDelay = 1300;
+  const commitsBefore = switchCommits.length;
   const rowB = settings.locator(".companion-profile").filter({ hasText: "Fixture B" });
   await rowB.getByRole("button", { name: "Use this brain", exact: true }).click();
   await editor.waitForFunction(() => document.querySelector("main").inert);
@@ -483,12 +569,17 @@ try {
   assert.equal(await editor.getByRole("checkbox").isDisabled(), true);
   assert.equal(await editor.locator("#insert-reference").count(), 0);
   assert.equal(await editor.locator(".app-nav").evaluate((element) => element.inert), true);
+  assert.equal(activeId, "a", "the switch waits for the in-flight save");
+  assert.doesNotMatch(canonical("a"), /Pending A draft/);
+  switchSave.release();
   await settings.waitForURL("**/settings?brain=b");
-  writeDelay = 0;
   await editor.waitForURL(origin + "/?brain=b");
-  assert.match(documents.get("a").content, /Pending A draft/);
-  assert.ok(documents.get("a").content.includes("- [ ] Pending A task\n```js\n[[Inert code]]\n```"));
-  assert.equal(documents.get("b").content, "Fixture b\n");
+  assert.equal(switchCommits.length, commitsBefore + 1);
+  assert.deepEqual([switchCommits.at(-1).from, switchCommits.at(-1).to], ["a", "b"]);
+  assert.match(switchCommits.at(-1).content, /Pending A draft/, "canonical A had the draft before B activated");
+  assert.ok(switchCommits.at(-1).content.includes("- [ ] Pending A task\n```js\n[[Inert code]]\n```"));
+  assert.ok(canonical("a").includes("- [ ] Pending A task\n```js\n[[Inert code]]\n```\nPending A draft"));
+  assert.equal(canonicalBody("b"), "Fixture b\n");
   assert.ok(requests.filter((item) => item.path === "/companion/ack").length >= 2);
 
   failCapture = true;
@@ -506,27 +597,49 @@ try {
   assert.equal(captures[0].headers["idempotency-key"], captures[1].headers["idempotency-key"]);
   await editor.goto(origin + "/?note=" + id + "&brain=b");
   await editor.locator("#note-editor").waitFor();
-  const conflictEditor = await context.newPage(); conflictEditor.on("pageerror", (exception) => pageErrors.push(exception.message));
-  await conflictEditor.goto(origin + "/?note=" + id + "&brain=b");
-  await conflictEditor.locator("#note-editor").waitFor();
-  await replaceEditorText(editor, "First writer confirmed");
-  await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
-  await replaceEditorText(conflictEditor, "Conflict retained draft");
-  await conflictEditor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
-  const writesBefore = requests.filter((item) => item.headers["if-match"]).length;
+  await editor.waitForFunction(() => state.editor?.state.liveHasOpened);
+  const peer = await context.newPage(); peer.on("pageerror", (exception) => pageErrors.push(exception.message));
+  const peerWire = await installCollaborationSmokeTransport(peer);
+  await peer.goto(origin + "/?note=" + id + "&brain=b");
+  await peer.locator("#note-editor").waitFor();
+  await peer.waitForFunction(() => state.editor?.state.liveHasOpened);
+  await replaceEditorText(editor, "First paragraph\n\nSecond paragraph");
+  await saved(editor);
+  const converged = (page, text) => page.waitForFunction((text) => richEditor.getMarkdown() === text && document.getElementById("note-save-state").textContent === "Saved", text);
+  await converged(peer, "First paragraph\n\nSecond paragraph");
+  // Concurrent live writers merge (the old If-Match stop is gone): both tabs edit
+  // different paragraphs against the same revision; both edits must land and converge.
+  const firstInFlight = editorWire.holdNextRequest("edit"), secondInFlight = peerWire.holdNextRequest("edit");
+  await selectEditorText(editor, "First paragraph".length);
+  await editor.keyboard.insertText(" alpha");
+  await appendEditorText(peer, " omega");
+  const [firstEdit, secondEdit] = await Promise.all([firstInFlight.arrived, secondInFlight.arrived]);
+  assert.equal(firstEdit.params.baseRevision, secondEdit.params.baseRevision, "both edits are concurrent against one revision");
+  firstInFlight.release(); secondInFlight.release();
+  const merged = "First paragraph alpha\n\nSecond paragraph omega";
+  await converged(editor, merged); await converged(peer, merged);
+  assert.equal(canonicalBody("b").trimEnd(), merged, "both concurrent edits reach the canonical file");
+  for (const page of [editor, peer]) assert.equal(await page.locator("#note-recover").isVisible(), false, "a merged concurrent edit needs no review");
+  // A tab whose save needs review blocks a switch; its draft is retained and never retried.
+  const rejectedPeer = peerWire.rejectNext("edit", { code: "source_unavailable", message: "Disposable publication failure" });
+  await appendEditorText(peer, " Review retained draft");
+  await rejectedPeer.arrived;
+  await peer.locator("#note-save-state").filter({ hasText: "Changes need review" }).waitFor();
+  const peerEdits = liveEdits(peerWire);
   await settings.locator(".companion-profile").filter({ hasText: "Fixture A" }).getByRole("button", { name: "Use this brain", exact: true }).click();
   await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("switch_blocked"));
-  await conflictEditor.waitForFunction(() => document.getElementById("note-editor").getAttribute("contenteditable") === "true");
+  await peer.waitForFunction(() => document.getElementById("note-editor").getAttribute("contenteditable") === "true");
   assert.equal(activeId, "b");
-  assert.match(await editorMarkdown(conflictEditor), /Conflict retained draft/);
-  assert.equal(requests.filter((item) => item.headers["if-match"]).length, writesBefore, "no 412 overwrite retry during barrier");
-  assert.match(documents.get("b").content, /First writer confirmed/);
-  assert.doesNotMatch(documents.get("b").content, /Conflict retained draft/);
-  assert.equal(await conflictEditor.locator("#note-name").evaluate((element) => element.readOnly), false);
+  assert.match(await editorMarkdown(peer), /omega Review retained draft/);
+  assert.equal(liveEdits(peerWire), peerEdits, "no silent publication retry during the barrier");
+  assert.doesNotMatch(canonical("b"), /Review retained draft/);
+  assert.equal(await editorMarkdown(editor), merged, "the other tab never receives the unpublished draft");
+  assert.equal(await peer.locator("#note-name").evaluate((element) => element.readOnly), false);
+  await keepMyChanges(peer);
+  assert.match(canonical("b"), /Second paragraph omega Review retained draft/);
+  await converged(editor, merged + " Review retained draft");
 
-  // Explicitly discard only this disposable test draft on close, not as switch policy.
-  conflictEditor.on("dialog", (dialog) => dialog.accept()); await conflictEditor.close();
-  await editor.close();
+  for (const page of [peer, editor]) { page.on("dialog", (dialog) => dialog.accept()); await page.close(); }
   await settings.locator(".companion-profile").filter({ hasText: "Fixture remote" }).getByRole("button", { name: "Use this brain", exact: true }).click();
   await settings.waitForURL("**/settings?brain=r");
   await settings.locator("#companion-profiles strong").first().waitFor();
@@ -560,15 +673,19 @@ try {
   assert.deepEqual(pageErrors, []);
   // Expire a live session with an actual unsaved disposable draft. Reopen in a
   // separate tab, leaving the original tab and recovered text untouched.
-  activeId = "a"; generation++; revision++;
+  activeId = "a"; generation++; revision++; announceTransition();
   const expiredContext = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
   const expired = await expiredContext.newPage();
+  const expiredWire = await installCollaborationSmokeTransport(expired);
   await expired.goto(origin + "/?note=" + id + "&brain=a#companion=fixture-token");
   await expired.locator("#note-editor").waitFor({ state: "visible" });
-  failWrites = true;
+  await expired.waitForFunction(() => state.editor?.state.liveHasOpened);
+  // An unpublished draft: its live publication is rejected and awaits review.
+  const rejectedExpiry = expiredWire.rejectNext("edit", { code: "source_unavailable", message: "Disposable publication failure" });
   await replaceEditorText(expired, "Session expiry disposable unsaved draft");
-  await expired.locator("#note-save-state").filter({ hasText: /Save failed|Changes need review/ }).waitFor();
-  const expiryWrites = requests.filter(item => item.headers["if-match"]).length;
+  await rejectedExpiry.arrived;
+  await expired.locator("#note-save-state").filter({ hasText: "Changes need review" }).waitFor();
+  const expiryWrites = liveEdits(expiredWire);
   await expiredContext.clearCookies();
   await expired.locator("#companion-recovery").waitFor({ state: "visible" });
   assert.match(await expired.locator("#toast-message").textContent(), /Your session ended; use Recover draft/);
@@ -583,12 +700,12 @@ try {
   assert.equal(await expired.locator("#recovery-reload").isDisabled(), true);
   if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) await expired.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, "session-recovery.png") });
   await expired.locator("#recovery-close").click();
-  assert.equal(requests.filter(item => item.headers["if-match"]).length, expiryWrites, "expiry never retries the write");
-  assert.doesNotMatch(documents.get("a").content, /Session expiry disposable unsaved draft/);
-  failWrites = false;
+  assert.equal(liveEdits(expiredWire), expiryWrites, "expiry never retries the write");
+  assert.doesNotMatch(canonical("a"), /Session expiry disposable unsaved draft/);
   const reopened = await expiredContext.newPage();
   await reopened.goto(origin + "/?note=" + id + "&brain=a#companion=fixture-token");
   await reopened.locator("#note-editor").waitFor({ state: "visible" });
+  await reopened.waitForFunction(() => state.editor?.state.liveHasOpened);
   assert.doesNotMatch(await editorMarkdown(reopened), /Session expiry disposable unsaved draft/);
   assert.match(await editorMarkdown(expired), /Session expiry disposable unsaved draft/);
   expired.on("dialog", dialog => dialog.accept()); await expiredContext.close();
@@ -601,14 +718,17 @@ try {
   await failure.locator("#companion-recovery").waitFor({ state: "visible" });
   assert.match(await failure.locator("#toast-message").textContent(), /use Recover draft to copy your work/);
   assert.equal(await failure.locator("#companion-recovery").getByRole("button", { name: "Retry companion session", exact: true }).isEnabled(), true);
-  await failure.locator("#companion-recovery").getByRole("button", { name: "Retry companion session", exact: true }).click();
-  await failure.waitForFunction(() => !document.querySelector("#companion-recovery button").disabled);
+  // Settings is a modal card over the app; its own Retry is the reachable control.
+  await failure.locator("#companion-settings").getByRole("button", { name: "Retry companion session", exact: true }).click();
+  await failure.waitForFunction(() => !document.getElementById("companion-reconnect").disabled && !document.querySelector("#companion-recovery button").disabled);
   assert.match(await failure.locator("#toast-message").textContent(), /reopening the editor from the app menu/);
   await unauthenticated.close();
-  console.log("companion browser smoke: PASS (registration, settings, keys, idle Search/query/reference/Dream survival, two-tab freeze/flush, uncertain creation, conflict block, generation reload, read-only, stale links, serialized polls, expired unsaved draft copy/reopen, session failure)");
+  console.log("companion browser smoke: PASS (registration, settings, keys, live save before Settings, rejected-save review, idle Search/query/reference/Dream survival, two-tab freeze/flush, uncertain creation, concurrent writers merge, review-blocked switch, generation reload, read-only, stale links, serialized polls, expired unsaved draft copy/reopen, session failure)");
 } finally {
   if (browser) await browser.close();
   if (pendingSwitch) finishSwitch(false);
+  await live.close();
   await new Promise((resolve) => server.close(resolve));
+  for (const backend of Object.values(backends)) await backend.close();
   await rm(root, { recursive: true, force: true });
 }
