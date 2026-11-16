@@ -50,6 +50,16 @@ The uncertain-save runner defaults to no idle soak and one peer edit. Use `--pee
 
 Chromium is the default verification surface for the shared Mac/browser editor. Add native evidence for native boundary changes or native-only failures. The [native experience eval](../evals/workspace-experience/RUN.md) and [retrieval eval](../evals/workspace-retrieval/PROTOCOL.md) answer broader usability/quality questions when explicitly selected; they are not routine commit gates.
 
+## Periodic Docker cleanup
+
+After Docker-based test runs, periodically check disk usage with `docker system df` and run:
+
+```sh
+docker system prune -a
+```
+
+This keeps unused test images and build cache from accumulating. It also removes stopped containers and unused networks across the selected Docker daemon, including resources from other projects. Review Docker's confirmation prompt before proceeding; pruned images will need to be pulled or rebuilt for later tests. Volumes are not removed by this command.
+
 ## Finalize with evidence
 
 Record the tested commit/build, selected commands/results, reused evidence and why it still applies, and material untested limits. A short note is enough. Skipped/unavailable checks are not passes. Keep failures, fix or explain them, then rerun affected checks.
