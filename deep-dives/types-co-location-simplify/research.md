@@ -2,6 +2,8 @@
 
 Read-only research for [tasks/todo/tasks-types-co-location-simplify.md](/Users/monkey/dev/jumpyBrain/tasks/todo/tasks-types-co-location-simplify.md). No source, build, branch, or git state was changed. All counts below were measured directly from the repo (grep/ripgrep plus a small Node script that resolves every relative import specifier to a file), not taken from the proposal.
 
+> **Review 2026-11-16:** an independent source check found that the pilot would change the public type surface, plus several count and layout errors. Section 11 records them and the corrected pilot; inline notes mark the affected claims.
+
 ## 1. Evidence verification: what the proposal claims vs. what I measured
 
 | Proposal claim | Measured | Verdict |
@@ -14,7 +16,7 @@ Read-only research for [tasks/todo/tasks-types-co-location-simplify.md](/Users/m
 Measured import surface of [src/types.ts](/Users/monkey/dev/jumpyBrain/src/types.ts):
 
 - 94 exported declarations (mix of `type` and `interface`), all type-only.
-- 78 importing files under `src/`, containing ~93 static `import type`/`export type ... from ".../types.js"` statements plus **12 inline `import(".../types.js").Name` type queries in 6 files**: [src/app/server-memory/index.ts](/Users/monkey/dev/jumpyBrain/src/app/server-memory/index.ts) (3), [src/adapters/http-client/index.ts](/Users/monkey/dev/jumpyBrain/src/adapters/http-client/index.ts) (5), [src/cli/doctor.ts](/Users/monkey/dev/jumpyBrain/src/cli/doctor.ts), [src/core/canonical/markdown-store.ts](/Users/monkey/dev/jumpyBrain/src/core/canonical/markdown-store.ts), [src/app/local-memory/index.ts](/Users/monkey/dev/jumpyBrain/src/app/local-memory/index.ts), [src/adapters/http-server/browser-transport.ts](/Users/monkey/dev/jumpyBrain/src/adapters/http-server/browser-transport.ts). A migration must rewrite these too, not just `import` statements. The boundary scanner does track them (see §8).
+- 78 importing files under `src/`, containing ~93 static `import type`/`export type ... from ".../types.js"` statements plus **12 inline `import(".../types.js").Name` type queries in 6 files** *(review: 15; http-client has 7, server-memory 4; see 11.4)*: [src/app/server-memory/index.ts](/Users/monkey/dev/jumpyBrain/src/app/server-memory/index.ts) (3), [src/adapters/http-client/index.ts](/Users/monkey/dev/jumpyBrain/src/adapters/http-client/index.ts) (5), [src/cli/doctor.ts](/Users/monkey/dev/jumpyBrain/src/cli/doctor.ts), [src/core/canonical/markdown-store.ts](/Users/monkey/dev/jumpyBrain/src/core/canonical/markdown-store.ts), [src/app/local-memory/index.ts](/Users/monkey/dev/jumpyBrain/src/app/local-memory/index.ts), [src/adapters/http-server/browser-transport.ts](/Users/monkey/dev/jumpyBrain/src/adapters/http-server/browser-transport.ts). A migration must rewrite these too, not just `import` statements. The boundary scanner does track them (see §8).
 - Re-export barrels that re-export from `types.js`: [src/core/index.ts](/Users/monkey/dev/jumpyBrain/src/core/index.ts) (21 names), [src/runtime/index.ts](/Users/monkey/dev/jumpyBrain/src/runtime/index.ts) (32 names in two `export type` blocks), [src/app/attention.ts](/Users/monkey/dev/jumpyBrain/src/app/attention.ts) (`MemoryAttentionNote`, `MemoryAttentionPacket`), [src/app/writing/local-writer.ts](/Users/monkey/dev/jumpyBrain/src/app/writing/local-writer.ts) (`WrapupWriteResult`).
 
 Dominant types by importer count: `Frontmatter` (18 files), `MemoryActor` (12), `MemoryWriteResult` (11), `SearchRecognitionMetadata` (10), `MemoryDocumentReadResult` (10), `MarkdownDocument` (9), `IndexMemoryOptions` (9), `RetrievalReadiness` (9), `DreamWindowRequest` (9), `ExecutionOptions` (8), `TemporalQuery` (8). Six types have **zero direct importers** and are reachable only via barrels: `MemoryConnectionHub`, `MemoryGraphNodeKind`, `MemoryGraphStats`, `ProcessingLintIssueCode`, `ProcessingLintEvidence`, `DreamApplyManifest`.
@@ -133,7 +135,7 @@ What the published root surface re-exports from `types.js` today:
 - Via [src/app/attention.ts](/Users/monkey/dev/jumpyBrain/src/app/attention.ts): `MemoryAttentionNote`, `MemoryAttentionPacket`.
 - Via [src/app/writing/local-writer.ts](/Users/monkey/dev/jumpyBrain/src/app/writing/local-writer.ts) (re-exported through `app/writing/index.ts`): `WrapupWriteResult`.
 
-So the package-root type surface is the union of those; a leaf-owner layout that keeps the same names re-exported from `src/runtime/index.ts` (now from the new owner paths instead of `../types.js`) **does not change the names exported from `jumpybrain` / `dist/index.d.ts`**. Only the internal `.d.ts` reference paths change.
+So the package-root type surface is the union of those; a leaf-owner layout that keeps the same names re-exported from `src/runtime/index.ts` (now from the new owner paths instead of `../types.js`) **does not change the names exported from `jumpybrain` / `dist/index.d.ts`**. Only the internal `.d.ts` reference paths change. *(Review: false for the pilot target as proposed — `src/core/index.ts:32` re-exports the whole retrieval-policy barrel, so four internal types would become public; see 11.1.)*
 
 Deep-path exposure (the compatibility risk):
 
@@ -151,7 +153,7 @@ Consequence, measured: **65 of the 94 types are consumed by at least one core-do
 
 Additionally, 14 types are imported **directly by `src/cli/*`** (`DreamWindow`, `DreamWindowRequest`, `IndexMemoryOptions`, `MemoryDocumentReadResult`, `MemoryDocumentUpdateResult`, `MemoryOverviewOptions`, `MemoryOverviewResult`, `MemoryWriteResult`, `Provenance`, `RetrievalReadiness`, `SearchMemoryResult`, `SearchResult`, `SemanticSetupStatus`, `TemporalQuery`), and `cli-boundary` may not import `app-use-case` directly — so those types must stay core-domain or be reached via `runtime-app` re-exports (a pattern CLI already uses, e.g. [src/cli/bounded-reads.ts](/Users/monkey/dev/jumpyBrain/src/cli/bounded-reads.ts) imports `type CompactRecallOptions` from `../runtime/index.js`).
 
-The private agreement layer [src/adapters/backend-protocol.ts](/Users/monkey/dev/jumpyBrain/src/adapters/backend-protocol.ts) imports 28 types from `../types.js` and may only import core-domain — and it already imports co-located contract types from core submodules: `CompactRecallOptions/CompactRecallPacket` from [src/core/retrieval-policy/compact.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/compact.ts), `ExpansionOptions/ExpansionResult` from [src/core/canonical/expansion.ts](/Users/monkey/dev/jumpyBrain/src/core/canonical/expansion.ts), `SourceCheckRequest/Result` from [src/core/dream/source-references.ts](/Users/monkey/dev/jumpyBrain/src/core/dream/source-references.ts), `Logseq*/Obsidian*` from [src/core/migration/types.ts](/Users/monkey/dev/jumpyBrain/src/core/migration/types.ts) and `obsidian.ts`, `BoardList/BoardRecord` from [src/core/boards/model.ts](/Users/monkey/dev/jumpyBrain/src/core/boards/model.ts). It also defines purely local types (`WrapupDraft`, `DocumentUpdateOptions`, `BoardStatus`) instead of putting them in `types.ts`. **So the co-location pattern already exists and the guard already supports it; `src/types.ts` is the residue.** [src/core/core.docs.md](/Users/monkey/dev/jumpyBrain/src/core/core.docs.md) even documents that the core barrel re-exports "only curated core-safe shared types" — i.e. a small shared core type surface is sanctioned by the existing docs.
+The private agreement layer [src/adapters/backend-protocol.ts](/Users/monkey/dev/jumpyBrain/src/adapters/backend-protocol.ts) imports 28 types from `../types.js` *(review: 29)* and may only import core-domain — and it already imports co-located contract types from core submodules: `CompactRecallOptions/CompactRecallPacket` from [src/core/retrieval-policy/compact.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/compact.ts), `ExpansionOptions/ExpansionResult` from [src/core/canonical/expansion.ts](/Users/monkey/dev/jumpyBrain/src/core/canonical/expansion.ts), `SourceCheckRequest/Result` from [src/core/dream/source-references.ts](/Users/monkey/dev/jumpyBrain/src/core/dream/source-references.ts), `Logseq*/Obsidian*` from [src/core/migration/types.ts](/Users/monkey/dev/jumpyBrain/src/core/migration/types.ts) and `obsidian.ts`, `BoardList/BoardRecord` from [src/core/boards/model.ts](/Users/monkey/dev/jumpyBrain/src/core/boards/model.ts). It also defines purely local types (`WrapupDraft`, `DocumentUpdateOptions`, `BoardStatus`) instead of putting them in `types.ts`. **So the co-location pattern already exists and the guard already supports it; `src/types.ts` is the residue.** [src/core/core.docs.md](/Users/monkey/dev/jumpyBrain/src/core/core.docs.md) even documents that the core barrel re-exports "only curated core-safe shared types" — i.e. a small shared core type surface is sanctioned by the existing docs.
 
 ## 5. Proposed target layout (subtask 1.4)
 
@@ -190,7 +192,7 @@ Under any strategy, moving type declarations into existing modules adds **zero n
 
 ## 7. Recommended pilot: retrieval-policy domain (subtask 1.5 prep)
 
-Pilot set (16 types): `RetrievalDepth`, `ScoreBreakdown`, `SearchResult`, `SearchMemoryOptions`, `SearchMemoryResult`, `RetrievalReadiness`, `RetrievalOutcome`, `IndexingPolicy`, `IndexMemoryOptions`, `IndexMemoryResult`, `IndexedDocument`, `IndexManifest`, `TemporalQuery`, `TemporalResolution`, `TemporalCoverage`, `TemporalRetrieval` — moving to [src/core/retrieval-policy/index.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/index.ts) and [src/core/retrieval-policy/temporal.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/temporal.ts) (which already imports 4 of them from `types.js`). Leave `ExecutionOptions` and `EvidenceDate` for the shared-vocabulary/provenance waves.
+Pilot set (16 types): `RetrievalDepth`, `ScoreBreakdown`, `SearchResult`, `SearchMemoryOptions`, `SearchMemoryResult`, `RetrievalReadiness`, `RetrievalOutcome`, `IndexingPolicy`, `IndexMemoryOptions`, `IndexMemoryResult`, `IndexedDocument`, `IndexManifest`, `TemporalQuery`, `TemporalResolution`, `TemporalCoverage`, `TemporalRetrieval` — moving to [src/core/retrieval-policy/index.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/index.ts) and [src/core/retrieval-policy/temporal.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/temporal.ts) (which already imports 4 of them from `types.js` *(review: 2)*). Leave `ExecutionOptions` and `EvidenceDate` for the shared-vocabulary/provenance waves.
 
 Exact files whose imports change in the pilot (29 files; adapters 11, app 8, cli 4, core 5, runtime 1):
 
@@ -200,7 +202,7 @@ Exact files whose imports change in the pilot (29 files; adapters 11, app 8, cli
 - core: [src/core/index.ts](/Users/monkey/dev/jumpyBrain/src/core/index.ts), [src/core/memory-root/index.ts](/Users/monkey/dev/jumpyBrain/src/core/memory-root/index.ts), [src/core/retrieval-policy/compact.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/compact.ts), [src/core/retrieval-policy/index.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/index.ts), [src/core/retrieval-policy/temporal.ts](/Users/monkey/dev/jumpyBrain/src/core/retrieval-policy/temporal.ts)
 - runtime: [src/runtime/index.ts](/Users/monkey/dev/jumpyBrain/src/runtime/index.ts)
 
-Why this pilot: all 16 types have core-domain owners (so the guard is satisfied trivially), the owning module already exists and imports several of these types, the blast radius is one domain, and it exercises every tricky case — inline `import()` queries (http-client/index.ts), re-export barrels (core/index.ts, runtime/index.ts), a core-domain-only consumer (backend-protocol.ts, qmd/*), and CLI direct importers (cli/* must keep importing from core-domain or runtime, never from app).
+Why this pilot: all 16 types have core-domain owners (so the guard is satisfied trivially), the owning module already exists and imports several of these types, the blast radius is one domain, and it exercises every tricky case — inline `import()` queries (http-client/index.ts) *(review: no inline query references a pilot type; see 11.3)*, re-export barrels (core/index.ts, runtime/index.ts), a core-domain-only consumer (backend-protocol.ts, qmd/*), and CLI direct importers (cli/* must keep importing from core-domain or runtime, never from app).
 
 ## 8. Verification / regression plan (subtask 1.5)
 
@@ -212,7 +214,7 @@ This is a type-only change, so the gates are compile + structure gates, per the 
 4. `node --test test/package-footprint.test.js` — runs `npm pack --dry-run` and validates against [scripts/local-pack-manifest.mjs](/Users/monkey/dev/jumpyBrain/scripts/local-pack-manifest.mjs) (`requiredLocalPackFiles` — note `dist/types.js` is **not** required, so deleting it would not fail here; only the 780-file budget and required-module list apply) and the byte/file budgets in [scripts/package-budget.mjs](/Users/monkey/dev/jumpyBrain/scripts/package-budget.mjs). Moving types into existing files adds zero packed files; only newly created source files cost 2 files each.
 5. `node --test test/source-graph-contracts.test.js test/core-boundary.test.js` — scanner fixtures and the dist/core import-graph gate (core must not reach CLI/QMD).
 6. Test-suite impact: 183 test files import from `../dist/`, none import `dist/types.js` or `src/types.ts` (verified), and the change is type-only (all moved declarations are `export type`/`interface`, erased at emit; a re-export shim emits the same empty `dist/types.js`). So **no test files need path changes and no selected `node --test` rerun beyond the gates above is behaviorally required**; run the gates after `npm run build` per docs/testing.md and broaden only if a gate fails. The named smoke scripts in package.json (`smoke:semantic-index`, `smoke:hosted`, `smoke:graph`, etc.) exercise runtime CLI/server/browser behavior and are not indicated for a type-only change — docs/testing.md says to stop at the smallest passing selection.
-7. Runtime-bundle check for the pilot record (task 4.2): diff `dist/` before/after — expect zero `.js` byte changes except an unchanged-empty `dist/types.js`; confirm no size delta so `check:package-size`/footprint budgets are unaffected.
+7. Runtime-bundle check for the pilot record (task 4.2): diff `dist/` before/after — expect zero `.js` byte changes except an unchanged-empty `dist/types.js`; confirm no size delta so `check:package-size`/footprint budgets are unaffected. *(Review: `.d.ts` output grows slightly and is budgeted too; see 11.6.)*
 
 ## 9. Cost/benefit, reasons NOT to do it, and falsification (subtasks 1.1/1.4 wrap-up)
 
@@ -244,3 +246,37 @@ Evidence that would **falsify** the proposal: (a) if the pilot shows no reductio
 - 1.4 — Done: §5 target layout + shared vocabulary; §6 strategy ranking (C recommended).
 - 1.5 — Done: §7 pilot (retrieval-policy, 16 types, 29 exact files); §8 verification plan tied to `npm run build` and the named gate tests.
 - 1.6 — Done: this document plus the "Deep dive findings" section added to the task list.
+
+## 11. Review corrections (2026-11-16)
+
+An independent, source-checked review of sections 1-10 before the 2.0 go/no-go. Confirmed correct: 836 lines and 94 type-only exports (`dist/types.js` is `export {};`); 78 importers (core 19, app 27, adapters 23, cli 8, runtime 1) and none under `src/server/`; the 29-file pilot list matches a resolved import scan; spot-checked per-type importer counts; `exports`/`private` pinned; no test, script, Electron/macOS/pi integration or prototype imports a types path; the migration-purity rule (`architecture-boundaries.test.js:332`) allows `src/core/*`; every pilot target is core-domain, so the guard table needs no change; the `docs/testing.md:26` row is cited correctly.
+
+### 11.1 The pilot changes the public type surface
+
+[src/core/index.ts:32](/Users/monkey/dev/jumpyBrain/src/core/index.ts#L32) does `export * from "./retrieval-policy/index.js"` and [src/runtime/index.ts:1](/Users/monkey/dev/jumpyBrain/src/runtime/index.ts#L1) does `export * from "../core/index.js"`. Declaring the pilot types as exports of `retrieval-policy/index.ts` therefore makes `ScoreBreakdown`, `IndexingPolicy`, `IndexedDocument` and `IndexManifest` public names of `jumpybrain`; none of them is named by `src/index.ts`, `src/runtime/index.ts` or `src/core/index.ts` today. The change is additive (nothing breaks) but contradicts [core.docs.md:6](/Users/monkey/dev/jumpyBrain/src/core/core.docs.md#L6) ("only curated core-safe shared types") and no gate enumerates exported type names, so it would land silently. Fix: a `src/core/retrieval-policy/contracts.ts` that the barrel does not re-export (2 extra packed files against the 780 budget), or record the four names as a deliberate API addition.
+
+### 11.2 Two-way type-only dependency
+
+Pilot types depend on types that stay in `src/types.ts` (`SearchResult` uses `Provenance` and `SearchRecognitionMetadata`, types.ts:77-90; the two `*Options` extend `ExecutionOptions`; `IndexedDocument` uses `Frontmatter`), while `MemoryRootConfig.indexing` ([types.ts:715](/Users/monkey/dev/jumpyBrain/src/types.ts#L715)) and `MemoryRootStatus.readiness` ([types.ts:739](/Users/monkey/dev/jumpyBrain/src/types.ts#L739)) use moved types. So `types.ts` and the retrieval-policy module would import each other. TypeScript permits this and no test checks for cycles, but it should be an accepted, temporary step until the memory-root/provenance waves. Note: `export type { … } from` shim lines do not bring the names into scope inside `types.ts`; a separate `import type` is needed.
+
+### 11.3 The pilot does not exercise inline `import()` queries
+
+None of the 15 inline `import("…types.js").Name` queries references a pilot type, so the claim in section 7 that the pilot covers that case is false. That case remains untested until a later wave.
+
+### 11.4 Count corrections
+
+15 inline type queries, not 12 (`src/adapters/http-client/index.ts` 7, `src/app/server-memory/index.ts` 4); `temporal.ts` imports 2 pilot types, not 4; `backend-protocol.ts` imports 29 names from `types.ts`, not 28.
+
+### 11.5 Double-listed owners
+
+Section 5 places `IndexingPolicy` under both retrieval-policy and memory-root, and `IndexedDocument`/`IndexManifest` under both retrieval-policy and markdown-store. `IndexManifest` has a single consumer (`qmd-driver.ts`) and a `qmdCollection` field: it is a QMD index manifest, a poor fit for backend-agnostic retrieval policy. Pick one owner per type before migrating; deferring `IndexManifest` from the pilot is reasonable.
+
+### 11.6 Size claim
+
+`.js` output is byte-identical, but `scripts/package-budget.mjs` counts all of `dist/` including `.d.ts`, which grows by a few hundred bytes (shim plus new file). Harmless against the budget (~7.27 MB of 7.5 MB runtime) but the pilot record should state it.
+
+### 11.7 Corrected pilot
+
+- 12 non-temporal types into `src/core/retrieval-policy/contracts.ts`, not re-exported by the barrel (public names unchanged); 4 temporal types into `temporal.ts`; optionally defer `IndexManifest`.
+- Shim in `src/types.ts` plus `import type` for names it still uses; accept the two-way dependency explicitly.
+- Add a before/after diff of exported names in `dist/index.d.ts`, `dist/runtime/index.d.ts`, `dist/core/index.d.ts` to the verification plan.

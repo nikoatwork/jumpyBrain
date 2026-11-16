@@ -6,6 +6,8 @@ read-only commands. The proposal under review is
 [tasks/todo/tasks-smoke-harness-simplify.md](../../tasks/todo/tasks-smoke-harness-simplify.md);
 its evidence numbers were re-derived here and several need correcting (section 2).
 
+> **Review 2026-11-16:** an independent source check found errors in the pilot, the gate analysis and the parity plan. Section 10 records them and the narrowed pilot; inline notes mark the affected claims.
+
 ## 1. Scope and method
 
 - Read: [AGENTS.md](../../AGENTS.md), [docs/testing.md](../../docs/testing.md),
@@ -96,7 +98,7 @@ Drift observed in setup idioms: quote style (single vs double) splits the same
 import lines in half; `setDefaultTimeout` values vary (12000/15000/20000);
 viewport loops vary (`[1280, 390]` in 14 smokes, `[1280, 390, 320]` in 11); key
 naming varies (`key`, `apiKey`, `token`, `setupKey`, literal `'disposable-*'`);
-17 of the 69 server smokes do not pass `autoIndex: false`; `companion-browser-smoke.mjs`
+17 of the 69 server smokes do not pass `autoIndex: false` *(review: 2 — `graph-topic`, `usability-writes`)*; `companion-browser-smoke.mjs`
 starts three backends plus a gateway in a fixture loop.
 
 Headers double as documentation: 170 leading comment lines across the 106 smokes
@@ -131,7 +133,8 @@ window-chrome). These headers must survive any migration verbatim.
   smoke headers repeat "use existing dist" inline. The scripts can already rely on a
   pre-built dist; the `npm run build &&` prefix on 8 playwright npm entries is
   belt-and-braces for standalone, copy-pasteable commands — which is exactly how
-  docs/release-testing.md and browser.docs.md quote them.
+  docs/release-testing.md and browser.docs.md quote them. *(Review: docs/release-testing.md
+  quotes none of the build-prefixed entries; see 10.7.)*
 - Realistic savings from dropping/caching the prefix: ~2-3 s per npm-script
   invocation on this machine. Per scenario run directly via
   `npx --package=playwright node scripts/x-smoke.mjs` (the docs/testing.md form)
@@ -199,7 +202,7 @@ brains"); (b) `--kind/--width/--out` argv (3 smokes use `parseArgs`) and
 the harness; (c) the harness never navigates before the scenario installs its
 transport.
 
-Pilot set (5) with expected diff shapes:
+Pilot set (5) with expected diff shapes *(superseded by 10.8: pilot 2 is gate-pinned, pilot 5 becomes a dry run)*:
 
 1. `scripts/collaboration-overlap-smoke.mjs` (127 lines) — the task list's example.
    Replace ~18 harness-token lines (imports, mkdtemp, AccessStore+2 issues, server
@@ -240,7 +243,8 @@ Pilot set (5) with expected diff shapes:
    before/after. Run each pilot pre- and post-migration on the same commit+build;
    compare exit code and stdout JSON (`{passed:true, results:[...]}`) field by
    field — the results array is the per-assertion record, so "every assertion still
-   exercised" is directly checkable, not inferred from a green exit.
+   exercised" is directly checkable, not inferred from a green exit. *(Review: only
+   pilots 1 and 2 print that JSON; see 10.4.)*
 3. Mutation-style evidence, not just green runs: for live-editing pilots, the
    existing fault injector is the mutation lever — arm a `holdRequest`/`dropReply`/
    `rejectNext` rule the scenario does not expect and confirm the migrated script
@@ -265,7 +269,9 @@ Pilot set (5) with expected diff shapes:
      does not move any byte budget.
    - [scripts/precommit-guard.mjs](../../scripts/precommit-guard.mjs) scans staged
      content for secrets; its `ALLOWED_PLACEHOLDER_VALUES`
-     (line 54) already tolerates the `disposable-*` key literals the smokes use —
+     (line 54) already tolerates the `disposable-*` key literals the smokes use
+     *(review: it has no such entry; the literals pass because they don't match
+     `SECRET_ASSIGNMENT`)* —
      the harness must use the same placeholder style for any default key, and
      `guard:staged` must be run on the migration commit.
    - The multiplayer production gate contract
@@ -276,14 +282,16 @@ Pilot set (5) with expected diff shapes:
      fingerprint, so the pinned gate contract needs a deliberate re-capture before
      that gate is used again (build-footprint.md says the same about the pinned
      package-budget digest). This is the single most expensive hidden cost of the
-     proposal.
+     proposal. *(Review: overstated, and the real pinned-file gate was missed; see
+     10.1-10.2.)*
    - `node --test` never discovers `scripts/*-smoke.mjs`, so `npm test`
      (`npm run build && node --test`) is unaffected as long as smokes stay in
      `scripts/` and out of `test/`.
 5. Loop-time measurement (task 4.2): time `npm run smoke:<x>` before/after for each
    pilot, and separately time `npx --package=playwright node scripts/<x>-smoke.mjs`
    with a pre-built dist (the docs/testing.md flow) — the build prefix is the only
-   removable term and it is ~2-3 s.
+   removable term and it is ~2-3 s. *(Review: the pilot keeps the prefix, so task 4.2
+   becomes "not slower"; see 10.6.)*
 
 ## 7. Estimate
 
@@ -323,7 +331,7 @@ Pilot set (5) with expected diff shapes:
    must be added to the copied-inputs list, or old evidence dirs stop matching.
 5. The multiplayer gate contract fingerprints all of `scripts/`; any change there
    forces a deliberate re-capture of `production-gate-contract.json` before that
-   gate runs again.
+   gate runs again. *(Review: overstated; see 10.2.)*
 6. Build savings are small (~2-3 s per prefixed command) and docs/testing.md already
    mandates build-once-per-change for interactive work; 7 smoke headers already
    instruct "use existing dist". Removing the prefix from the 8 npm entries trades
@@ -355,4 +363,47 @@ If any of these hold, the recommendation is: keep one file per scenario and the 
 entries exactly as they are, and at most extract the two or three helpers that are
 already shared (`playwright-runtime.mjs`, `editor-smoke-helpers.mjs`,
 `collaboration-smoke-transport.mjs`) into a slightly larger harness — without
-touching any command names.
+touching any command names. *(Review: this fallback is the most expensive option,
+since all three are pinned assertion roots; see 10.3.)*
+
+## 10. Review corrections (2026-11-16)
+
+An independent, source-checked review of sections 1-9 before the 2.0 go/no-go. Confirmed correct: 174 files, 106 smokes, 18,734 lines, 69 server smokes, 8 using `AccessStore`, 48 npm scripts, 28 gateway starts, 31 fault-injector imports, 34 screenshot-variable users, 3 `parseArgs` users, the build definition (`package.json:16`), no incremental build, the 10 s benchmark ceiling, the `docs/testing.md:9,11` quotes, `architecture-boundaries` scanning `src/` only, `package-entrypoints` pinning only manifest fields, the `files` whitelist excluding smokes, and the pilot sizes (126/358/193/135/180 lines).
+
+### 10.1 Missed gate: architecture-contracts pins a pilot script
+
+[test/fixtures/architecture-contracts/profile.json](../../test/fixtures/architecture-contracts/profile.json) pins `scripts/ux-uncertain-save-smoke.mjs` by hash (line 16) and requires its `JUMPYBRAIN_CONTRACT` observation ids (the "uncertain" check around line 119). Migrating it changes the pinned file, and making it import a new `smoke-harness.mjs` fails [contract-delta.mjs:108](../../scripts/multiplayer-verification/contract-delta.mjs) ("New assertion helper requires an explicitly pinned null-old declaration") unless a reviewed contract delta is authored. Pilot 2 is dropped until someone budgets that review.
+
+### 10.2 The `scripts/` fingerprint cost is narrower than stated
+
+`runtimeSnapshot` ([scripts/multiplayer-verify.mjs:126-135](../../scripts/multiplayer-verify.mjs)) records `scripts/` and requires it committed and unchanged during a run; it is not compared against the baseline contract. The real costs are: edits to pinned assertion files (and new helpers they import) need a reviewed delta; the production gate's Linux reports bind the full source map including `scripts/` ([multiplayer-production-verify.mjs:69](../../scripts/multiplayer-production-verify.mjs)), so existing Linux reports are re-run for the new commit (per-run evidence, not a contract re-capture). The re-capture note in `docs/build-footprint.md:58-60` concerns the pinned `scripts/package-budget.mjs` digest only. Smokes not named in a gate inventory carry no gate cost.
+
+### 10.3 The fallback recommendation is the expensive path
+
+Section 9's fallback grows `playwright-runtime.mjs`, `editor-smoke-helpers.mjs` and `collaboration-smoke-transport.mjs`. All three are pinned assertion roots in the gate inventories, so editing them triggers 10.1's delta review. A new harness file that imports them unchanged is cheaper.
+
+### 10.4 Parity needs counting for most pilots
+
+Only `collaboration-overlap-smoke.mjs` (`:122`) and `ux-uncertain-save-smoke.mjs` (`:335`) print `{passed, results:[...]}`. `theme-smoke.mjs:188` and `graph-warning-smoke.mjs:109,112` print single PASS lines; `access-keys-smoke.mjs:22` prints `ok - <name>` per check. For those, "every assertion still exercised" requires counting executed assertions (scratch instrumentation, or adding a results array deliberately) plus injected-fault checks.
+
+### 10.5 Teardown order is scenario-specific
+
+`ux-uncertain-save-smoke.mjs:349-357` closes the browser, then the server, then copies notes into the evidence folder, writes `report.json`, and only then removes the temp root. `access-keys-smoke.mjs:175-179` swallows close errors and sets `process.exitCode` instead of throwing. A `runSmoke` wrapper that simply removes the folder in `finally` breaks the first and changes the second's failure output. Harness v1 needs an ordered cleanup stack (reverse registration, scenario-added steps).
+
+### 10.6 Task 4.2 could not pass as written
+
+The pilot keeps every npm entry and its build prefix, and section 4 measures ~0 s saving for direct runs, so "a loop that did not get faster is evidence against the proposal" would always fire. The bar becomes "not slower".
+
+### 10.7 Smaller corrections
+
+- 2 of 69 server smokes omit `autoIndex: false` (`graph-topic`, `usability-writes`), not 17.
+- `docs/release-testing.md` quotes no build-prefixed `smoke:*` entry; it references `smoke:desktop`, `smoke:electron`, `smoke:hosted`, `smoke:install`.
+- `ALLOWED_PLACEHOLDER_VALUES` (`scripts/precommit-guard.mjs:54`) has no `disposable-*` entry; those key literals pass because `const`/object-literal lines don't match `SECRET_ASSIGNMENT`.
+- Live docs reference 86 distinct smoke paths (all resolve), not 87; 89 smokes import `../dist/`, not 86.
+
+### 10.8 Narrowed pilot
+
+- Migrate `collaboration-overlap`, `theme` and `graph-warning` only (none gate-pinned). Use `access-keys` as an uncommitted dry run of the multi-brain/gateway escape hatches. Leave `ux-uncertain-save` until a reviewed contract delta is budgeted.
+- Harness v1: temp brain, server start, browser launch/page factory, ordered cleanup stack. No `recordSmokeEvidence` yet.
+- Do not edit the three pinned helpers; import them.
+- Parity per 10.4; loop "not slower" per 10.6.
