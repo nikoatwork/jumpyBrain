@@ -32,6 +32,12 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Existing owners, without duplicate checklists
 
+- [ ] [New-note false conflict](tasks-new-note-false-conflict.md): Nov 17, proposed P1. Mac app conflict after deleting the first line of an unshared new note.
+- [ ] [Graph hover flicker](tasks-graph-hover-flicker.md): Nov 17, proposed P2. Large-graph hover flicker in the Mac app.
+- [ ] [Hosted index location](tasks-hosted-index-location.md): Nov 17 (two emails), proposed P2. Network storage for canonical files and a smaller hosted image.
+- [ ] [Org MCP access](tasks-org-mcp-access.md): Nov 17, proposed P2. Needs a product decision on the CLI-only rule before building.
+- [ ] [Page backlinks](tasks-page-backlinks.md): Nov 14, proposed P2. Show notes linking to a page and open the graph centred on it.
+
 - [x] [Shared-brain admission and errors](../done/2026-11-14_tasks-shared-brain-admission-errors.md): completed in source. 429/503 refusals are explained consistently with an optional validated delay, `--json` memory/recipe/board failures print one JSON error object, the companion forwards a valid `Retry-After`, and nothing retries automatically. The historical deployment policy remains unverified. Pending release.
 - [x] [Sidebar request reduction](../done/2026-11-14_tasks-sidebar-request-reduction.md): completed in source. Opening a window now costs 7 HTTP requests instead of 17 (attention read once, previews sent with it); two windows on the shared test brain went from 32 to 14. Idle polling is unchanged. Pending release.
 - [Legacy managed upgrades](../done/2026-11-14_tasks-legacy-managed-upgrade.md): Nov 10 upgrade/migration implemented and verified 2026-11-14; broader distribution and project integration remain separate.
