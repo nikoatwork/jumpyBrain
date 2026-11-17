@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-17 — First-line cut saves correctly
+
+- The editor captures the selected Markdown range before cutting. The new-note regression verifies canonical saves at desktop and narrow widths and draft recovery after a genuine external change. [Reproduction and verification](done/2026-11-17_tasks-new-note-false-conflict.md).
+
 ## 2026-11-15 — Pre-existing browser smoke failures fixed
 
 - Fourteen Chromium smokes that had drifted from the product now run to completion. Most assumed PUT saves, a 296px sidebar, a visible narrow sidebar or stored keys; they now inject failures over the live socket and follow the review recovery flow. The companion smoke runs over real disposable backends with live editing, with the obsolete conflict stop replaced by a two-tab merge scenario. One product fix: a wrong access key no longer traps the open note. [Outcome, verification and follow-ups](done/2026-11-15_tasks-pre-existing-smoke-failures.md).

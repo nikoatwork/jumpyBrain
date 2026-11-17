@@ -32,7 +32,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Existing owners, without duplicate checklists
 
-- [ ] [New-note false conflict](tasks-new-note-false-conflict.md): Nov 17, proposed P1. Mac app conflict after deleting the first line of an unshared new note.
+- [x] [New-note false conflict](../done/2026-11-17_tasks-new-note-false-conflict.md): Nov 17, P1. Cutting the starter heading now saves in the shared editor. Genuine external changes still trigger recovery. Chromium verified the fix. Pending release.
 - [ ] [Graph hover flicker](tasks-graph-hover-flicker.md): Nov 17, proposed P2. Large-graph hover flicker in the Mac app.
 - [ ] [Hosted index location](tasks-hosted-index-location.md): Nov 17 (two emails), proposed P2. Network storage for canonical files and a smaller hosted image.
 - [ ] [Org MCP access](tasks-org-mcp-access.md): Nov 17, proposed P2. Needs a product decision on the CLI-only rule before building.

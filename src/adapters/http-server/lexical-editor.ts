@@ -2,7 +2,7 @@
 import {
   $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND,
-  COMMAND_PRIORITY_HIGH, DELETE_CHARACTER_COMMAND, DELETE_WORD_COMMAND, DELETE_LINE_COMMAND, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
+  COMMAND_PRIORITY_HIGH, CUT_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_WORD_COMMAND, DELETE_LINE_COMMAND, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type ElementNode, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
@@ -601,6 +601,15 @@ export function createNoteEditor(element: HTMLElement, options: {
       }
     }
     return true;
+  }, COMMAND_PRIORITY_HIGH));
+
+  // A cut deletes through Lexical's own command handler, so no beforeinput event
+  // ever reaches the early delete capture and the author's own cut would be
+  // classified as an unprovable input. Capture the same native selection before
+  // that handler commits, exactly like the paste capture above.
+  cleanups.push(editor.registerCommand(CUT_COMMAND, () => {
+    captureSourceIntent("deleteByCut");
+    return false;
   }, COMMAND_PRIORITY_HIGH));
 
   function changeTaskIndent(block: TaskMarkdownNode, outdent: boolean) {

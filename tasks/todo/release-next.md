@@ -1,5 +1,6 @@
 # Changes
 
+- Cutting the first line of a new note now saves without asking you to review a false edit conflict.
 - Typing a wrong access key while a note is open no longer leaves you stuck on that note; you can navigate away or enter the correct key straight away.
 - Buttons, rows, menus, dialogs and dropdowns now look and behave the same across the app. The brain switcher at the bottom of the sidebar highlights as one row with a proper switch icon, chevrons rotate the same way everywhere, dialogs put Cancel before the main action, and touch layouts get 40px targets consistently.
 - The sidebar has more breathing room, a wider 320px default and clearer title, preview and timestamp typography. Existing custom widths are kept; double-click its divider to use the new default.
