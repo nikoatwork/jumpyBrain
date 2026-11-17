@@ -1,5 +1,6 @@
 import type { Principal } from "../access-control/index.js";
 import type { CollaborationHub } from "../../app/collaboration/index.js";
+import { canonicalPublicationEvidence } from "../../app/collaboration/index.js";
 import { applyServerMemoryFileOperation } from "../../app/server-memory/folder-explorer-operations.js";
 import { listBoards, readBoard, saveBoard, deleteBoard, getBoardStatus, BoardError } from "../../app/server-memory/boards.js";
 import { listDrawings, readDrawing, createDrawing, saveDrawing, renameServerMemoryDrawing, deleteDrawing, DrawingError, DRAWING_MAX_BYTES } from "../../app/server-memory/drawings.js";
@@ -512,7 +513,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
       const mutation = await parseJsonBody(request);
       if (isJsonError(mutation)) { writeJson(response, mutation.statusCode, mutation.body); return; }
       try {
-        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await patchServerMemoryAttention({ root, id, ifMatch, mutation }); await context.collaboration?.notifyCanonicalWrite(id); return packet; });
+        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await patchServerMemoryAttention({ root, id, ifMatch, mutation }); await context.collaboration?.notifyCanonicalWrite(id, canonicalPublicationEvidence(packet)); return packet; });
         context.onMemoryWrite?.();
         writeJson(response, 200, packet);
       } catch (error) {
@@ -550,7 +551,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
         try { normalizeMemoryActor(parsedBody.actor); } catch { writeJson(response, 422, errorResponse("invalid_actor", "Invalid declared editor.")); return; }
       }
       try {
-        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await updateServerMemoryDocument({ root, id, content, ifMatch, actor: normalizeMemoryActor(parsedBody.actor) }); await context.collaboration?.notifyCanonicalWrite(id); return packet; });
+        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await updateServerMemoryDocument({ root, id, content, ifMatch, actor: normalizeMemoryActor(parsedBody.actor) }); await context.collaboration?.notifyCanonicalWrite(id, canonicalPublicationEvidence(packet)); return packet; });
         if (!packet.unchanged) context.onMemoryWrite?.();
         logger.info("remote_document_update_success", {
           method: request.method,

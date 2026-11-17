@@ -1,6 +1,6 @@
 // Real browser and CLI against disposable Markdown only.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -262,6 +262,140 @@ try {
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ width, checks: "CLI/filesystem/other-user editor refresh, highlights/fade/reduced motion, caret/scroll/undo, idle-safe merge of independent edits and concurrent end appends, same-passage review, recovery, deletion/disconnect recovery, stale-subscription navigation", subscriptionMutations: liveTransport.observed.filter((message) => message.method === "edit").length }));
     await page.close();
+  }
+
+  // Two clean viewers follow real --target-url CLI writes against the loopback
+  // hosted target: a hash-guarded append, a metadata-only update and a
+  // deliberate replacement, plus typing while a held document event has not
+  // been delivered. Bounded deadlines report the editor state explicitly.
+  {
+    const hostedId = "mem_94000000-0000-4000-8000-000000000004";
+    const hostedFile = path.join(root, "notes/hosted.md");
+    await writeFile(hostedFile, `---\nid: ${hostedId}\ntype: note\ntitle: Hosted update fixture\ncustom: retained\n---\nHosted base body.\n`);
+    // spawnSync would freeze the in-process server this CLI talks to, so the
+    // hosted target runs the real CLI through an async child instead.
+    const hostedCli = async (command, args = [], input) => {
+      const child = spawn(process.execPath, [cliPath, command, "--target-url", server.url, "--id", hostedId, "--json", ...args], { env: { ...process.env, JUMPYBRAIN_API_KEY: key } });
+      const result = await new Promise((resolve, reject) => {
+        let stdout = "", stderr = "";
+        const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("hosted CLI command timed out")); }, 120_000);
+        child.stdout.on("data", (chunk) => stdout += chunk);
+        child.stderr.on("data", (chunk) => stderr += chunk);
+        child.on("error", (error) => { clearTimeout(timer); reject(error); });
+        child.on("close", (code) => { clearTimeout(timer); resolve({ status: code, stdout, stderr }); });
+        child.stdin.on("error", () => {});
+        child.stdin.end(input);
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      return JSON.parse(result.stdout);
+    };
+    const DELIVERY_MS = 8000;
+    const delivered = async (page, label, source, arg) => {
+      try { await page.waitForFunction(source, arg, { timeout: DELIVERY_MS }); }
+      catch {
+        const diagnosis = await page.evaluate(() => ({ status: state.editor?.collaboration?.state.status, markdown: richEditor?.getMarkdown?.() }));
+        assert.fail(`${label}: not delivered within ${DELIVERY_MS} ms (editor status ${diagnosis.status}; markdown ${JSON.stringify(diagnosis.markdown)})`);
+      }
+    };
+    const saved = (page) => page.waitForFunction(() => state.editor.collaboration.state.status === "saved", undefined, { timeout: DELIVERY_MS });
+    const viewerErrors = [], viewerPuts = [];
+    const firstContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const secondContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const viewerA = await firstContext.newPage();
+      const hostedTransport = await installCollaborationSmokeTransport(viewerA);
+      const viewerB = await secondContext.newPage();
+      for (const page of [viewerA, viewerB]) {
+        page.setDefaultTimeout(DELIVERY_MS + 5000);
+        page.on("pageerror", (error) => viewerErrors.push(error.message));
+        page.on("request", (request) => { if (request.method() === "PUT") viewerPuts.push(page.url()); });
+        await page.goto(`${server.url}/?note=${hostedId}#apiKey=${key}`);
+        await page.locator("#note-editor").waitFor({ state: "visible" });
+        await saved(page);
+        assert.equal(await page.locator("#note-external-state").textContent(), "", "initial hosted hydration must not claim an external update");
+        assert.equal(await page.locator("#review-retained-version").isHidden(), true, "the hosted fixture opens without a retained-version notice");
+      }
+      const hostedMutations = () => hostedTransport.observed.filter((message) => ["edit", "undo", "redo", "title", "resync", "stream.start", "stream.chunk", "stream.finish", "stream.cancel"].includes(message.method)).length;
+
+      // A hash-guarded CLI append reaches both viewers as a positioned source change.
+      const opened = await hostedCli("show");
+      assert.equal(opened.id, hostedId);
+      const cleanMutations = hostedMutations();
+      const appended = "Agent appended through the hosted target.";
+      await hostedCli("update", ["--if-match", opened.contentHash], opened.content + appended + "\n");
+      await delivered(viewerA, "viewer A append", (text) => richEditor.getMarkdown().endsWith(text + "\n"), appended);
+      await delivered(viewerB, "viewer B append", (text) => richEditor.getMarkdown().endsWith(text + "\n"), appended);
+      for (const page of [viewerA, viewerB]) assert.equal(await page.locator("#note-external-state").innerText(), "Updated elsewhere");
+      const afterAppend = await hostedCli("show");
+      assert.equal(await readFile(hostedFile, "utf8"), afterAppend.content, "CLI read and canonical bytes agree after the append");
+      assert.ok(afterAppend.content.includes('custom: "retained"'), "the guarded append preserves unrelated user metadata through normalization");
+      assert.equal(hostedMutations(), cleanMutations, "clean viewers never re-publish a supported append");
+      assert.equal(viewerPuts.length, 0, "hydrating viewers send no legacy PUT autosave");
+      const snapshotB = await viewerB.evaluate(() => state.editor.collaboration.snapshot);
+      assert.equal(snapshotB.prefix + snapshotB.body, afterAppend.content, "the hydrated snapshot matches the canonical source bytes");
+      assert.equal(snapshotB.contentHash, afterAppend.contentHash);
+      assert.equal(snapshotB.recovery, undefined, "a hash-guarded append is not classified as a destructive replacement");
+
+      // A managed metadata-only rewrite hydrates without a destructive transition.
+      await hostedCli("update", ["--if-match", afterAppend.contentHash], afterAppend.content.replace(/^title:.*$/m, 'title: "Hosted title from the CLI"'));
+      for (const page of [viewerA, viewerB]) await delivered(page, "title hydration", (title) => document.querySelector("#note-name").value === title, "Hosted title from the CLI");
+      for (const page of [viewerA, viewerB]) {
+        assert.ok((await editorMarkdown(page)).endsWith(appended + "\n"), "a supported title change never touches the body");
+        assert.equal(await page.locator("#review-retained-version").isHidden(), true, "a supported title change keeps the review notice hidden");
+      }
+      assert.equal(hostedMutations(), cleanMutations, "a supported metadata update is hydrated, never re-published");
+      const beforeTyping = await editorMarkdown(viewerA);
+      await appendEditorText(viewerA, " Viewer A keeps editing.");
+      await saved(viewerA);
+      await undoEditor(viewerA);
+      await delivered(viewerA, "viewer A undo", (body) => richEditor.getMarkdown() === body, beforeTyping);
+
+      // A deliberate replacement keeps the retained-version review path.
+      const carried = await hostedCli("show");
+      await hostedCli("update", ["--if-match", carried.contentHash], carried.content.replace(/^(---\r?\n[\s\S]*?\r?\n---\r?\n)[\s\S]*$/, "$1") + "Replacement from the terminal.\n");
+      for (const page of [viewerA, viewerB]) await delivered(page, "replacement hydration", (body) => richEditor.getMarkdown() === body, "Replacement from the terminal.\n");
+      for (const page of [viewerA, viewerB]) {
+        assert.equal(await page.locator("#note-external-state").innerText(), "Updated elsewhere");
+        await page.waitForFunction(() => !document.getElementById("review-retained-version").hidden, undefined, { timeout: DELIVERY_MS });
+      }
+      const afterReplace = await hostedCli("show");
+      assert.equal(await readFile(hostedFile, "utf8"), afterReplace.content, "CLI read and canonical bytes agree after the replacement");
+
+      // Reopen returns exactly the state the CLI already confirmed.
+      await viewerB.reload();
+      await viewerB.locator("#note-editor").waitFor({ state: "visible" });
+      await saved(viewerB);
+      const reopened = await hostedCli("show");
+      await delivered(viewerB, "reopen hydration", (body) => richEditor.getMarkdown() === body, "Replacement from the terminal.\n");
+      const reopenedSnapshot = await viewerB.evaluate(() => state.editor.collaboration.snapshot);
+      assert.equal(reopenedSnapshot.prefix + reopenedSnapshot.body, reopened.content, "a reopened viewer hydrates the exact canonical source");
+      assert.equal(reopenedSnapshot.contentHash, reopened.contentHash);
+
+      // An acknowledged CLI append whose document event is held cannot duplicate
+      // itself, and independent typing before delivery still merges cleanly.
+      let heldSnapshot;
+      const held = hostedTransport.holdNextEvent(hostedId, (snapshot) => { heldSnapshot = snapshot; return snapshot.body.includes("Appended while the event was held."); });
+      const beforeHeld = await hostedCli("show");
+      await hostedCli("update", ["--if-match", beforeHeld.contentHash], beforeHeld.content + "Appended while the event was held.\n");
+      await held.arrived; // The CLI update already returned; viewer A has not seen its event yet.
+      // The earlier deliberate replacement is still under review, so this event
+      // may legitimately carry that pending recovery notice; only the append
+      // itself must appear as a positioned source operation, never as body loss.
+      assert.ok(Array.isArray(heldSnapshot.operation?.splices) && heldSnapshot.operation.splices.some((splice) => splice.insert?.includes("Appended while the event was held.")), "the held document event carries the append as a positioned source operation: " + JSON.stringify(heldSnapshot.operation));
+      await delivered(viewerB, "viewer B held append", (text) => richEditor.getMarkdown().endsWith(text + "\n"), "Appended while the event was held.");
+      await appendEditorText(viewerA, " My typing during delivery.");
+      await saved(viewerA);
+      held.release();
+      await delivered(viewerA, "viewer A merged delivery", () => richEditor.getMarkdown().includes("Appended while the event was held.") && richEditor.getMarkdown().includes("My typing during delivery."));
+      assert.equal(await viewerA.locator("#note-save-error").isVisible(), false, "typing during a held delivery resolves without an error banner");
+      const settled = await hostedCli("show");
+      assert.equal(settled.content.split("Appended while the event was held.").length - 1, 1, "no re-publication ever duplicated the appended text");
+      assert.deepEqual(viewerErrors, [], "hosted verification surfaces no page errors");
+      console.log(JSON.stringify({ checks: "two clean hosted viewers hydrate guarded --target-url CLI append/title/replacement without destructive recovery; held-event typing and reopen agree with canonical bytes", deliveryDeadlineMs: DELIVERY_MS }));
+    } finally {
+      await firstContext.close();
+      await secondContext.close();
+    }
   }
 } finally {
   await browser?.close(); await server?.close();

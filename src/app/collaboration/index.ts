@@ -22,6 +22,7 @@ import {
   parseFrontmatter,
 } from "../../core/canonical/markdown-store.js";
 import { mergeMemoryDocumentUpdate } from "../../core/document-update.js";
+import { ATTRIBUTION_KEYS } from "../../core/contribution.js";
 import {
   readMemoryDocument,
   updateMemoryDocument,
@@ -125,6 +126,35 @@ interface Session {
     missing?: boolean;
   };
 }
+export interface CanonicalPublicationEvidence {
+  beforeContentHash: string;
+  afterContentHash: string;
+}
+/**
+ * Before/after evidence of one acknowledged supported publication, taken from
+ * a guarded canonical update result. Missing or malformed hashes carry no
+ * evidence: observation of the changed file then stays fully conservative.
+ */
+export function canonicalPublicationEvidence(result: unknown): CanonicalPublicationEvidence | undefined {
+  if (!result || typeof result !== "object") return undefined;
+  const { oldContentHash, newContentHash } = result as { oldContentHash?: unknown; newContentHash?: unknown };
+  if (typeof oldContentHash !== "string" || !/^sha256:[0-9a-f]{64}$/.test(oldContentHash)) return undefined;
+  if (typeof newContentHash !== "string" || !/^sha256:[0-9a-f]{64}$/.test(newContentHash)) return undefined;
+  return { beforeContentHash: oldContentHash, afterContentHash: newContentHash };
+}
+// Writer-managed metadata the supported boundary may rewrite at will. Other
+// keys are content: a supported update that drops one still loses metadata.
+const supportedMetadataKeys: ReadonlySet<string> = new Set([
+  ...ATTRIBUTION_KEYS,
+  "updated_at",
+  "attention_at",
+  "attention_settled_hash",
+]);
+const metadataKeyLoss = (before: string, after: string): boolean =>
+  Object.keys(parseFrontmatter(before).frontmatter).some((key) =>
+    !Object.hasOwn(parseFrontmatter(after).frontmatter, key) &&
+    !supportedMetadataKeys.has(key),
+  );
 export interface CollaborationHubOptions {
   root: string;
   enqueueWrite?: <T>(operation: () => Promise<T>) => Promise<T>;
@@ -1313,7 +1343,7 @@ export class CollaborationHub {
       await this.refresh(session, true);
     }
   }
-  private async refresh(session: Session, immediate = false, settled = false) {
+  private async refresh(session: Session, immediate = false, settled = false, evidence?: CanonicalPublicationEvidence) {
     if (session.conflict) return;
     const canonicalRoot = session.base.root;
     const file = path.join(canonicalRoot, session.base.file);
@@ -1451,7 +1481,16 @@ export class CollaborationHub {
         operations = [{ start:0, deleteCount:session.model.body.length, insert:splitCanonicalContent(current.content).body, ambiguous:true }];
       }
     }
-    if (difference.deleteCount > 0 || prefixDifference.deleteCount > 0) {
+    // A hash-guarded writer publishes through this queue with explicit
+    // before/after evidence. Its routine bookkeeping (timestamps, attribution
+    // and attention fields) must not read as an external destructive
+    // replacement. Actual body loss, removed metadata keys and every
+    // unevidenced raw-file change keep the conservative recovery policy.
+    const supported = evidence !== undefined
+      && evidence.beforeContentHash === session.base.contentHash
+      && evidence.afterContentHash === current.contentHash
+      && !metadataKeyLoss(session.base.content, current.content);
+    if (difference.deleteCount > 0 || (prefixDifference.deleteCount > 0 && !supported)) {
       session.recovery = {
         code: "external_destructive_replacement",
         baseContentHash: session.base.contentHash,
@@ -1552,11 +1591,11 @@ export class CollaborationHub {
     if (ifMatch && session.base.contentHash !== ifMatch)
       fail("precondition_failed");
   }
-  async notifyCanonicalWrite(documentId?: string) {
+  async notifyCanonicalWrite(documentId?: string, evidence?: CanonicalPublicationEvidence) {
     for (const session of this.sessions.values())
       if (!documentId || session.documentId === documentId) {
         session.fingerprint = undefined;
-        await this.refresh(session, true, true);
+        await this.refresh(session, true, true, evidence);
       }
   }
   resourceUsage() {
