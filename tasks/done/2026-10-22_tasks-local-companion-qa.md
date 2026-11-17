@@ -8,7 +8,7 @@ Physical-device, accessibility, and cross-browser validation remains separately 
 
 ## Goal and ownership
 
-Resolve the findings in [the 2026-10-16 QA report](../../deep-dives/local-companion-qa/2026-10-16.md). This list owns implementation status.
+Resolve the findings in [the 2026-10-16 QA report](../../docs/deep-dives/local-companion-qa/2026-10-16.md). This list owns implementation status.
 
 - User approved upstream P1/P2 implementation, then scoped commit/push and cleanup. Unrelated existing theme/product work stays uncommitted.
 - Starting HEAD: `d65dad0f77bac4cafee385f4706b505e539920bb`; implementation verification initially included uncommitted theme/product work. Commit preparation separately verifies P1/P2 on the clean baseline.
@@ -40,14 +40,14 @@ Resolve the findings in [the 2026-10-16 QA report](../../deep-dives/local-compan
 
 ## Initial P1/P2 verification (historical)
 
-[P1 follow-up QA record](../../deep-dives/local-companion-qa/2026-10-16-p1-follow-up.md) records commands, tested working-tree hashes, red/green evidence, preservation, and limits.
+[P1 follow-up QA record](../../docs/deep-dives/local-companion-qa/2026-10-16-p1-follow-up.md) records commands, tested working-tree hashes, red/green evidence, preservation, and limits.
 
 - Before fix: 2 new unit regressions failed; updated production-shell smoke reproduced Home Search closing across idle polls.
 - After rebuild: 164 targeted Node tests passed; companion browser smoke passed including real poll-surviving Search/query/reference/Dream behavior; all 14 production-gateway checks passed; 26 autocomplete checks passed at 1280 px / 390 px.
 - Incremental review found no introduced issues; `git diff --check` passed.
 - Installed app remains unchanged and unverified for these fixes. Implementation verification did not change personal memory, configuration, deployment, or commits. Test maintenance and layout follow-ups remain pending; do not call the full QA clean.
 
-[P2 follow-up QA record](../../deep-dives/local-companion-qa/2026-10-16-p2-follow-up.md) records semantics, commands, tested hashes, and limits.
+[P2 follow-up QA record](../../docs/deep-dives/local-companion-qa/2026-10-16-p2-follow-up.md) records semantics, commands, tested hashes, and limits.
 
 - Before P2 fix: all four new unit cases failed; the new real-route browser runner reproduced hidden limit warnings with 501 disposable notes / 500 returned nodes.
 - After rebuild: 168 targeted Node tests passed; graph-warning smoke passed at 1280/390/320 px with the unchanged cap; indexed graph-editor/Dream/map smoke and companion-browser smoke passed.

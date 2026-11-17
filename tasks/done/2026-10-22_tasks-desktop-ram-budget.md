@@ -1,6 +1,6 @@
 # Desktop RAM budget — first iteration
 
-Completed 2026-10-22 as a bounded first iteration at the user's request. Implemented and validated metadata/graph allocation improvements, hidden graph cleanup and long-index forwarding. Remaining matched acceptance, soak/GPU/native experiments and numerical budgets are explicitly deferred to [the follow-up task](../done/2026-10-23_tasks-desktop-ram-follow-up.md). See [first-iteration results](../../deep-dives/desktop-ram/first-iteration.md). This is ready for release review, not a claim that a release was published.
+Completed 2026-10-22 as a bounded first iteration at the user's request. Implemented and validated metadata/graph allocation improvements, hidden graph cleanup and long-index forwarding. Remaining matched acceptance, soak/GPU/native experiments and numerical budgets are explicitly deferred to [the follow-up task](../done/2026-10-23_tasks-desktop-ram-follow-up.md). See [first-iteration results](../../docs/deep-dives/desktop-ram/first-iteration.md). This is ready for release review, not a claim that a release was published.
 
 ## Goal
 
@@ -8,7 +8,7 @@ Deliver the tested metadata/graph improvements and reproducible measurement tool
 
 ## Evidence and decisions
 
-- [2026-10-22 measurement](../../deep-dives/desktop-ram/findings.md): installed 0.3.3, six processes, 13 samples over one minute, 371 MB median physical footprint (362–378 MB), 483 MB median summed RSS. User's Notion >1 GB observation is an unverified reference, not a matched benchmark.
+- [2026-10-22 measurement](../../docs/deep-dives/desktop-ram/findings.md): installed 0.3.3, six processes, 13 samples over one minute, 371 MB median physical footprint (362–378 MB), 483 MB median summed RSS. User's Notion >1 GB observation is an unverified reference, not a matched benchmark.
 - Backend median 163 MB; GPU 79 MB; Electron main 57 MB; renderer 54 MB; Swift host 12 MB; network helper 8 MB. GPU lifetime peak 432 MB, not simultaneous with other process peaks.
 - Source optimizations are implemented and functionally validated; matched whole-desktop acceptance is deferred. Twelve baseline runs completed, but no whole-desktop savings or numerical budget is claimed. Existing unrelated unfinished work is preserved.
 - Markdown remains canonical. Any metadata/graph cache must be bounded, derived, rebuildable and correct under external edits. Keep core/app/adapter boundaries and existing save/quit/switch protections.
@@ -19,7 +19,7 @@ Deliver the tested metadata/graph improvements and reproducible measurement tool
   - [x] 1.1 Measure the whole descendant tree with separate physical-footprint and RSS counters.
   - [x] 1.2 Save a read-only sampler, raw samples, limitations and per-process breakdown.
 - [x] 2.0 Build and preserve a repeatable workload baseline for this iteration.
-  - [x] 2.1 Use disposable 0/100/1,000/10,000-note corpora with documented byte sizes, links and index/model policy. Record artifact hash/version, OS, hardware and workload state. — Prepared and verified all four seeds; see [fixture evidence](../../deep-dives/desktop-ram/2026-10-22-fixtures.json), [accepted workload baselines](../../deep-dives/desktop-ram/2026-10-22-workload-baseline.json) and [workload contract](../../deep-dives/desktop-ram/workload-baseline.md).
+  - [x] 2.1 Use disposable 0/100/1,000/10,000-note corpora with documented byte sizes, links and index/model policy. Record artifact hash/version, OS, hardware and workload state. — Prepared and verified all four seeds; see [fixture evidence](../../docs/deep-dives/desktop-ram/2026-10-22-fixtures.json), [accepted workload baselines](../../docs/deep-dives/desktop-ram/2026-10-22-workload-baseline.json) and [workload contract](../../docs/deep-dives/desktop-ram/workload-baseline.md).
   - [x] 2.2 Measure cold background launch, home, note open/edit/save, lexical search, semantic search, indexing, graph pan/zoom/resize, minimize, last-window close, reopen and explicit quit. Include all QMD/model descendants and shared-memory/GPU caveats. — Twelve accepted baseline runs; zero-note editing is explicitly inapplicable.
   - [x] 2.3 Run each scenario at least three times; capture settled median, sampled maximum, short-lived operation peaks, latency and five-minute post-work recovery. Do not sum independent lifetime peaks. — Baseline aggregates published; matched optimized repetitions moved to follow-up 1.0.
   - [~] 2.4 Thirty-minute retention soak — deferred by user to follow-up 2.0.
@@ -66,11 +66,11 @@ The notes below preserve the earlier execution history. The user subsequently re
 
 ## Relevant files
 
-- `deep-dives/desktop-ram/measure-macos.py` — observational whole-process-tree sampler.
+- `docs/deep-dives/desktop-ram/measure-macos.py` — observational whole-process-tree sampler.
 - `scripts/desktop-ram-fixtures.mjs` — deterministic corpus preparation and artifact/machine manifest verification.
 - `test/desktop-ram-fixtures.test.js` — canonical fixture semantics, reproducibility and isolation checks.
-- `deep-dives/desktop-ram/workload-baseline.md` — corpus/index policy, reproduction and workload measurement contract.
-- `deep-dives/desktop-ram/2026-10-22-fixtures.json` — path-free prepared-fixture evidence; no workload measurements.
+- `docs/deep-dives/desktop-ram/workload-baseline.md` — corpus/index policy, reproduction and workload measurement contract.
+- `docs/deep-dives/desktop-ram/2026-10-22-fixtures.json` — path-free prepared-fixture evidence; no workload measurements.
 - `integrations/electron/application.mjs`, `window.mjs`, `lifecycle.mjs` — desktop/background/window lifecycle.
 - `integrations/macos-companion/gateway.mjs` — persistent gateway and local server composition.
 - `src/app/server-memory/recent.ts` — full discovery and candidate sorting for eight recent notes.

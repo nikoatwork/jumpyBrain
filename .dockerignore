@@ -1,7 +1,9 @@
 # Explicit build-input allowlist. Do not send local state, secrets, personal
 # memory, evals, desktop dependencies or unrelated scripts to the builder.
 **
-!Dockerfile
+!deploy/
+deploy/**
+!deploy/Dockerfile
 !.dockerignore
 !package.json
 !package-lock.json
@@ -12,6 +14,7 @@
 scripts/**
 !scripts/build-editor.mjs
 !scripts/feedback-config.mjs
+!scripts/feedback-relay.mjs
 !scripts/qmd-install-check.mjs
 !scripts/multiplayer-upgrade.mjs
 !scripts/engine/

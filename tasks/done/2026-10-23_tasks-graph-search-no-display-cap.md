@@ -26,6 +26,6 @@ Tested the task diff on `6bd1cb3` using Node v26.7.0 on 2026-10-23.
 ## Relevant files
 - `src/adapters/http-server/graph-search.ts`, `map-controller.ts`, `graph-page.ts`, `browser.docs.md`
 - `test/graph.test.js`, `scripts/graph-topic-smoke.mjs`, `scripts/graph-ui-smoke.mjs`
-- `glossary.md`, `tasks/todo/release-next.md`, `tasks/CHANGELOG.md`
+- `docs/glossary.md`, `tasks/todo/release-next.md`, `tasks/CHANGELOG.md`
 
 Current docs and pending release notes now describe relevance-driven result counts. This completed adjustment is archived and committed with its scoped changes.

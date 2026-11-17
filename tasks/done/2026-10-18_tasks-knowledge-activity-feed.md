@@ -33,7 +33,7 @@ This replaces the earlier history/owner-plus-actor architecture proposal. Person
 
 - `src/app/server-memory/recent.ts`, `src/app/server-memory/server-memory.docs.md` — fresh metadata scan, ordering, and eligibility.
 - `src/adapters/http-server/notes-browser.ts`, `src/adapters/http-server/browser.docs.md` — home list, refresh, date labels, and navigation.
-- `docs/shared-memory-protocol.md`, `glossary.md` — public contract and scope language.
+- `docs/shared-memory-protocol.md`, `docs/glossary.md` — public contract and scope language.
 - `test/server-recent.test.js`, `test/notes-browser.test.js`, `scripts/recent-notes-smoke.mjs` — focused server/controller/browser verification.
 - [External document updates](2026-10-18_tasks-live-external-document-updates.md) — separate open-note refresh behavior; no dependency on a retained history system.
 

@@ -24,7 +24,7 @@ try {
   await writeFile(path.join(entry, 'package.json'), JSON.stringify({ name: 'jumpybrain-extension-qa', type: 'module', main: path.join(repo, 'integrations/electron/smoke-extensions.mjs') }));
   if (process.platform === 'darwin') {
     const sampler = path.join(output, 'sample-tree');
-    execFileSync('clang', ['-O2', path.join(repo, 'deep-dives/desktop-ram/sample-tree.c'), '-o', sampler]);
+    execFileSync('clang', ['-O2', path.join(repo, 'docs/deep-dives/desktop-ram/sample-tree.c'), '-o', sampler]);
     monitor = spawn(sampler, [String(process.pid), '150'], { stdio: ['ignore', 'pipe', 'pipe'] });
     let buffer = '';
     monitor.stdout.on('data', chunk => { buffer += chunk; let newline; while ((newline = buffer.indexOf('\n')) >= 0) { const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1); if (line) samples.push(JSON.parse(line)); } });

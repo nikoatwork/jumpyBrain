@@ -28,7 +28,7 @@ Creation time is useful secondary information in result details, particularly fo
 - `normalizeNoteResults` in `src/adapters/http-server/notes-browser.ts` currently reduces a hit to identity, title, reference title, raw snippet and path. `renderNoteSearch` displays title/snippet/path with `textContent`.
 - Home Recent activity already distinguishes update, creation and unknown metadata dates. Search should reuse its semantics, with stricter shared validation where needed; do not silently treat an evidence date or filesystem copy time as a content edit.
 - The tab-local confirmed-write overlay in `recent-write-search.ts` currently carries only ID/title/file/body. Enriching indexed results alone would leave newly saved results inconsistent.
-- [Contribution actor in the glossary](../../glossary.md) is explicitly deferred. The [recent-activity decision](2026-10-18_tasks-knowledge-activity-feed.md) implemented latest-file metadata without editor identity or history. Existing `source` values do not establish who last edited a note.
+- [Contribution actor in the glossary](../../docs/glossary.md) is explicitly deferred. The [recent-activity decision](2026-10-18_tasks-knowledge-activity-feed.md) implemented latest-file metadata without editor identity or history. Existing `source` values do not establish who last edited a note.
 - Memory recall for this topic returned no matches. Repository contracts above are the basis of this proposal.
 
 ## Tasks
@@ -99,4 +99,4 @@ Remaining limits: recognition is explicitly partial over bounded ranked candidat
 - `src/app/server-memory/recent.ts`, `src/app/server-memory/`, `src/app/writing/` — current metadata/date behavior and local/hosted use-case ownership.
 - `src/core/document-update.ts`, `src/core/frontmatter.ts`, `src/core/canonical/`, `src/types.ts` — canonical metadata and guarded content updates; inspect ownership docs before changing contracts.
 - `test/notes-browser.test.js`, `test/recent-write-search.test.js`, `test/server-recent.test.js`, existing search tests and `scripts/page-reference-smoke.mjs` — extend existing focused verification.
-- `docs/memory-format.md`, `docs/shared-memory-protocol.md`, `glossary.md` — date, identity, provenance and freshness semantics.
+- `docs/memory-format.md`, `docs/shared-memory-protocol.md`, `docs/glossary.md` — date, identity, provenance and freshness semantics.

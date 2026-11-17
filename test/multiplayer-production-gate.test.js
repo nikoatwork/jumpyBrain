@@ -8,7 +8,7 @@ import os from 'node:os';
 import {readProductionContract,assertScenarioAssertions,assertIntegrationHead,productionSourceMap,readPinnedLinuxReport,assertDesktopArtifact,assessProductionCheck} from '../scripts/multiplayer-production-verify.mjs';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex'),json=value=>JSON.stringify(value,null,2)+'\n';
-const contractFile=new URL('../deep-dives/multiplayer-editing/production-gate-contract.json',import.meta.url);
+const contractFile=new URL('../docs/deep-dives/multiplayer-editing/production-gate-contract.json',import.meta.url);
 async function directory(t){const root=await mkdtemp(path.join(os.tmpdir(),'jb-production-gate-'));t.after(()=>rm(root,{recursive:true,force:true}));return root;}
 async function save(root,name,value){const file=path.join(root,name),bytes=json(value);await writeFile(file,bytes);return{file,pin:sha(bytes)};}
 test('production contract has an external pin and retains all checks, original M0 and budget floors',async t=>{

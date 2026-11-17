@@ -23,7 +23,7 @@ Create three distinct Mac note-page designs inspired by Linear, Coda and Notion,
 
 ## Artifacts
 
-- [Design proposals and judging](../../deep-dives/calm-note-journey/)
+- [Design proposals and judging](../../docs/deep-dives/calm-note-journey)
 
 ## Verification
 
@@ -45,7 +45,7 @@ Create three distinct Mac note-page designs inspired by Linear, Coda and Notion,
 
 ## Decision
 
-B — Folding desk won unanimously (138/150; C 128, A 122). See [selection and refinements](../../deep-dives/calm-note-journey/decision.md). Implemented explicit Format disclosure, one direct Link action and live supported-heading captions. Existing canonical editing, transport and permissions stay with their current owners.
+B — Folding desk won unanimously (138/150; C 128, A 122). See [selection and refinements](../../docs/deep-dives/calm-note-journey/decision.md). Implemented explicit Format disclosure, one direct Link action and live supported-heading captions. Existing canonical editing, transport and permissions stay with their current owners.
 
 ## Relevant files
 

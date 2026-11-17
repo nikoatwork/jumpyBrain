@@ -2,7 +2,7 @@
 
 Status: complete — 2026-11-08. All 31 private operations share a typed agreement; the original frozen profile and supplemental checks pass.
 
-Implementation snapshot: `e5bdb9d817dd79f0ce1b9b872bc778df573236ff`. [Compact verification record](../../deep-dives/architecture-contracts/backend-operation-v1.json).
+Implementation snapshot: `e5bdb9d817dd79f0ce1b9b872bc778df573236ff`. [Compact verification record](../../docs/deep-dives/architecture-contracts/backend-operation-v1.json).
 
 ## Goal
 
@@ -12,7 +12,7 @@ host. Keep the existing private protocol and all observable behavior unchanged.
 
 ## Reference and scope
 
-- [Contract guide](../../docs/architecture-contracts.md), [assessment](../../deep-dives/architecture-contracts/assessment.md), and [baseline v1](../../deep-dives/architecture-contracts/baseline-v1.json).
+- [Contract guide](../../docs/architecture-contracts.md), [assessment](../../docs/deep-dives/architecture-contracts/assessment.md), and [baseline v1](../../docs/deep-dives/architecture-contracts/baseline-v1.json).
 - Current ownership: `src/cli/local-transport.ts`, `src/app/backend-rpc.ts`, `src/adapters/http-server/index.ts`; [private operation agreement](../../src/app/app.docs.md#private-backend-operation-agreement).
 - Canonical publication and derived-index admission are deliberately different. Index/search work must not acquire the typing queue. Host authentication supplies root and cancellation authority; JSON never supplies a live AbortSignal or a new root.
 - This task does not redesign public HTTP, change command output, add automatic retries, change permissions, migrate canonical data or introduce a general service/schema framework.
@@ -62,7 +62,7 @@ than the duplicated knowledge it removes.
 
 - Adopted the full bounded pilot: all 31 existing operations now have typed positional tuples/results and shared metadata in `src/adapters/backend-protocol.ts`. App implementations remain behind exhaustive typed bindings. No new public operation, schema validation, permissions, retry, root-selection or migration behavior was introduced.
 - Final focused command: `node --test test/backend-operation-agreement.test.js test/backend-rpc-contracts.test.js test/creation-outcomes.test.js test/architecture-boundaries.test.js test/package-entrypoints.test.js` — **40/40 passed, zero failed/skipped**, including six supplemental cases. The selected full profile overlaps these checks; counts are not independent coverage.
-- Full integration command: `npx --no-install --package=playwright@1.64.1 node scripts/multiplayer-verification/architecture.mjs verify --baseline "$PWD/.local-pack/architecture-contracts/reference-3" --baseline-sha256 3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c --delta deep-dives/architecture-contracts/backend-operation-delta-v1.json --delta-sha256 aa528140010f583b0a3929be72c2444a4dc068a97b7d5679abfc880ae1ae9c81 --out .local-pack/architecture-contracts/backend-operation-v2` — **passed**. Build, **166/166 selected Node contracts** (original 165 plus an additive boundary test) and all four Chromium journeys passed; all **ten original checkpoints** matched exactly. Total selected execution was about 56 seconds.
+- Full integration command: `npx --no-install --package=playwright@1.64.1 node scripts/multiplayer-verification/architecture.mjs verify --baseline "$PWD/.local-pack/architecture-contracts/reference-3" --baseline-sha256 3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c --delta docs/deep-dives/architecture-contracts/backend-operation-delta-v1.json --delta-sha256 aa528140010f583b0a3929be72c2444a4dc068a97b7d5679abfc880ae1ae9c81 --out .local-pack/architecture-contracts/backend-operation-v2` — **passed**. Build, **166/166 selected Node contracts** (original 165 plus an additive boundary test) and all four Chromium journeys passed; all **ten original checkpoints** matched exactly. Total selected execution was about 56 seconds.
 - Reference manifest remains unchanged at `3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c`. Candidate manifest: `60c8e25679bf840ee0eb95f55db6d5b963b41746298b988bc1d050d0fe839a23`. The reviewed delta changes only the architecture test's exact protocol classification/three consumer edges and adds negative controls; every original behavioral assertion, fixture, helper and checkpoint remains unchanged. The complete original-to-candidate assertion diff was inspected before pinning.
 - Initial comparison `backend-operation-v1` was blocked before tests because unversioned npx selected Playwright 1.65.0 / updated Chrome 156.0.8078.80. Reused cached original Playwright 1.64.1 / Chromium 156.0.8078.4 with a pinned package invocation; no downloads, tool-source changes, baseline refresh or relaxed environment checks. Both attempt reports remain local.
 - Build retained the ordinary editor bundle at 676,185 bytes minified / 223,140 gzip, within unchanged limits. All scoped/new relative Markdown targets and `git diff --check` passed. A full changelog scan also found its pre-existing unrelated `todo/tasks-page-reference-manual-qa.md` link missing; left historical unrelated content unchanged. Full evidence remains under ignored `.local-pack/architecture-contracts/backend-operation-v2/`; the compact record and exact assertion delta are tracked.

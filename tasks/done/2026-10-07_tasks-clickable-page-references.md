@@ -15,7 +15,7 @@ Make related notes easier to navigate by following `[[Page Title]]` references d
 
 ## Deep Dive
 
-- [Page-reference feasibility findings](../../deep-dives/page-reference-feasibility/findings.md) — prototype results, measurements, remaining gates, and reproduction commands.
+- [Page-reference feasibility findings](../../docs/deep-dives/page-reference-feasibility/findings.md) — prototype results, measurements, remaining gates, and reproduction commands.
 
 ## Decisions
 
@@ -73,10 +73,10 @@ Make related notes easier to navigate by following `[[Page Title]]` references d
 
 ## Relevant Files
 
-- `deep-dives/page-reference-feasibility/findings.md` — reproducible evidence, separate recommendations, measurements, and known gaps.
-- `deep-dives/page-reference-feasibility/{editor,reference-ranges,autocomplete}.ts` — isolated browser prototypes, not production modules; port only reviewed pieces and remove the editor fork if implementation proceeds.
-- `deep-dives/page-reference-feasibility/{smoke,autocomplete-smoke,resolve-probe}.mjs` — disposable browser/controller and canonical-lookup probes.
-- `deep-dives/page-reference-feasibility/reference-ranges-probe.mjs` — pure scanner regressions for multiline code and conservative unsupported-context handling.
+- `docs/deep-dives/page-reference-feasibility/findings.md` — reproducible evidence, separate recommendations, measurements, and known gaps.
+- `docs/deep-dives/page-reference-feasibility/{editor,reference-ranges,autocomplete}.ts` — isolated browser prototypes, not production modules; port only reviewed pieces and remove the editor fork if implementation proceeds.
+- `docs/deep-dives/page-reference-feasibility/{smoke,autocomplete-smoke,resolve-probe}.mjs` — disposable browser/controller and canonical-lookup probes.
+- `docs/deep-dives/page-reference-feasibility/reference-ranges-probe.mjs` — pure scanner regressions for multiline code and conservative unsupported-context handling.
 - `src/architecture.docs.md` and affected modules' co-located `*docs.md` — boundaries to read before source changes.
 - `src/adapters/http-server/lexical-editor.ts` — reference nodes, literal blocks, transforms, paste, selection/history.
 - `src/adapters/http-server/notes-browser.ts` — note navigation, dialogs, shared search controller, reference insertion, suggestion presentation/feedback.

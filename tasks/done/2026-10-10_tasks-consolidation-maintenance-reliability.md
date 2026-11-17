@@ -2,7 +2,7 @@
 
 ## Completion — 2026-10-10
 
-Implemented and verified; **638/638 tests pass** in the isolated implementation checkout. [Implementation/evaluation results](../../deep-dives/consolidation-field-study/implementation-results.md) own the detailed evidence and limits. The fictional external `maintenance-v1.1` slice completed 90 answers, two independent judges, source-fidelity adjudication, title/body ablations and unchanged-source checks. **No benefit verdict:** every arm missed required qualifiers; the strongest 6.12-point answer gain failed the preregistered improvement gate. Correctness repairs ship without a general retrieval-quality claim.
+Implemented and verified; **638/638 tests pass** in the isolated implementation checkout. [Implementation/evaluation results](../../docs/deep-dives/consolidation-field-study/implementation-results.md) own the detailed evidence and limits. The fictional external `maintenance-v1.1` slice completed 90 answers, two independent judges, source-fidelity adjudication, title/body ablations and unchanged-source checks. **No benefit verdict:** every arm missed required qualifiers; the strongest 6.12-point answer gain failed the preregistered improvement gate. Correctness repairs ship without a general retrieval-quality claim.
 
 No private sources were changed by implementation/testing. Original private experiment cleanup is authorized after the implementation commit, excluding canonical notes/pages; reusable fictional evaluation data is separate. Pure ranking/selector ablations are explicitly skipped below, not claimed complete. No live hosted/platform or hostile-filesystem guarantee was tested.
 
@@ -12,7 +12,7 @@ Make maintenance trustworthy: recognize valid provenance, distinguish candidate 
 
 ## Evidence and scope
 
-- [Applied private-corpus field study](../../deep-dives/consolidation-field-study/findings.md), completed 2026-10-10: real lint/synthesis/dream writes and 96 fixed-query recalls; raw data remains outside Git.
+- [Applied private-corpus field study](../../docs/deep-dives/consolidation-field-study/findings.md), completed 2026-10-10: real lint/synthesis/dream writes and 96 fixed-query recalls; raw data remains outside Git.
 - Dream edits increased normal-depth expected-fact credit from 8/50 to 28/50 in a small, non-held-out agent evaluation. Deterministic synthesis stayed at 8/50 despite a first-ranked page; two of three extracted bullets were non-topical.
 - Lint emitted 36 findings. Three targeted answer suggestions lacked supporting answers; two inspected source-list warnings were false alarms. These are concrete regressions to reproduce, not population precision estimates.
 - This is a follow-up investigation/implementation list, not authorization to sweep, rewrite, or delete private source memories. Keep Markdown canonical, recall explicit, original evidence preserved, and remote writes separately authorized.

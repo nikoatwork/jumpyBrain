@@ -8,7 +8,7 @@ Test whether inexpensive document/section context improves retrieval of ambiguou
 
 ## Notes
 
-- Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence and external sources: [retrieval review](../../deep-dives/retrieval-product-review/findings.md#5-try-contextual-indexing-only-if-remaining-misses-justify-it).
+- Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence and external sources: [retrieval review](../../docs/deep-dives/retrieval-product-review/findings.md#5-try-contextual-indexing-only-if-remaining-misses-justify-it).
 - Do diagnosis after [ticket 1](../done/2026-10-10_tasks-semantic-index-reliability.md) stabilizes semantic indexing. Freeze the comparison baseline after [ticket 4](../done/2026-10-11_tasks-bounded-retrieval-execution.md)'s execution changes; use [ticket 2](../done/2026-10-11_tasks-budgeted-recall-and-expansion.md)'s full-interaction accounting and [ticket 3](../done/2026-10-11_tasks-temporal-retrieval-correctness.md)'s explicit date semantics.
 - Candidate context: existing title, heading ancestry, canonical aliases, and explicit evidence date. Inspect what the supported QMD version already indexes before duplicating it.
 - No new vector backend, mandatory LLM extraction, query-time generated summaries, or inference of facts/dates/aliases. Model-generated key expansion is outside this ticket.

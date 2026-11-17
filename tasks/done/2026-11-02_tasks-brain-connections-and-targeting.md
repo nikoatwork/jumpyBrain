@@ -17,7 +17,7 @@ Let an agent register/list an existing local brain for the Mac app without hand-
 
 - `src/cli/cli.docs.md`, `src/cli/targets.ts`, `src/cli/memory-target.ts`, `src/cli/doctor.ts`, `src/cli/companion.ts` — target and private companion seams.
 - `integrations/macos-companion/connections.docs.md`, `integrations/macos-companion/connections.mjs` — validated revisioned store.
-- `integrations/electron/electron.docs.md`, `integrations/macos-companion/gateway.docs.md`, `glossary.md` — lifecycle, switch barrier and connection meaning.
+- `integrations/electron/electron.docs.md`, `integrations/macos-companion/gateway.docs.md`, `docs/glossary.md` — lifecycle, switch barrier and connection meaning.
 
 ## Tasks
 

@@ -28,7 +28,7 @@ if (values.resume) {
   await mkdir(runtime);
   for (const name of ['dist','src','package.json']) await cp(path.join(repo, name), path.join(runtime, name), { recursive: true });
   await cp(new URL('./fixtures/ram-index-only.mjs', import.meta.url), driver);
-  execFileSync('clang', ['-O2','-Wall','-Wextra', path.join(repo, 'deep-dives/desktop-ram/sample-tree.c'), '-o', sampler]);
+  execFileSync('clang', ['-O2','-Wall','-Wextra', path.join(repo, 'docs/deep-dives/desktop-ram/sample-tree.c'), '-o', sampler]);
   snapshot = await fingerprintTree(runtime);
   identity = { at: new Date().toISOString(), runtime: snapshot, driver: await hashFile(driver), sampler: await hashFile(sampler), modelHash,
     node: process.version, platform: process.platform, arch: os.arch(), cpu: os.cpus()[0].model, ramBytes: os.totalmem(),

@@ -820,7 +820,7 @@ fs.symlinkSync("../@tobilu/qmd/bin/query.cjs", path.join(process.cwd(), "node_mo
 
 test("supported distribution entrypoints ship the QMD check and pin Docker installs", async () => {
   const shell = await readFile(path.join(repoRoot, "install.sh"), "utf8");
-  const docker = await readFile(path.join(repoRoot, "Dockerfile"), "utf8");
+  const docker = await readFile(path.join(repoRoot, "deploy/Dockerfile"), "utf8");
   const companion = await readFile(path.join(repoRoot, "integrations/macos-companion/install.py"), "utf8");
   const pkg = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
   const engine = JSON.parse(await readFile(path.join(repoRoot, "scripts/engine/package.json"), "utf8"));

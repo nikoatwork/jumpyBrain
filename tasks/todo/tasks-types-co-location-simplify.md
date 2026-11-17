@@ -38,7 +38,7 @@ Stop `src/types.ts` (836 lines, currently imported by 79 files across every laye
   - [x] 1.3 Determine the public-API exposure: what `src/index.ts`/`src/runtime/index.ts` re-export from `types.ts` today, what external consumers (including any scripts importing `dist/` or `integrations/`) rely on, and whether `test/package-entrypoints.test.js` would catch a break there
   - [x] 1.4 Propose the target layout: which types move, which stay in a deliberately small shared vocabulary file (and its naming), and the migration strategy (leaf-owner modules or re-export shims at old paths) ranked by risk
   - [x] 1.5 Define the verification plan: since this is type-only, behavior verification is mostly pinned by `npm run build` (tsc full check), the architecture and package gates above, plus scanning scripts/smokes for any runtime-type assumptions broken by the move
-  - [x] 1.6 Deliverable: `deep-dives/types-co-location-simplify/research.md` and an updated "Deep dive findings" section in this list
+  - [x] 1.6 Deliverable: `docs/deep-dives/types-co-location-simplify/research.md` and an updated "Deep dive findings" section in this list
   - [x] 1.7 Independent source-checked review of the research (2026-11-16): corrections in research.md section 11 and under "Review corrections" below; pilot corrected accordingly
 - [ ] 2.0 **Clarify:** Go/no-go and scope (owner: user, with research doc in hand). Decide:
   - [ ] 2.1 Approve the corrected pilot (3.0): move the retrieval-policy types next to their owner with a compatibility shim at the old path. Developer-facing ownership clarity only; no user-visible behaviour, speed or size change
@@ -63,11 +63,11 @@ Stop `src/types.ts` (836 lines, currently imported by 79 files across every laye
 
 ## Deep Dive
 
-- Delegated research doc: [deep-dives/types-co-location-simplify/research.md](/Users/monkey/dev/jumpyBrain/deep-dives/types-co-location-simplify/research.md)
+- Delegated research doc: [docs/deep-dives/types-co-location-simplify/research.md](/Users/monkey/dev/jumpyBrain/docs/deep-dives/types-co-location-simplify/research.md)
 
 ### Deep dive findings
 
-Full evidence and per-type tables are in [deep-dives/types-co-location-simplify/research.md](/Users/monkey/dev/jumpyBrain/deep-dives/types-co-location-simplify/research.md). Conclusions:
+Full evidence and per-type tables are in [docs/deep-dives/types-co-location-simplify/research.md](/Users/monkey/dev/jumpyBrain/docs/deep-dives/types-co-location-simplify/research.md). Conclusions:
 
 - Evidence mostly confirmed with corrections: `src/types.ts` is 836 lines and 94 type-only exports (no runtime exports, so `dist/types.js` is an empty module — the "cross-layer magnet" is compile-time only). Importers are 78 files under `src/` (core 19, app 27, adapters 23, cli 8, runtime 1), not 79, and `src/server/` has zero direct importers. There are ~105 reference sites, including 12 inline `import("../types.js").T` type queries in 6 files that a migration must also rewrite (review: 15, none in the pilot).
 - Public surface: `src/index.ts` -> `src/runtime/index.ts` re-exports 32 types from `types.js` directly plus 21 via `src/core/index.ts`, plus attention/writing re-exports; `package.json` has no `exports` map (pinned `undefined` by `test/package-entrypoints.test.js`), so `dist/types.d.ts` is a de-facto deep-importable surface. No in-repo test/script/integration imports any type path (183 test files import from `dist/`, none from `dist/types.js` or `src/types.ts`), so no test files need path changes.

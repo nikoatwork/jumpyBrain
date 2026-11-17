@@ -150,4 +150,4 @@ admission. The browser binding preserves source and unaffected editor nodes;
 private drafts reconnect before publishing. Markdown remains authoritative and
 collaboration history is rebuildable. Access/recovery records are unique
 operational state. See [behavior and limits](../docs/collaboration.md) and the
-[verification contract](../deep-dives/multiplayer-editing/production-gate-contract.json).
+[verification contract](../docs/deep-dives/multiplayer-editing/production-gate-contract.json).

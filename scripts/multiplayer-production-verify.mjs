@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { runGate, readBaseline, executeCheck, assessCheck, filesBelow, assertFingerprints, assertTreeFingerprints } from './multiplayer-verify.mjs';
 
 const repository=fileURLToPath(new URL('..',import.meta.url));
-const contractDefault='deep-dives/multiplayer-editing/production-gate-contract.json';
+const contractDefault='docs/deep-dives/multiplayer-editing/production-gate-contract.json';
 const baselinePin='739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2';
 const originalContractPin='27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a';
 const requiredIds=['production-editor','lexical-structure','hosted-browser-session','retained-version-ui','composed-local','composed-linux','local-workload','shared-workload','native-input-accessibility','signed-desktop','packaged-diagnostics','packaged-upgrade'];

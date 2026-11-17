@@ -28,7 +28,7 @@ The deployment is a separate Docker Compose service in `/srv/jumpybrain-feedback
 
 ## Relay on Coolify/VPS
 
-Create a separate Coolify application from this repository using `Dockerfile.feedback`, exposing port `3002` behind HTTPS. It runs only the support relay; it needs no memory root, QMD, or memory-server key. Configure these private server-side variables:
+Create a separate Coolify application from this repository using `deploy/Dockerfile.feedback` with the repository root as its build context, exposing port `3002` behind HTTPS. Existing applications must update their Dockerfile path before deploying this layout. It runs only the support relay; it needs no memory root, QMD, or memory-server key. Configure these private server-side variables:
 
 ```text
 AGENTMAIL_API_KEY=<set in Coolify secrets>

@@ -109,7 +109,7 @@ rerunning capture; a new capture gets a new explicit pin, never an assumed old
 digest.
 
 The first retained reference and independent-checkout comparison are recorded in
-[baseline v1](../deep-dives/architecture-contracts/baseline-v1.json). Use its
+[baseline v1](deep-dives/architecture-contracts/baseline-v1.json). Use its
 reference manifest pin, not the comparison run's pin, for both bounded pilots.
 The [completed editor session pilot](../tasks/done/2026-11-08_tasks-editor-session-contract-refactor.md)
-removes patched controller ownership with [exact checkpoint comparison](../deep-dives/architecture-contracts/editor-session-v1.json). The record separately identifies tools, scenario outcomes and limits.
+removes patched controller ownership with [exact checkpoint comparison](deep-dives/architecture-contracts/editor-session-v1.json). The record separately identifies tools, scenario outcomes and limits.

@@ -17,7 +17,7 @@ Production editor and theme preferences remain the comparison baseline. Prototyp
 
 ## Relevant files
 
-- [Prototype styles, capture harness and findings](../../deep-dives/checkbox-delight/findings.md).
+- [Prototype styles, capture harness and findings](../../docs/deep-dives/checkbox-delight/findings.md).
 - `src/adapters/http-server/editor-markdown-nodes.ts` — existing task DOM (read only).
 - `src/adapters/http-server/notes-browser.ts` — existing checkbox style (read only).
 

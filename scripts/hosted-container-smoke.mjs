@@ -49,7 +49,7 @@ try {
   console.log('Checking Docker availability (required; no skip on missing daemon).');
   const platform = await docker(['version', '--format', '{{.Server.Os}}/{{.Server.Arch}}']);
   await mkdir(path.join(context, 'scripts'), { recursive: true });
-  for (const file of ['Dockerfile', '.dockerignore', 'package.json', 'package-lock.json', 'tsconfig.json', 'src',
+  for (const file of ['deploy/Dockerfile', '.dockerignore', 'package.json', 'package-lock.json', 'tsconfig.json', 'src',
     'scripts/build-editor.mjs', 'scripts/feedback-config.mjs', 'scripts/qmd-install-check.mjs', 'scripts/multiplayer-upgrade.mjs',
     'scripts/engine/package.json', 'scripts/engine/package-lock.json']) {
     await mkdir(path.dirname(path.join(context, file)), { recursive: true });
@@ -67,15 +67,15 @@ try {
     await writeFile(path.join(context, file), 'hosted-context-private-sentinel');
   }
   // Inspect the filtered context itself, not just final COPY destinations.
-  await writeFile(path.join(context, 'Dockerfile'), 'FROM scratch\nCOPY . /\n');
-  await docker(['build', '--progress=plain', '--output', `type=local,dest=${path.join(temporary, 'filtered')}`, context], { timeout: 600_000 });
-  await cp(path.join(repository, 'Dockerfile'), path.join(context, 'Dockerfile'));
+  await writeFile(path.join(context, 'deploy/Dockerfile'), 'FROM scratch\nCOPY . /\n');
+  await docker(['build', '-f', path.join(context, 'deploy/Dockerfile'), '--progress=plain', '--output', `type=local,dest=${path.join(temporary, 'filtered')}`, context], { timeout: 600_000 });
+  await cp(path.join(repository, 'deploy/Dockerfile'), path.join(context, 'deploy/Dockerfile'));
   const filtered = await readdir(path.join(temporary, 'filtered'), { recursive: true });
   for (const file of ['.env', '.npmrc', 'src/.env', 'src/fixture.key', 'memory', 'evals', 'scripts/unrelated.mjs', 'scripts/engine/private.md']) {
     assert.ok(!filtered.includes(file), `private build-context entry leaked: ${file}`);
   }
   console.log('Building image from clean declared-input context.');
-  await docker(['build', '--progress=plain', '-t', image, context], { timeout: 600_000 });
+  await docker(['build', '-f', path.join(context, 'deploy/Dockerfile'), '--progress=plain', '-t', image, context], { timeout: 600_000 });
   imageCreated = true;
   const metadata = JSON.parse(await docker(['image', 'inspect', '--format', '{{json .}}', image]));
   assert.equal(metadata.Config.User, 'node');

@@ -12,7 +12,7 @@ Integrate selected variant 3: a subtle completion wash, filled tick and persiste
 
 ## Scope
 
-Selection follows the [three-variant exploration](../../deep-dives/checkbox-delight/findings.md). Preserve Markdown/history semantics and unrelated retrieval changes. No installation or release requested.
+Selection follows the [three-variant exploration](../../docs/deep-dives/checkbox-delight/findings.md). Preserve Markdown/history semantics and unrelated retrieval changes. No installation or release requested.
 
 ## Verification
 

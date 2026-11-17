@@ -20,14 +20,14 @@ Make the Mac app note page a minimal, approachable document workspace for people
 
 - [x] Inspect current app and create three independent design proposals.
 - [x] Convene a three-agent panel judging every proposal on pain solved, delight, simplicity and trust.
-- [x] Record the converged fourth design and implementation acceptance criteria. See [fourth design](../../deep-dives/mac-note-workspace/design-d.md).
+- [x] Record the converged fourth design and implementation acceptance criteria. See [fourth design](../../docs/deep-dives/mac-note-workspace/design-d.md).
 - [x] Implement the Mac note journey using existing app/editor boundaries.
 - [x] Verify canonical editing, external updates/recovery, keyboard access, responsive themes and real Electron behavior.
 - [x] Update owning docs and pending release notes, archive this list and commit scoped changes.
 
 ## Artifacts
 
-- [Design exploration](../../deep-dives/mac-note-workspace/)
+- [Design exploration](../../docs/deep-dives/mac-note-workspace)
 
 ## Verification and remaining limits
 
@@ -41,4 +41,4 @@ Make the Mac app note page a minimal, approachable document workspace for people
 - Initial broad run was invalidated by rebuilding while tests imported dist; discarded and rerun against a stable build. A dependency symlink also prevented license-notice collection; replaced with a worktree-local `npm ci`, then rebuilt and reran the entire suite successfully.
 - `git diff --check`: passed. Original master checkout retains its unrelated retrieval/evaluation edits.
 - Remaining limits: review scores are agent design judgments, not observed usability research. Chromium clipboard assertions use a write shim; physical clipboard and assistive technologies/other browsers need separate QA. No live presence, comments, invitations, retained edit history or real-time cloud coediting is implemented. No installation, push or release was performed.
-- Captures: `.local-pack/desktop/note-workspace/` (production shared shell) and `.local-pack/desktop/note-workspace-light.png` / `note-workspace-dark.png` (production Electron). Interactive schematic: [design comparison](../../deep-dives/mac-note-workspace/comparison.html).
+- Captures: `.local-pack/desktop/note-workspace/` (production shared shell) and `.local-pack/desktop/note-workspace-light.png` / `note-workspace-dark.png` (production Electron). Interactive schematic: [design comparison](../../docs/deep-dives/mac-note-workspace/comparison.html).

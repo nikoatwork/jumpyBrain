@@ -9,7 +9,7 @@ Run three independent synthetic first-time user journeys, including a nontechnic
 ## Scope and decisions
 
 - Baseline: `a50598f5f4538fa8ea5cbafa3cb6a3a9f0327fd0`, with unrelated extension/desktop edits already present. Preserve and exclude those edits from this task's commit.
-- Three delegated test personas own separate reports in `deep-dives/onboarding-synthetic-2026-10-24/`: nontechnical Claude Code user, Desktop with an existing brain, project-local CLI/agent user.
+- Three delegated test personas own separate reports in `docs/deep-dives/onboarding-synthetic-2026-10-24/`: nontechnical Claude Code user, Desktop with an existing brain, project-local CLI/agent user.
 - Use isolated temporary homes/roots and fictional notes. No actual personal/global/team memory writes, release, push, or installed-app changes.
 - Judge observed first-value blockers ahead of speculative features; consider severity, common-path reach, confidence, and implementation cost. Preserve larger portable-installation work as a separate task.
 
@@ -23,7 +23,7 @@ Run three independent synthetic first-time user journeys, including a nontechnic
 
 ## Relevant files
 
-- `deep-dives/onboarding-synthetic-2026-10-24/` — individual user reports and final adjudication.
+- `docs/deep-dives/onboarding-synthetic-2026-10-24/` — individual user reports and final adjudication.
 - `docs/install-for-agents.md`, `docs/install.md`, `README.md` — discoverable onboarding routes.
 - `scripts/public-install.mjs`, `skills/jumpybrain-memory/SKILL.md` — literal-path launcher, printed commands, generated skills/Pi defaults and truthful handoff.
 - `test/onboarding-install.test.js` — isolated dry-run/real install and executable examples with special-character paths (fake pinned QMD).
@@ -39,7 +39,7 @@ Run three independent synthetic first-time user journeys, including a nontechnic
 - Real-QMD 2.8.3 isolated source install, emitted shell command, healthy doctor, generated Claude skill save, fresh-process recall and hash-checked expansion passed on macOS arm64 / Node v26.7.0. One synthetic note only; uncertainty about the event year preserved. Temporary installation and notes removed.
 - `node scripts/electron-smoke.mjs`: passed after final compact-layout change, including existing/new-brain welcome, safe invalid-folder rejection, public recovery, canonical save and tab cleanup. Picker and feedback sender are fixture seams; no actual user app or inbox used.
 - Visual review: 960×720 and minimum 680×620 welcome screenshots. Initial narrow clipping was corrected with a one-column layout; native smoke asserts primary-action visibility and no horizontal overflow at minimum size.
-- `git diff --check` passed. Detailed [judgment and remaining limits](../../deep-dives/onboarding-synthetic-2026-10-24/judgment.md); [Claude persona](../../deep-dives/onboarding-synthetic-2026-10-24/user-1-claude-nontechnical.md), [Desktop persona](../../deep-dives/onboarding-synthetic-2026-10-24/user-2-desktop.md), [project persona](../../deep-dives/onboarding-synthetic-2026-10-24/user-3-project-cli.md).
+- `git diff --check` passed. Detailed [judgment and remaining limits](../../docs/deep-dives/onboarding-synthetic-2026-10-24/judgment.md); [Claude persona](../../docs/deep-dives/onboarding-synthetic-2026-10-24/user-1-claude-nontechnical.md), [Desktop persona](../../docs/deep-dives/onboarding-synthetic-2026-10-24/user-2-desktop.md), [project persona](../../docs/deep-dives/onboarding-synthetic-2026-10-24/user-3-project-cli.md).
 
 ## Limits and complexity review
 

@@ -8,7 +8,7 @@ Make important app behavior reproducible across a structural refactor, using exp
 
 ## Evidence and scope
 
-- [Assessment and source evidence](../../deep-dives/architecture-contracts/assessment.md); [interactive module map](../../deep-dives/architecture-contracts/architecture-map.html).
+- [Assessment and source evidence](../../docs/deep-dives/architecture-contracts/assessment.md); [interactive module map](../../docs/deep-dives/architecture-contracts/architecture-map.html).
 - Reviewed source: `cbb4101a45b8fc9c950e24e28830af51e27875fe`. Architecture + package-entrypoint checks passed 18/18. Existing behavioral tests were inspected, not rerun; no whole-app baseline is captured yet.
 - Highest-value seams: private backend RPC, editor-session composition, critical HTTP/live receipts and source-layer guard completeness. These are maintenance/verification findings; no data-loss bug was reproduced by the assessment.
 - Markdown is canonical memory content; boards use canonical JSON. Derived indexes can be rebuilt; credentials, private drafts and unique recovery records are not disposable caches.
@@ -74,7 +74,7 @@ Make important app behavior reproducible across a structural refactor, using exp
 ## Completion and frozen evidence
 
 - Reference source: `eb4388eab838a418c16656d16ea5f14fbf6c008f`; product fixes are isolated in `335cf7a` (HTTP receipts) and `0633299` (live supplied fields). Subsequent finalization changes only documentation/task/evidence records.
-- [Compact baseline record](../../deep-dives/architecture-contracts/baseline-v1.json) pins the contract, source, runtime, assertion and harness inventories plus tool environment and actual checkpoints.
+- [Compact baseline record](../../docs/deep-dives/architecture-contracts/baseline-v1.json) pins the contract, source, runtime, assertion and harness inventories plus tool environment and actual checkpoints.
 - Reference: `.local-pack/architecture-contracts/reference-3`, manifest SHA-256 `3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c`.
 - Independent unchanged checkout: `.local-pack/architecture-contracts/repeat-2`, manifest SHA-256 `4a3a852214985346d92a4cb46a9c0a41fbd2751c0a55f5e876a9c9186de199e8`. Fresh roots, matching source/tool identities, **identical runtime bytes and ten checkpoint records**. The temporary candidate checkout is disposable; frozen artifacts/logs remain in those evidence directories.
 - Each retained run passed all six profile steps: build, 165 Node checks (zero failures/skips/cancellations/TODOs), editor/intent/own Undo, lost confirmation, retained restoration, and credential transitions. Command time was 56.485 seconds for capture and 56.717 seconds for comparison, inside the ten-minute budget; these are local observations, not capacity benchmarks.

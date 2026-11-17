@@ -32,7 +32,7 @@ Documentation and local agent routing only; no runtime, test assertions, release
 - `docs/testing.md`, `docs/task-workflow.md`, local ignored `AGENTS.md` — selection and finalization.
 - `README.md`, `src/architecture.docs.md`, CLI/live/browser/gateway/Electron module docs, `docs/collaboration.md` — discovery.
 - `docs/{release-testing,lean-beta-releases,design-system}.md`, `test/PROPERTY_TESTING.md`, native eval `RUN.md` — consistent scope and reduced duplication.
-- `deep-dives/multiplayer-editing/{architecture-and-verification,production-verification}.md` — historical gate scope.
+- `docs/deep-dives/multiplayer-editing/{architecture-and-verification,production-verification}.md` — historical gate scope.
 
 ## Verification and limits
 

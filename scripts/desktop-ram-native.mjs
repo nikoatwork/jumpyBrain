@@ -32,10 +32,10 @@ try {
 const bundle=path.join(output,'RAM Native Prototype.app');await mkdir(path.join(bundle,'Contents/MacOS'),{recursive:true});
 const executable=path.join(bundle,'Contents/MacOS/RAMPrototype');
 execFileSync(compiler,['-swift-version','5','-O','-sdk',sdk,'-target',os.arch()+'-apple-macos13.0','-module-cache-path',path.join(output,'module-cache'),
-  ...compilerOptions,path.join(repo,'deep-dives/desktop-ram/NativePrototype.swift'),'-o',executable,'-framework','Cocoa','-framework','WebKit'],{stdio:'pipe'});
+  ...compilerOptions,path.join(repo,'docs/deep-dives/desktop-ram/NativePrototype.swift'),'-o',executable,'-framework','Cocoa','-framework','WebKit'],{stdio:'pipe'});
 await writeFile(path.join(bundle,'Contents/Info.plist'),`<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>RAMPrototype</string><key>CFBundleIdentifier</key><string>local.jumpybrain.ram-prototype.${Date.now()}</string><key>CFBundleName</key><string>RAM Native Prototype</string><key>NSHighResolutionCapable</key><true/><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>`);
 execFileSync('/usr/bin/codesign',['--force','--sign','-',bundle],{stdio:'pipe'});
-const sampler=path.join(output,'sample-tree');execFileSync('clang',['-O2',path.join(repo,'deep-dives/desktop-ram/sample-tree.c'),'-o',sampler]);
+const sampler=path.join(output,'sample-tree');execFileSync('clang',['-O2',path.join(repo,'docs/deep-dives/desktop-ram/sample-tree.c'),'-o',sampler]);
 const manifest={schema:1,source:await fingerprintTree(snapshot),driver:await hashFile(executable),nativeBundle:await fingerprintTree(bundle),modelHash:null,
   settings:{counts:[count],repetitions,settleSeconds:Number(values.settle),recoverySeconds:Number(values.recovery),semantic:false},
   machine:{os:execFileSync('sw_vers',['-productVersion'],{encoding:'utf8'}).trim(),arch:os.arch(),cpu:os.cpus()[0].model,ram:os.totalmem()},

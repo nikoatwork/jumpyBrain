@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-17 — Repository root cleanup
+
+- Grouped research and terminology under `docs/` and container definitions under `deploy/`, removing four root entries while preserving public installer and SDK paths. [Outcome and verification](done/2026-11-17_tasks-root-layout.md).
+
 ## 2026-11-15 — Pre-existing browser smoke failures fixed
 
 - Fourteen Chromium smokes that had drifted from the product now run to completion. Most assumed PUT saves, a 296px sidebar, a visible narrow sidebar or stored keys; they now inject failures over the live socket and follow the review recovery flow. The companion smoke runs over real disposable backends with live editing, with the obsolete conflict stop replaced by a two-tab merge scenario. One product fix: a wrong access key no longer traps the open note. [Outcome, verification and follow-ups](done/2026-11-15_tasks-pre-existing-smoke-failures.md).
@@ -174,7 +178,7 @@
 
 ## 2026-11-05 — Architecture contract assessment
 
-- Three scoped reviews support retaining the layered architecture, with contract hardening before selective editor-session or backend-RPC cleanup. Added an interactive ownership map and one active plan; no runtime refactor or behavioral baseline is claimed. [Evidence and limits](../deep-dives/architecture-contracts/assessment.md), [contract-hardening plan](done/2026-11-05_tasks-architecture-contract-hardening.md).
+- Three scoped reviews support retaining the layered architecture, with contract hardening before selective editor-session or backend-RPC cleanup. Added an interactive ownership map and one active plan; no runtime refactor or behavioral baseline is claimed. [Evidence and limits](../docs/deep-dives/architecture-contracts/assessment.md), [contract-hardening plan](done/2026-11-05_tasks-architecture-contract-hardening.md).
 
 ## 2026-11-05 — Focused test selection
 
@@ -641,7 +645,7 @@
 
 ## 2026-10-29 — Checkbox delight exploration
 
-- Compared three animated checkbox completion prototypes across six themes, with interactive replay and real editor screenshots; production selection remains open. [Findings](../deep-dives/checkbox-delight/findings.md).
+- Compared three animated checkbox completion prototypes across six themes, with interactive replay and real editor screenshots; production selection remains open. [Findings](../docs/deep-dives/checkbox-delight/findings.md).
 
 ## 2026-10-28 — Retrieval experiment decisions
 

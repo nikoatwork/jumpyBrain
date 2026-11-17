@@ -1,6 +1,6 @@
 # Onboarding follow-up: test remaining gaps and improve
 
-Completed 2026-10-24. Reproduced diagnostic, prerequisite, uninstall-preview, native startup and real-model temporal failures were fixed and retested. Authenticated Claude now passes three fresh conversations. [Final results and limits](../../deep-dives/onboarding-synthetic-2026-10-24/followup-results.md).
+Completed 2026-10-24. Reproduced diagnostic, prerequisite, uninstall-preview, native startup and real-model temporal failures were fixed and retested. Authenticated Claude now passes three fresh conversations. [Final results and limits](../../docs/deep-dives/onboarding-synthetic-2026-10-24/followup-results.md).
 
 ## Goal
 
@@ -22,8 +22,8 @@ Follow the user's request to test all remaining onboarding gaps and improve the 
 
 ## Evidence
 
-- Prior [judgment](../../deep-dives/onboarding-synthetic-2026-10-24/judgment.md) and three persona reports are historical evidence, retained unchanged.
-- New reports: [diagnostics](../../deep-dives/onboarding-synthetic-2026-10-24/diagnostics-followup.md), [Claude/auth boundary](../../deep-dives/onboarding-synthetic-2026-10-24/claude-followup.md), [native Desktop](../../deep-dives/onboarding-synthetic-2026-10-24/desktop-followup.md), [platform/bootstrap](../../deep-dives/onboarding-synthetic-2026-10-24/platform-followup.md), [authenticated Claude failure](../../deep-dives/onboarding-synthetic-2026-10-24/claude-authenticated-followup.md).
+- Prior [judgment](../../docs/deep-dives/onboarding-synthetic-2026-10-24/judgment.md) and three persona reports are historical evidence, retained unchanged.
+- New reports: [diagnostics](../../docs/deep-dives/onboarding-synthetic-2026-10-24/diagnostics-followup.md), [Claude/auth boundary](../../docs/deep-dives/onboarding-synthetic-2026-10-24/claude-followup.md), [native Desktop](../../docs/deep-dives/onboarding-synthetic-2026-10-24/desktop-followup.md), [platform/bootstrap](../../docs/deep-dives/onboarding-synthetic-2026-10-24/platform-followup.md), [authenticated Claude failure](../../docs/deep-dives/onboarding-synthetic-2026-10-24/claude-authenticated-followup.md).
 
 ## Verification
 

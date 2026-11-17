@@ -33,7 +33,7 @@ Test this isolated retrieval change against the unchanged-product workspace base
 
 - [Baseline plan](../todo/tasks-workspace-retrieval-evaluation.md), `evals/workspace-retrieval/`, [product vision](../../docs/product-vision.md) and [source architecture](../../src/architecture.docs.md).
 - `src/core/retrieval-policy/`, `src/core/canonical/`, `src/app/local-memory/` and `src/adapters/qmd/`, with their co-located docs.
-- [Prior contextual indexing result](../done/2026-10-24_tasks-contextual-indexing-evaluation.md) and [retrieval review](../../deep-dives/retrieval-product-review/findings.md); known examples are regression controls, not fresh held-out evidence.
+- [Prior contextual indexing result](../done/2026-10-24_tasks-contextual-indexing-evaluation.md) and [retrieval review](../../docs/deep-dives/retrieval-product-review/findings.md); known examples are regression controls, not fresh held-out evidence.
 
 ## Execution log — 2026-10-28
 

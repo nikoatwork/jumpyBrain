@@ -133,7 +133,7 @@ All twelve cleanup increments completed. Final rebuilt suite: 964 passed, 1 skip
 - No removal of legacy dream batch APIs, supported installer recovery/migration, strict read-only handling, or public compatibility exports based only on internal call counts.
 - No merging written/evidence/edit dates, automatic/nonrepairing/strict read-only retrieval, compact/rich packet validators, or ordinary/companion conflict policies.
 - Defer Swift toolchain/overlay helper extraction: there is duplication in install/native tests, but lower value than the work above. If later extracted, include the helper in the native build fingerprint.
-- Do not delete `deep-dives/` evidence, task archives, release/legal notices, generated assets required for packaging, or canonical memory buckets (`notes/`, `pages/`, `sessions/`, etc.). No whole dead source directory was established.
+- Do not delete `docs/deep-dives/` evidence, task archives, release/legal notices, generated assets required for packaging, or canonical memory buckets (`notes/`, `pages/`, `sessions/`, etc.). No whole dead source directory was established.
 
 ## Execution gates
 

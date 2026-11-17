@@ -8,7 +8,7 @@ Return the smallest sufficient, source-backed recall packet and let agents expan
 
 ## Notes
 
-- Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence: [retrieval review](../../deep-dives/retrieval-product-review/findings.md#2-budget-the-whole-response-and-add-selective-source-expansion).
+- Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence: [retrieval review](../../docs/deep-dives/retrieval-product-review/findings.md#2-budget-the-whole-response-and-add-selective-source-expansion).
 - Can start independently; integrate [ticket 1](2026-10-10_tasks-semantic-index-reliability.md)'s readiness envelope. Agree the date-provenance field contract owned by [ticket 3](2026-10-11_tasks-temporal-retrieval-correctness.md) upfront, but do not wait for temporal-filter implementation: this ticket can ship with existing date semantics and optional extension fields.
 - Own the shared external, versioned judged evaluation suite and recall-plus-expansion accounting used by tickets 2–5. Record a non-secret suite/version reference here; keep corpora and broad harnesses external. Other tickets extend/reuse relevant slices rather than build competing suites.
 - Default approach: introduce an opt-in compact, byte-bounded packet first; preserve existing JSON/full-document contracts. Do not advertise a byte/character heuristic as an exact token budget. Any token estimate must identify its method.

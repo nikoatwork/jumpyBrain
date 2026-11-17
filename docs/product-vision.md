@@ -53,4 +53,4 @@ No mandatory graph database, provider-specific agent framework, always-on LLM pl
 
 These principles describe direction, not a promise that every capability is implemented. Current behavior belongs in the [technical design](technical.md), [CLI reference](cli-commands.md), and [shared-memory guide](cloud-shared-memory.md).
 
-The [2026-10-10 retrieval and deployment review](../deep-dives/retrieval-product-review/findings.md) separates existing capabilities, deployment caveats, external evidence, and proposed improvements.
+The [2026-10-10 retrieval and deployment review](deep-dives/retrieval-product-review/findings.md) separates existing capabilities, deployment caveats, external evidence, and proposed improvements.

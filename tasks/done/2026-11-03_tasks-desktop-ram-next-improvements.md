@@ -6,7 +6,7 @@ Make large semantic indexing more predictable and pursue at most one further RAM
 
 ## Evidence and boundaries
 
-- [Previous result](../../deep-dives/desktop-ram/2026-10-23-bounded-result.md): empty-corpus background used 114–123 MB and open home 334–349 MB. The 100 MB target remains unproven; it is not this iteration's acceptance target.
+- [Previous result](../../docs/deep-dives/desktop-ram/2026-10-23-bounded-result.md): empty-corpus background used 114–123 MB and open home 334–349 MB. The 100 MB target remains unproven; it is not this iteration's acceptance target.
 - Large semantic indexing reached approximately 6 GB. One default 600-second attempt timed out; a matched diagnostic pair completed with 900-second backend deadlines. Raising a timeout does not reduce RAM.
 - Graph work already improved at 10,000 notes: active peaks were 1,038–1,124 MB versus 1,175–1,222 MB. Home/recovery results remained mixed; do not extrapolate graph gains to all desktop use.
 - Earlier measurements used frozen source. Establish the current implementation and account for subsequent UI/background-indexing changes before making a new before/after claim.
@@ -63,7 +63,7 @@ Make large semantic indexing more predictable and pursue at most one further RAM
 - `src/server/config.ts`, `src/adapters/http-client/`, `integrations/macos-companion/gateway.mjs` — finite deadline configuration and forwarding.
 - `src/adapters/http-server/`, `integrations/electron/` — editor/graph loading, retained state and desktop lifecycle if selected.
 - `scripts/desktop-ram-{benchmark,app,report,compare,cancel}.mjs` — corrected isolated workloads and report guards; use selected checks only.
-- [Archived study](../done/2026-10-23_tasks-desktop-ram-follow-up.md) and [reviewed evidence](../../deep-dives/desktop-ram/2026-10-23-closeout.json) — starting evidence, not authority to rerun the old queues.
+- [Archived study](../done/2026-10-23_tasks-desktop-ram-follow-up.md) and [reviewed evidence](../../docs/deep-dives/desktop-ram/2026-10-23-closeout.json) — starting evidence, not authority to rerun the old queues.
 
 ### 2026-11-03 control checkpoint
 
@@ -74,7 +74,7 @@ Make large semantic indexing more predictable and pursue at most one further RAM
 ## Completed closeout — 2026-11-03
 
 - Retained the Mac ARM64 two-context embedding default, respecting explicit overrides, and consistent finite backend/transport deadlines. Defaults remain 600 seconds indexing / 60 seconds search; selected index deadlines have 10 seconds transport headroom. Backend bootstrap forwards only the named timeout/model-directory settings.
-- [Result, hashes, caveats and bounded ledger](../../deep-dives/desktop-ram/2026-11-03-focused-index.md); [compact machine-readable evidence](../../deep-dives/desktop-ram/2026-11-03-focused-index.json). Both arms completed all 10,000 notes / 17,000 chunks and drained before 11:56:31 UTC. The retained default was applied by 12:01:32, within 34 minutes of the original start. No RAM experiment followed the original 13:28:18 hard stop. Administrative closeout occurred later after a conversation gap; the budget was not reset.
+- [Result, hashes, caveats and bounded ledger](../../docs/deep-dives/desktop-ram/2026-11-03-focused-index.md); [compact machine-readable evidence](../../docs/deep-dives/desktop-ram/2026-11-03-focused-index.json). Both arms completed all 10,000 notes / 17,000 chunks and drained before 11:56:31 UTC. The retained default was applied by 12:01:32, within 34 minutes of the original start. No RAM experiment followed the original 13:28:18 hard stop. Administrative closeout occurred later after a conversation gap; the budget was not reset.
 - The real-model setup rerun corrected only the fixture's warning expectation and passed: explicit consent plan, verified local selection, offline cached reuse, clone portability, missing model/strict-read-only lexical behavior and unchanged Markdown. Tiny-fixture cold index 2.608 s / warm no-op 0.648 s are setup operation observations, not warm inference or RAM claims.
 - Relevant deterministic checks: 130 index/model/update/package/architecture cases plus 14 focused deadline/desktop/transport cases passed. They cover two-context override policy, complete chunks, cancellation/drain, finite custom limits, payload propagation, invalid-before-dispatch, HTTP body aborts and native bootstrap allowlisting. No UI/graph lifecycle implementation changed for this index-only candidate; existing navigation/save/window/hidden-graph evidence is reused rather than starting the optional UI comparison. The native Swift host compiled for both supported architectures.
 - The collector failure after the control completed remains disclosed; no fabricated exit code or replacement control was used. One pair on one contended Mac supports a directional model-active improvement, not leak freedom, a universal RAM budget, 100 MB desktop use, Intel/Linux results or a default-deadline completion promise. Personal app/configuration and Markdown were untouched.

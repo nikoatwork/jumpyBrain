@@ -80,7 +80,7 @@ Tested snapshot: `5306226` plus this task's scoped implementation and test chang
 
 ## Relevant files
 
-- [Browser contract](../../src/adapters/http-server/browser.docs.md), [design system](../../docs/design-system.md) and [glossary](../../glossary.md).
+- [Browser contract](../../src/adapters/http-server/browser.docs.md), [design system](../../docs/design-system.md) and [glossary](../../docs/glossary.md).
 - `src/adapters/http-server/browser-page-navigation.ts`, `browser-attention.ts`, `note-attention.ts`, `notes-browser.ts`, `companion-browser.ts` and `boards-view.ts`.
 - `scripts/sidebar-settle-smoke.mjs`, existing sidebar/attention smokes, `integrations/electron/smoke-app.mjs`, and the focused attention/title-resolution tests.
 - [Task completion workflow](../../docs/task-workflow.md).

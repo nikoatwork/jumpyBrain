@@ -41,7 +41,7 @@ else {
 const native=JSON.parse(await readFile(path.join(snapshot,'Resources/native/jumpyBrain Host.app/Contents/Resources/Configuration.json'),'utf8'));
 const electron=createRequire(new URL('../integrations/electron/package.json',import.meta.url))('electron');
 const sampler=path.join(output,'sample-tree');
-execFileSync('clang',['-O2','-Wall','-Wextra',path.join(repo,'deep-dives/desktop-ram/sample-tree.c'),'-o',sampler]);
+execFileSync('clang',['-O2','-Wall','-Wextra',path.join(repo,'docs/deep-dives/desktop-ram/sample-tree.c'),'-o',sampler]);
 const modelHash=values['no-semantic']?null:(await hashFile(values.model)).sha256;
 let qmdRoot=path.dirname(await realpath(native.qmd));
 while(true) {

@@ -20,7 +20,7 @@ Make agent-facing guidance accurately distinguish bounded recall from smaller re
 - `docs/{agent-workflows,cli-commands,memory-format}.md` — supported formats, follow-up workflow and source structure.
 - `skills/jumpybrain-memory/SKILL.md` — distributed agent guidance.
 - `src/cli/{instructions.ts,cli.docs.md}` — generated agent instructions and owned contract.
-- `glossary.md` — bounded recall and guarded expansion language.
+- `docs/glossary.md` — bounded recall and guarded expansion language.
 - `test/recall-guidance.test.js` — source-based generated/distributed guidance checks without rebuilding shared `dist`.
 - `tasks/CHANGELOG.md` — concise completed-result entry required by repository finalization policy.
 
@@ -44,7 +44,7 @@ Make agent-facing guidance accurately distinguish bounded recall from smaller re
 - Text follow-ups: narrower recall or a local current-file range read after resolving the actual root/indexRoot; not version-verified. Guarded hosted/local follow-ups: reacquire compact evidence on the same target and require available canonical ID/hash handles. Never fabricate hashes or stamp IDs during reads.
 - Source structure: real headings, separate independently useful paragraphs/qualifications, manageable lines; no business-label preference or required general template. Whole-line expansion cannot split oversized lines, and bounded section prefixes may not reach anchors.
 - Corrected nearby unfiltered-date wording to distinguish supported document-evidence temporal filters from unsupported event-date inference; no temporal behavior change.
-- Changed files: `docs/agent-workflows.md`, `docs/cli-commands.md`, `docs/memory-format.md`, `skills/jumpybrain-memory/SKILL.md`, `glossary.md`, `src/cli/instructions.ts`, `src/cli/cli.docs.md`, `test/recall-guidance.test.js`, and this task.
+- Changed files: `docs/agent-workflows.md`, `docs/cli-commands.md`, `docs/memory-format.md`, `skills/jumpybrain-memory/SKILL.md`, `docs/glossary.md`, `src/cli/instructions.ts`, `src/cli/cli.docs.md`, `test/recall-guidance.test.js`, and this task.
 
 ## Verification and limitations
 

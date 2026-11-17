@@ -39,7 +39,7 @@ Cut the operational weight of browser verification: one shared smoke harness (di
   - [x] 1.3 Trace the build dependency: map the `npm run build && ...` pattern, quantify how long a clean, incremental, and cached build each take, and any prior partial-build opportunities; propose a build-once-per-change flow that preserves recorded-evidence semantics from `docs/testing.md`
   - [x] 1.4 Propose the harness API (shape: temp-brain root, key issuance, server start, context factory, teardown contract, fault-injector hooking) and a small pilot set (3–5 scripts) with expected diff shapes
   - [x] 1.5 Define the regression-verification plan: how to prove each migrated script still exercises its scenario (before/after behavior parity, not just exit codes), and how docs and `package.json` command references stay consistent
-  - [x] 1.6 Deliverable: `deep-dives/smoke-harness-simplify/research.md` and an updated "Deep dive findings" section in this list
+  - [x] 1.6 Deliverable: `docs/deep-dives/smoke-harness-simplify/research.md` and an updated "Deep dive findings" section in this list
   - [x] 1.7 Independent source-checked review of the research (2026-11-16): corrections in research.md section 10 and under "Review corrections" below; pilot narrowed accordingly
 - [ ] 2.0 **Clarify:** Go/no-go and scope (owner: user, with research doc in hand). Decide:
   - [ ] 2.1 Approve the narrowed pilot (3.0): a small shared setup file plus three scripts migrated, every command name and docs row unchanged. It proves readability and unchanged failure detection; it does not make tests faster or reduce commands
@@ -62,11 +62,11 @@ Cut the operational weight of browser verification: one shared smoke harness (di
 
 ## Deep Dive
 
-- Research doc: `deep-dives/smoke-harness-simplify/research.md` (section 10 records the review corrections)
+- Research doc: `docs/deep-dives/smoke-harness-simplify/research.md` (section 10 records the review corrections)
 
 ### Deep dive findings
 
-Full evidence and reasoning: [deep-dives/smoke-harness-simplify/research.md](../../deep-dives/smoke-harness-simplify/research.md). Summary:
+Full evidence and reasoning: [docs/deep-dives/smoke-harness-simplify/research.md](../../docs/deep-dives/smoke-harness-simplify/research.md). Summary:
 
 - The proposal's evidence numbers need correcting: `scripts/` holds 174 files; 106 `*-smoke.mjs` files total 18,734 lines (~19k was right, the count was not). 69 smokes call `startJumpyBrainHttpServer(` (not ~32); 65 of those also launch Chromium; 28 also start the companion gateway. package.json has 48 scripts, of which only 8 are `npm run build && npx --package=playwright ...` smokes — the "mostly" is wrong. Only 8 of 69 server smokes use `AccessStore.issue`; the rest pass static `apiKeys` literals.
 - Duplication measured: 2,052 harness-token lines across all 106 smokes (10.9%); 1,585 in the 69 server smokes (mean 23 lines/script; ~25-45 including multi-line blocks). Aggregate absorbable is ~1,600-2,700 lines (9-14% of the corpus) — real but not dominant.

@@ -23,10 +23,15 @@ Recommended build/deploy settings:
 ```text
 Build Pack: Dockerfile
 Source: reviewed release commit/tag
-Dockerfile path: ./Dockerfile
+Dockerfile path: ./deploy/Dockerfile
+Base directory / build context: repository root
 Port / Exposed port: 3001
 Auto Deploy: disabled during maintenance; promote reviewed builds deliberately
 ```
+
+For a local build, run `docker build -f deploy/Dockerfile -t jumpybrain .` from
+the repository root. Existing Coolify applications must update their Dockerfile
+path before deploying this layout.
 
 The Dockerfile installs QMD 2.8.3 through the existing engine lockfile and checks
 its CLI plus SDK together. Linux native dependencies compile in a separate

@@ -8,7 +8,7 @@ Answer time-scoped and changing-knowledge questions using explicit evidence date
 
 ## Notes
 
-- Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence: [retrieval review](../../deep-dives/retrieval-product-review/findings.md#3-make-time-explicit-without-building-a-temporal-graph).
+- Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence: [retrieval review](../../docs/deep-dives/retrieval-product-review/findings.md#3-make-time-explicit-without-building-a-temporal-graph).
 - Processing repairs can start independently. Own and agree the date-provenance field contract early so [ticket 2](2026-10-11_tasks-budgeted-recall-and-expansion.md) need not wait for temporal-filter implementation. Temporal recall later integrates with ticket 2's packet and [ticket 1](2026-10-10_tasks-semantic-index-reliability.md)'s index metadata.
 - Reuse ticket 2's external versioned judged suite and shared output accounting, adding a temporal slice rather than another harness; record thresholds before final comparison.
 - Start with explicit CLI/runtime/HTTP date bounds; natural-language temporal hints remain hints, not silently inferred filters. UTC is the default. Relative bounds require a pinned reference date and visible resolved interval.
@@ -39,7 +39,7 @@ Answer time-scoped and changing-knowledge questions using explicit evidence date
 - CLI and HTTP adapters — explicit options, validation, date provenance and chronological presentation.
 - `test/search-ranking.test.js`, `test/dream-window-policy.test.js`, `test/processing-lint.test.js`, retrieval parity tests — regression patterns.
 - Added `src/core/retrieval-policy/temporal.ts`, `src/cli/temporal.ts`, `src/adapters/http-client/temporal-response.ts`, `test/temporal-{retrieval,transport}.test.js`; extended `test/processing-safety.test.js`.
-- Updated compact packet/core/app/client validation, canonical/dream date validation docs, CLI/protocol/memory-format/technical contracts and `glossary.md`.
+- Updated compact packet/core/app/client validation, canonical/dream date validation docs, CLI/protocol/memory-format/technical contracts and `docs/glossary.md`.
 
 ## Contract and completion evidence
 

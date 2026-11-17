@@ -40,7 +40,7 @@ Replace the `String.raw` HTML/CSS/JS blocks inside `src/adapters/http-server/` w
   - [x] 1.3 Inventory what must not regress: page set (notes, graph, boards, drawings, companion, extensions), Electron desktop loading path, packaging footprint effects
   - [x] 1.4 Propose a slicing plan: first-slice candidate. smallest, most static, lowest-risk block to extract behind the existing build; expected diff shape
   - [x] 1.5 Define the regression-verification plan per slice, referencing `docs/testing.md` selections (browser scenario table, `test/package-footprint.test.js`, `test/package-entrypoints.test.js`)
-  - [x] 1.6 Deliverable: `deep-dives/adapter-string-raw-simplify/research.md` and an updated "Deep dive findings" section in this list
+  - [x] 1.6 Deliverable: `docs/deep-dives/adapter-string-raw-simplify/research.md` and an updated "Deep dive findings" section in this list
   - [x] 1.7 Review of the research against the source (2026-11-16): corrections recorded in research.md section 10 and summarized under "Review corrections" below; slice 1 narrowed accordingly
 - [ ] 2.0 **Clarify:** Go/no-go and scope decision (owner: user, with research doc in hand). Decide:
   - [ ] 2.1 Approve the narrowed slice 1 ("delivery-path proof", see 3.0), which deliberately adds **no** lintability and exists to prove nonce'd external CSS through server, gateway, Electron and packaging — or decline it
@@ -66,11 +66,11 @@ Replace the `String.raw` HTML/CSS/JS blocks inside `src/adapters/http-server/` w
 
 ## Deep Dive
 
-- Research doc: `deep-dives/adapter-string-raw-simplify/research.md` (section 10 records the review corrections)
+- Research doc: `docs/deep-dives/adapter-string-raw-simplify/research.md` (section 10 records the review corrections)
 
 ### Deep dive findings
 
-Full evidence: [deep-dives/adapter-string-raw-simplify/research.md](/Users/monkey/dev/jumpyBrain/deep-dives/adapter-string-raw-simplify/research.md). Summary:
+Full evidence: [docs/deep-dives/adapter-string-raw-simplify/research.md](/Users/monkey/dev/jumpyBrain/docs/deep-dives/adapter-string-raw-simplify/research.md). Summary:
 
 - Evidence numbers mostly check out with one correction: 57 `String.raw` grep hits in 23 files, but one is a comment (notes-browser.ts:11) and 4 are regex literals (editor-markdown.ts:37-40), so the real surface is 52 presentation blocks / ~4,645 lines (4,649 lines across all 56 template literals). The Lexical bundle is inlined into the nonce'd script, not served externally; the true external-asset precedent is the drawing frame (`drawing-assets.ts`, `script-src 'self'`, allowlisted build output + ETag).
 - Composition: `routes.ts:70-79` mints a per-request nonce and CSP; `graph-page.ts` `graphPageHtml()` builds one document with one inline `<style nonce>` (all CSS blocks concatenated) and one inline `<script nonce>` (editor bundle + all JS blocks + a ~370-line orchestration literal). All JS blocks share a single scope, so only CSS/markup extraction is mechanical; JS extraction needs a bundled entry like `browser-entry.ts`. `dream-handoff.ts` even embeds a `Function.toString()`.

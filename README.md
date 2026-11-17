@@ -116,3 +116,11 @@ Already installed? Use the [update guide](docs/install.md#update). Beta updates 
 - [Import from Obsidian](docs/obsidian-migration.md) · [Import from Logseq](docs/logseq-migration.md)
 - [CLI reference](docs/cli-commands.md) · [Technical design](docs/technical.md) · [Product vision](docs/product-vision.md)
 - [Developer testing](docs/testing.md)
+
+## Repository layout
+
+- `src/`, `test/`, `scripts/` — application code, tests and development tools.
+- `docs/` — guides, [glossary](docs/glossary.md) and [research](docs/deep-dives/).
+- `deploy/` — container definitions and service configuration; Docker builds use the repository root as their context.
+- `integrations/`, `skills/`, `examples/` — desktop and agent integrations, workflows and extension examples.
+- `evals/`, `prototypes/`, `tasks/` — evaluations, experiments and work tracking.

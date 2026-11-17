@@ -8,7 +8,7 @@ Deliver smooth live simultaneous editing for humans and streaming agents over on
 
 ## Scope and decisions
 
-- The [architecture and verification proposal](../../deep-dives/multiplayer-editing/architecture-and-verification.md) explains ownership, durability, transports, merging, failure semantics, rollout, and pinned T3 inspiration. It is the historical proposal; the [production evidence](../../deep-dives/multiplayer-editing/production-verification.md) records the delivered implementation and exact acceptance scope.
+- The [architecture and verification proposal](../../docs/deep-dives/multiplayer-editing/architecture-and-verification.md) explains ownership, durability, transports, merging, failure semantics, rollout, and pinned T3 inspiration. It is the historical proposal; the [production evidence](../../docs/deep-dives/multiplayer-editing/production-verification.md) records the delivered implementation and exact acceptance scope.
 - User-selected requirements: live simultaneous editing; streaming agent output; recoverable disconnected drafts with reconnect before publishing; separate revocable reader/writer credentials without per-note ACLs; one on-demand local backend usable without the app window.
 - Direct writes to Markdown remain a required detection/reconciliation path. Prefer coordinated CLI edits, but do not pretend filesystem writers can be prohibited by a CLI rule. Preserve observed conflicting content; document unavoidable unobserved/raw-writer races.
 - Keep one engine for local and hosted roots. Do not add a model provider, mandatory cloud account, synchronization service, authoritative binary content database, MCP prerequisite, or full T3 orchestration framework.
@@ -31,7 +31,7 @@ A merge requires the frozen M0 assertions plus the new stage's relevant scenario
 
 ## Scenario contract
 
-Freeze executable IDs and expected outcomes in M0. P01–P12 match the [current behavior inventory](../../deep-dives/multiplayer-editing/current-behavior-inventory.md); use it for exact existing test mappings and add scenarios where coverage is absent.
+Freeze executable IDs and expected outcomes in M0. P01–P12 match the [current behavior inventory](../../docs/deep-dives/multiplayer-editing/current-behavior-inventory.md); use it for exact existing test mappings and add scenarios where coverage is absent.
 
 | ID | Scenario and expected result |
 | --- | --- |
@@ -139,7 +139,7 @@ The minimum final demonstration is two separate human browser contexts, one agen
 
 ## Evidence protocol
 
-M0 tooling and exact commands are implemented; use the [M0 verification guide and evidence](../../deep-dives/multiplayer-editing/M0-verification.md). The [production verification record](../../deep-dives/multiplayer-editing/production-verification.md) maps delivered M1–M5 behavior to final accepted evidence.
+M0 tooling and exact commands are implemented; use the [M0 verification guide and evidence](../../docs/deep-dives/multiplayer-editing/M0-verification.md). The [production verification record](../../docs/deep-dives/multiplayer-editing/production-verification.md) maps delivered M1–M5 behavior to final accepted evidence.
 
 Each run must record baseline/contract/harness identity, source/artifact/tree and lockfile hashes, toolchain/platform, declared scenario IDs, command results, canonical output assertions, skips, and untested boundaries. Candidate changes must not replace expected output with observed output. Keep bulky logs/artifacts in ignored local output; commit only the small sanitized manifest/summary needed to reproduce it.
 
@@ -154,13 +154,13 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - Reviewed capture: all 1,566 tests passed, as did external-file/editor and formatting smokes. Note-lifecycle search-result discovery and the gateway Settings traffic assertion failed. The runner refused to publish an accepted baseline. Diagnosis and any assertion-preserving fixture correction are required before M0 can pass.
 - Live diagnosis established stale smoke assumptions rather than a runtime defect: navigation search intentionally excludes the open note, and Settings legitimately reads board metadata. The lifecycle fixture now asserts current-note exclusion and immediate discovery from Home; the gateway fixture permits only the exact board-list GET while continuing to reject note/search/index/write traffic. Production runtime behavior is unchanged; these explicit initial-contract corrections require a fresh capture.
 - A third stale gateway expectation treated legitimate active-brain sidebar previews as old-bookmark activation. The corrected assertion retains rejected-note URL/toast checks and verifies Home, a hidden note panel and no replacement body hydration in the editor. Targeted lifecycle and all 14 gateway cases now pass. The verifier's 17 focused negative/unit checks pass. A scoped setup commit is required before final capture because corrected existing smoke scripts are protected source inputs.
-- Authoritative capture and independently pinned repeat verification at 54172b8e1579ab1c8de6f5928cfeefb63922d589 each passed all 1,566 tests and all four real browser flows with zero failures/skips/TODOs. All 438 runtime files were byte-identical. The [M0 evidence record](../../deep-dives/multiplayer-editing/M0-verification.md) pins both manifest digests, source/tree/toolchain, timings and exact scope.
+- Authoritative capture and independently pinned repeat verification at 54172b8e1579ab1c8de6f5928cfeefb63922d589 each passed all 1,566 tests and all four real browser flows with zero failures/skips/TODOs. All 438 runtime files were byte-identical. The [M0 evidence record](../../docs/deep-dives/multiplayer-editing/M0-verification.md) pins both manifest digests, source/tree/toolchain, timings and exact scope.
 - M0 is complete for the named macOS arm64/loopback lexical scope. Real Linux/VPS HTTPS, semantic models, physical Keychain/IME/accessibility, installed upgrades and the new collaboration capabilities remain explicitly unverified and owned by later tasks. The implementation roadmap remains active rather than archiving unfinished work.
 - No production runtime source, installed app, personal/shared brain or live VPS was changed in M0. No merge, push, app installation or release was performed. Locked worktree development dependencies were installed for verification.
 - 2026-11-01 scope update: the user explicitly allows breaking contracts because all current users are internal and all clients can update together. Preserve data and core behavior, version-fence obsolete clients, and provide a smooth README upgrade path (a copyable agent instruction is acceptable). Long-term V1/SDK/mixed-client compatibility is removed from the target.
 - M1 design work: isolated native Lexical/Yjs and dependency-free source-operation prototypes use the actual current editor/custom nodes and a shared 12-document source corpus. The native adapter is rejected as wired with retained counterexamples; the source experiment passes its conservative leaf-edit contract. Structural live binding remains explicitly unimplemented and cannot be enabled on this result.
 - Publication/reconciliation proof uses the real canonical publisher, six SIGKILL/failure boundaries, raw write/empty/delete/recreate/invalid-byte cases, and composed source-stream-to-disk recovery. M1 guard checks reject incomplete/stale/false-green evidence. No production source or root dependency manifest was changed.
-- The [design decision](../../deep-dives/multiplayer-editing/M1-design-decision.md) records scope, upgrade policy, prototype budgets, independent digests and the local pre-merge procedure. Clean-source M1 execution at d787ce2be10962bc40a7fbee2ecffb1dd56948fd passed: source 33 cases, durability 23, composition three; native comparison retains 24 passes and seven rejection counterexamples. The 20 gate and nine integration-guard checks pass.
+- The [design decision](../../docs/deep-dives/multiplayer-editing/M1-design-decision.md) records scope, upgrade policy, prototype budgets, independent digests and the local pre-merge procedure. Clean-source M1 execution at d787ce2be10962bc40a7fbee2ecffb1dd56948fd passed: source 33 cases, durability 23, composition three; native comparison retains 24 passes and seven rejection counterexamples. The 20 gate and nine integration-guard checks pass.
 - Protected M0 parity on the same commit passed all 1,566 tests and all four real browser smokes, with no required skips. All 438 runtime files remain byte-identical to the original baseline. Candidate M0 manifest: 311679498aa887854ba4d957e7041bd54cdfefa7445f53c0c0ccde098effeafd. M1 design report: e7f2452ff66b54bd16ea256d1a6e6fc2b945b2a249f510ae9dc9637335239a62.
 - Parent integrity recheck confirmed the design's 712 recorded inputs, original frozen assertions and runtime file map after M0 rebuilt the artifact. This task adds prototypes/documentation only; root dependency manifests and production source are unchanged. The final evidence commit changes documentation only.
 - At the M1-design checkpoint, integration was blocked: master had advanced to 7bcbadeb39397e54be7329d5e4ccb8f2013b5627 and was not yet contained here. Its behavior had to be incorporated and verified before a merge. No merge, push, app/VPS update or release was performed. The roadmap remains active for production ownership/auth implementation and later live-editing gates.
@@ -214,7 +214,7 @@ All required implementation tasks and declared automated gates pass. Final sourc
 HEAD `206ddcfd3460a4ee7c429d1379c6427ba194dc2a` contains the current target; report SHA-256
 `bf4ee28003afe886380a154c3bf13d1e7ccb5417e68a09bdcff8e673ccc0c365`. Results: 1,788 tests, four protected browser flows, twelve production
 checks and 217 selected checks on each pinned Linux runtime, with zero required
-skips. The [production evidence](../../deep-dives/multiplayer-editing/production-verification.md)
+skips. The [production evidence](../../docs/deep-dives/multiplayer-editing/production-verification.md)
 records exact source/artifact/pin identities, performance and upgrade outcomes.
 Astra high independently challenged the architecture and verified the actor,
 intent, cursor and recovery corrections. Its final native menu P2 is fixed and

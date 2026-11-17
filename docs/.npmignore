@@ -6,3 +6,6 @@ assets/
 /task-workflow.md
 # Package measurements and contributor gates remain accessible in the repository.
 /build-footprint.md
+# Contributor research and terminology stay outside runtime downloads.
+/deep-dives/
+/glossary.md

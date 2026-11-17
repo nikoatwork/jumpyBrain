@@ -5,14 +5,14 @@ Status: finalized 2026-10-08. Canonical lookup, guarded navigation, and inline a
 ## Context and scope
 
 - [Archived feasibility task](../done/2026-10-07_tasks-clickable-page-references.md) — agreed behavior, boundaries, inspection findings, and historical verification.
-- [Feasibility findings](../../deep-dives/page-reference-feasibility/findings.md) — reproducible prototypes, measured tradeoffs, and limitations.
+- [Feasibility findings](../../docs/deep-dives/page-reference-feasibility/findings.md) — reproducible prototypes, measured tradeoffs, and limitations.
 - Carry forward the agreed scope: normal-click title-only navigation through existing save/history protection; missing/ambiguous/unopenable targets retain the current draft. No target creation, filename fallback, graph-semantic changes, stable-ID links, or rename propagation.
 - Inline suggestions reuse existing indexed search/ranking; Cmd/Ctrl+K remains global search. Suggestions insert literal exact-title references, never navigate or mutate targets. Fresh canonical resolution is separate from potentially stale indexed search.
 - No new framework, parser/positioning dependency, editor replacement, or DOM-rewriting overlay. Read architecture and co-located module docs before source changes.
 
 ## Relevant Files
 
-- `deep-dives/page-reference-feasibility/` — historical evidence and forwarding smoke entrypoints; editor/autocomplete/scanner forks removed.
+- `docs/deep-dives/page-reference-feasibility/` — historical evidence and forwarding smoke entrypoints; editor/autocomplete/scanner forks removed.
 - `src/adapters/http-server/{lexical-editor,reference-ranges,reference-autocomplete}.ts` — literal preservation, conservative recognition, live selection/range/history, popup accessibility/touch/geometry and cancellation.
 - `src/adapters/http-server/notes-browser.ts`, `src/adapters/http-server/graph-page.ts` — search presentation/transport, guarded navigation, and save/session lifecycle.
 - `src/core/canonical/markdown-store.ts`, `src/core/canonical/links.ts` — title normalization/document identity and intentionally separate graph semantics.
