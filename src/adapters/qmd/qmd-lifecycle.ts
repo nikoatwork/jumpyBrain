@@ -7,11 +7,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { IndexMemoryOptions, IndexingPolicy, MarkdownDocument, RetrievalReadiness } from "../../types.js";
 import type { QmdManifest } from "./qmd-driver.js";
-import { databasePath, derivedRoot, manifestPath, resolveQmdSdk } from "./qmd-cli.js";
+import { databasePath, indexStateRoot, manifestPath, resolveQmdSdk } from "./qmd-cli.js";
 import type { WorkerWork } from "./qmd-worker.js";
 
-const failurePath = (root: string) => path.join(derivedRoot(root), "index-failure.json");
-const pendingPath = (root: string) => path.join(derivedRoot(root), "index-pending.json");
+const failurePath = (root: string) => path.join(indexStateRoot(root), "index-failure.json");
+const pendingPath = (root: string) => path.join(indexStateRoot(root), "index-pending.json");
 
 export async function recordQmdFailure(root: string): Promise<void> {
   await atomicJson(failurePath(root), { code: "index_failed", at: new Date().toISOString() });
@@ -25,8 +25,8 @@ export async function atomicJson(file: string, value: unknown): Promise<void> {
 
 /** One bounded, cross-process exclusion seam for publication and multi-call reads. */
 export async function withQmdLock<T>(root: string, operation: () => Promise<T>): Promise<T> {
-  await mkdir(derivedRoot(root), { recursive: true });
-  const lock = path.join(derivedRoot(root), "index.lock");
+  await mkdir(indexStateRoot(root), { recursive: true });
+  const lock = path.join(indexStateRoot(root), "index.lock");
   const deadline = Date.now() + 5_000;
   const owner = JSON.stringify({ pid: process.pid, token: randomUUID() });
   while (true) {
@@ -106,7 +106,7 @@ export async function recoverQmdPublication(root: string): Promise<void> {
 }
 
 async function publishConfiguration(root: string, manifest: QmdManifest): Promise<void> {
-  const configDir = path.join(derivedRoot(root), "qmd-config");
+  const configDir = path.join(indexStateRoot(root), "qmd-config");
   await mkdir(configDir, { recursive: true });
   // JSON is valid YAML; never inherit an unrelated ancestor .qmd or model config.
   await atomicJson(path.join(configDir, "index.yml"), {
@@ -120,7 +120,7 @@ export async function updateQmdGeneration(root: string, documents: Array<Markdow
   checkExecution();
   const sdkPath = resolveQmdSdk();
   await mkdir(path.dirname(databasePath(root)), { recursive: true });
-  await mkdir(path.join(derivedRoot(root), "qmd-home"), { recursive: true });
+  await mkdir(path.join(indexStateRoot(root), "qmd-home"), { recursive: true });
   checkExecution();
   await atomicJson(pendingPath(root), { generation: manifest.generation });
   // On failure leave pending: recovery checks the actual commit, never assumes rollback.
@@ -133,7 +133,7 @@ export async function updateQmdGeneration(root: string, documents: Array<Markdow
   await rm(pendingPath(root), { force: true });
   await rm(failurePath(root), { force: true });
   // Remove obsolete copy-only machinery after successful migration.
-  await rm(path.join(derivedRoot(root), "qmd-dreams"), { recursive: true, force: true });
+  await rm(path.join(indexStateRoot(root), "qmd-dreams"), { recursive: true, force: true });
   return { manifest: result.manifest, work: result.work };
 }
 

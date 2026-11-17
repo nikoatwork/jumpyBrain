@@ -20,19 +20,52 @@ A self-hosted brain can keep its canonical files (Markdown, boards, `jumpybrain.
 - `src/app/collaboration/` - private recovery storage
 - `docs/vps-deploy.md`, `docs/coolify-deploy.md`, `docs/installation-storage.md`, `docs/build-footprint.md`
 
-## Tasks
+## Outcome (2026-11-17, worktree t3/hosted-index-location)
 
-- [ ] 1.0 Map what must stay with the canonical root
-  - [ ] 1.1 List every file under `.jumpybrain` and in the root that the server writes, and classify each as canonical, derived or lock/recovery state.
-  - [ ] 1.2 Record which canonical write guarantees (lock files, hardlink moves, rename, fsync) hold on SMB and NFS. Mark untested claims as uncertain.
-  - [ ] 1.3 **Clarify:** is the supported target "index on local disk, canonical files on a network share", or only "index on a separate local disk"? Decide after 1.2.
-- [ ] 2.0 Configurable derived-state location
-  - [ ] 2.1 Add one setting (env var name to decide, e.g. `JUMPYBRAIN_INDEX_DIR`) that moves the rebuildable index and caches out of the root. Default stays unchanged.
-  - [ ] 2.2 Rebuild the index on start when the directory is empty or missing. Keep one index per root so two roots cannot share one directory by accident.
-  - [ ] 2.3 Tests: default path unchanged, custom path used, missing index rebuilt, canonical files untouched.
-- [ ] 3.0 Dependency footprint (evaluation, not a promise)
-  - [ ] 3.1 Check whether QMD can run without tree-sitter grammars and its MCP server (optional dependencies, install flags, or upstream ask). Measure the image size and build tools needed before and after.
-  - [ ] 3.2 Record the in-memory index-free mode (option 2) as deferred unless 1.3 shows the index location alone cannot meet the need.
-- [ ] 4.0 Verify and finalize
-  - [ ] 4.1 Run the Docker restore/rebuild check from [coolify-deploy](../../docs/coolify-deploy.md) with the index on a separate volume.
-  - [ ] 4.2 Update deploy and storage docs with the supported layout and its limits. Update both [email index](../feedback.md) rows, add a pending release note, and finalize under [task workflow](../../docs/task-workflow.md).
+Supported scope decided conservatively: **index on a separate local disk, canonical files under the existing supported local-filesystem contract**. No SMB/NFS write support is claimed; those guarantees are untested here (see 1.2). The index-free in-memory mode (option 2) stays deferred — the requester preferred option 1 and 1.3 showed the index location alone answers the ask.
+
+- [x] 1.0 Map what must stay with the canonical root
+  - [x] 1.1 Classification recorded below in `Index-state classification`.
+  - [x] 1.2 Canonical write guarantees inventory: exclusive `.<file>.replace.lock` creation, same-directory temp + required file fsync + atomic `rename`, title renames via `link()` + `unlink()` (a hardlink move), guarded reads rejecting `nlink !== 1`, and collaboration recovery storage under `.jumpybrain/recovery/`. Which of these hold on SMB/NFS is **untested and marked uncertain**; no empirical verification was possible here, so no SMB/NFS claim is made anywhere.
+  - [x] 1.3 Decision: the supported target is "index on a separate local disk". Canonical files on a network share remain unsupported.
+- [x] 2.0 Configurable derived-state location
+  - [x] 2.1 `JUMPYBRAIN_INDEX_DIR` (name matches the request) moves the rebuildable index and caches out of the root: manifest `index.json`, QMD SQLite `qmd-cache/qmd/index.sqlite`, `qmd-cache` (QMD XDG_CACHE_HOME), `qmd-config`, `qmd-home`, and the publication lock/diagnostics (`index.lock`, `index-pending.json`, `index-failure.json`) all resolve through the new `indexStateRoot` in `src/adapters/qmd/qmd-cli.ts`. Default (unset/empty value) is byte-identical to the prior layout.
+  - [x] 2.2 Rebuild-on-start already works through `ensureMemoryIndexed` (readiness "missing" when the manifest or database is absent); an empty or missing configured directory is rebuilt by ordinary maintenance and by non-read-only search. One index per root by construction: the location is `<value>/index/<sha256(root)>`, so two roots cannot share one index accidentally.
+  - [x] 2.3 `test/hosted-index-location.test.js`: default path unchanged, custom path used (root `.jumpybrain` untouched), missing/emptied index directory rebuilt, per-root separation, canonical files byte-identical before/after.
+- [x] 3.0 Dependency footprint (evaluation, not a promise)
+  - [x] 3.1 Recorded in [docs/build-footprint.md](../../docs/build-footprint.md) (`2026-11-17 hosted image QMD dependency evaluation`): 178 locked packages; tree-sitter family (6) and MCP server + core (2) are hard `dependencies` of `@tobilu/qmd@2.8.3`, published at about 75.6 MB and 7.6 MB unpacked respectively; no install flag can remove them; a clean sandbox install confirmed `node-llama-cpp` needs the image toolchain. No dependency surgery performed; the recorded path is an upstream ask, with before/after image measurement deferred to the hosted container gate.
+  - [x] 3.2 Option 2 (index-free in-memory search) remains deferred and unnecessary for this request.
+- [x] 4.0 Verify and finalize
+  - [ ] 4.1 **Blocked in this environment:** the Docker restore/rebuild check from [coolify-deploy](../../docs/coolify-deploy.md) could not run — the Docker client is installed (29.6.1) but the current user is denied the daemon socket and no credentials are available. This gate stays open for an authorized environment; no podman/nerdctl alternative exists on the machine.
+  - [x] 4.2 Docs updated: [vps-deploy.md](../../docs/vps-deploy.md) (derived-state bullet + safety checklist), [coolify-deploy.md](../../docs/coolify-deploy.md) (env var + storage guidance), [memory-format.md](../../docs/memory-format.md) (layout and access/recovery clarifications), [technical.md](../../docs/technical.md) (index relocation sentence), [build-footprint.md](../../docs/build-footprint.md). Per parent instruction, the shared `tasks/feedback.md` email rows, `tasks/todo/release-next.md` note, `tasks/CHANGELOG.md` entry and the archive move stay with the parent.
+
+### Index-state classification (1.1)
+
+Everything the server writes under `<root>/.jumpybrain` and beside the root, as of `950fd6a`:
+
+| State | Path(s) | Class | Moved by `JUMPYBRAIN_INDEX_DIR` |
+| --- | --- | --- | --- |
+| Published index manifest | `.jumpybrain/index.json` | derived, rebuildable | yes |
+| QMD SQLite index + caches | `.jumpybrain/qmd-cache/` (incl. `qmd/index.sqlite`, QMD `XDG_CACHE_HOME`) | derived | yes |
+| QMD config | `.jumpybrain/qmd-config/index.yml` | derived | yes |
+| QMD scratch home | `.jumpybrain/qmd-home/` | derived | yes |
+| Publication lock/diagnostics | `.jumpybrain/index.lock`, `index-pending.json`, `index-failure.json` | index coordination state | yes |
+| Obsolete dream copies | `.jumpybrain/qmd-dreams/` | removed after migration | yes (path only) |
+| Access credentials | `.jumpybrain/access.json` | **canonical** (private) | no |
+| Collaboration recovery | `.jumpybrain/recovery/<id>/<recoveryId>` | private user data | no |
+| Replace locks | `.<file>.replace.lock` beside each canonical file | lock state, root-owned | no |
+| Server logs/diagnostics | `.jumpybrain/logs/` | operational | no |
+| Backend support | `.jumpybrain/backend/` | operational | no |
+| Remote dream/idempotency state | `.jumpybrain/remote/`, `.jumpybrain/dream/` | operational (legacy for dreams) | no |
+| Lint reports | `.jumpybrain/reports/` | operational | no |
+
+### Verification (2026-11-17, Linux x86-64, Node 22.23.1, base `950fd6a`)
+
+- `npm run build` passes; editor bundle unchanged (185,285 gzip, 15 packages).
+- `test/hosted-index-location.test.js` — 5/5 pass (paths, custom dir, rebuild-on-missing, per-root separation, default layout).
+- Focused regression: `qmd-lock` + `semantic-index-lifecycle` + `qmd-read-only` + `semantic-index-seams` + `qmd-execution` — 73/73 pass (fake QMD).
+- With the real `@tobilu/qmd@2.8.3` installed from `scripts/engine/package-lock.json` (`npm ci --ignore-scripts` + source rebuild of native modules): `auto-index-scheduling`, `server-auto-index`, `automatic-index-cli`, `memory-cli` — 47/47 pass; manual end-to-end index + search + ensure into a custom `JUMPYBRAIN_INDEX_DIR` directory verified with the real engine (fresh, searchable, no rewrite work on re-run, root `.jumpybrain` absent).
+- Full suite with the same engine override: **2,080 tests, 2,061 passed, 18 skipped, 1 failed**. The single failure (`test/lexical-bundle.test.js`, "review editor weight if the production bundle exceeds 185 KB gzip") is pre-existing and unrelated: this checkout's base `950fd6a` builds the same 185,285-byte editor bundle on this Linux/Node 22.23.1 machine and fails the same assertion there; the gate was last calibrated on macOS ARM64 (see [build-footprint.md](../../docs/build-footprint.md)).
+- Limits: Docker daemon unavailable (4.1 open); `node-llama-cpp` cannot build in this sandbox, so real-engine semantic indexing is unverified here (fake-QMD semantic lifecycle tests cover the seam, and the read-only/immutability paths are exercised by their suites); the sandbox's older bundled `libstdc++` shadowed npm prebuilds until unset, which is an environment artifact, not a product issue.
+
+Remaining for the parent: authorize/rerun the Docker hosted container gate (restore, full loss and index rebuild with the index on a separate volume), update both `tasks/feedback.md` email rows, add the `tasks/todo/release-next.md` note, add the `tasks/CHANGELOG.md` entry, and archive this list per [task workflow](../../docs/task-workflow.md).

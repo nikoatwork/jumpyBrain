@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { spawnSync } from "node:child_process";
 import { runQmdChild } from "./qmd-execution.js";
+import { createHash } from "node:crypto";
 import { existsSync, realpathSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,8 +11,24 @@ export const QMD_DREAM_COLLECTION = "jumpybrain-dreams";
 export const SUPPORTED_QMD_VERSION = "2.8.3";
 
 export function derivedRoot(root: string): string { return path.join(root, ".jumpybrain"); }
-export function manifestPath(root: string): string { return path.join(derivedRoot(root), "index.json"); }
-export function databasePath(root: string): string { return path.join(derivedRoot(root), "qmd-cache", "qmd", "index.sqlite"); }
+/**
+ * Root directory of the rebuildable index state: published manifest, QMD
+ * SQLite/cache/config homes, publication lock and diagnostics. Setting
+ * JUMPYBRAIN_INDEX_DIR keeps it on a separate local disk instead of inside
+ * the memory root. A per-root key makes one directory per memory root, so two
+ * roots cannot share one index by accident. All writes still assume the
+ * existing supported local-filesystem contract; the destination needs no
+ * cross-resource hardlinks or locks because canonical files stay with the root.
+ */
+export function indexStateRoot(root: string, env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.JUMPYBRAIN_INDEX_DIR?.trim();
+  if (!configured) return derivedRoot(root);
+  if (configured.includes("\0")) throw new Error("JUMPYBRAIN_INDEX_DIR must not contain null bytes.");
+  const key = createHash("sha256").update(path.resolve(root)).digest("hex");
+  return path.join(path.resolve(configured), "index", key);
+}
+export function manifestPath(root: string): string { return path.join(indexStateRoot(root), "index.json"); }
+export function databasePath(root: string): string { return path.join(indexStateRoot(root), "qmd-cache", "qmd", "index.sqlite"); }
 
 const selectedEngine = new AsyncLocalStorage<{binary: string | null}>();
 /** An authenticated local owner may select its installed engine per operation. */
@@ -51,7 +68,7 @@ function qmdSetupMessage(reason: string): string {
 }
 
 export async function runQmd(root: string, args: string[], model?: string): Promise<{ stdout: string; stderr: string }> {
-  const derived = derivedRoot(root);
+  const derived = indexStateRoot(root);
   return runQmdChild(resolveQmdBinary(), [...args, "--index", "index"], {
     cwd: root, maxBytes: 20 * 1024 * 1024,
     env: {
