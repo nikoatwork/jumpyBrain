@@ -478,6 +478,10 @@ export function createCollaborationEditor(options: Options) {
     async refresh(): Promise<boolean> {
       const session = generation, actor = principal?.id;
       const eligible = () => !disposed && opened && client.state === "ready" && session === generation && principal?.id === actor && !reconciling && cleanSource();
+      // A checkpoint already being reconciled (for example the metadata
+      // broadcast reading its history) is ordinary acknowledged progress:
+      // let it settle, then apply the same fences rather than failing early.
+      if (reconciling) await snapshotQueue;
       if (!eligible()) return false;
       try {
         const snapshot: unknown = await client.request("open", { documentId: options.documentId, clientId });

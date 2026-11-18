@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Open-note attention outcomes
+
+- Current-note Settle/Snooze/Bring back already worked through the live owner (since 2026-11-10); this closes the residual gaps. A valid PATCH receipt is reported as saved even when a racing peer revision supersedes it, a lost reply is "possibly saved" and never retried, confirmation waits for an in-flight checkpoint, and readers are refused with a clear message. Verified with extended 1280/390px Chromium smokes. [Reproduction and verification](done/2026-11-18_tasks-live-note-attention.md).
+
 ## 2026-11-18 — Guarded CLI appends in live editors
 
 - Shared publication evidence lets open editors adopt guarded appends with routine metadata changes while retaining recovery for real source loss. Verified with a real remote CLI against two local Chromium viewers. [Reproduction and verification](done/2026-11-18_tasks-cli-live-note-updates.md).

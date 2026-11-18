@@ -75,5 +75,5 @@ instead of removing one.
 
 ## Scoped follow-up
 
-- [Live attention on the open note](../todo/tasks-live-note-attention.md) tracks the preserved HTTP-metadata/live-revision adoption limitation; it is planned separately from this completed refactor.
+- [Live attention on the open note](2026-11-18_tasks-live-note-attention.md) tracks the preserved HTTP-metadata/live-revision adoption limitation; it is planned separately from this completed refactor.
 - [Reviewed distribution ceiling refresh](2026-11-08_tasks-distribution-budget-refresh.md) records the subsequent user-authorized limit adjustment and passing package gate; the overage measurements above remain historical evidence.

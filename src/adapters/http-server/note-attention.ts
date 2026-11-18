@@ -78,6 +78,9 @@ export function installNoteAttention(options: {
     if (editor?.state.navigationPending) return;
     busy = true; waitingForSave = false; message("Saving…");
     const valid = () => options.scope() === scope && options.editor() === editor && !editor?.state.cancelled && options.writable();
+    // Once the PATCH is dispatched, a missing or malformed reply is not a
+    // rejection: the guarded write may have committed. Never retry it.
+    let dispatched = false;
     editor?.setNavigationPending(true); sync(); options.onBusy();
     try {
       if (editor && !await editor.flush()) { waitingForSave = true; throw new Error("Save your pending changes before changing note attention."); }
@@ -85,15 +88,25 @@ export function installNoteAttention(options: {
       const saved = await options.json(memoryDocumentPath(id)) as SavedNote;
       if (!valid()) return;
       if (saved.id !== id || typeof saved.content !== "string" || typeof saved.contentHash !== "string") throw new Error("Could not read the current note.");
+      if (editor?.state.documentId === id && editor.state.liveStatus === "readonly") throw new Error("The attention change was not saved. This credential grants reader access.");
       if (editor?.state.documentId === id && !await editor.acceptMetadata(saved, editor.state.contentHash)) throw new Error("Could not confirm the open note's saved version. Wait for it to reconnect or review its pending changes before trying again.");
       if (!valid()) return;
       const prior = attentionValue(splitEditableDocument(saved.content).frontmatterPrefix);
+      dispatched = true;
       const result = await options.json(memoryDocumentPath(id), {
         method: "PATCH", headers: { "Content-Type": "application/json", "If-Match": saved.contentHash }, body: JSON.stringify(action),
       }) as SavedNote;
       if (!valid()) return;
-      if (result.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("The attention change could not be confirmed. Reopen the note to check its state.");
-      if (editor?.state.documentId === id && !await editor.acceptMetadata(result, saved.contentHash)) throw new Error("The note changed while saving. Reopen it to check its attention state.");
+      if (result?.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("Unconfirmed attention receipt.");
+      // The receipt proves the canonical write. Whether the open editor has
+      // observed it is a separate fact: its live owner follows canonical
+      // revisions itself, so a newer peer revision is not a failed write.
+      if (editor?.state.documentId === id && !await editor.acceptMetadata(result, saved.contentHash)) {
+        if (!valid()) return;
+        message("Attention saved, but the open note changed afterwards or has not caught up yet. The sidebar shows its current state.");
+        options.changed();
+        return;
+      }
       if (!valid()) return;
       const previous: Action = prior === "settled" ? { action: "settle" } : prior && Date.parse(prior) > Date.now() ? { action: "snooze", until: prior } : { action: "reactivate" };
       const restoreNavigation = !isUndo && action.action === "settle" ? await options.settled?.({ id, title: result.title || saved.title }, focusOrigin) : undefined;
@@ -105,8 +118,14 @@ export function installNoteAttention(options: {
       options.changed(action.action === "reactivate" ? id : undefined);
     } catch (error) {
       if (!valid()) return;
-      message(Number((error as { status?: number })?.status) === 412 ? "The note changed. Review the latest version before trying again."
-        : error instanceof Error && !(error as { status?: number }).status ? error.message : "Could not confirm the attention change. Check the connection, then reopen the note before retrying.", true);
+      const status = Number((error as { status?: number })?.status) || 0;
+      if (status === 412) message("The note changed. Review the latest version before trying again.", true);
+      else if (dispatched && (!status || status >= 500)) {
+        // Lost/failed reply after dispatch: the change may have been saved.
+        message("Could not confirm whether the attention change was saved. The sidebar shows the saved state; check it before trying again.", true);
+        options.changed();
+      } else if (status) message("The attention change was not saved. " + (error instanceof Error ? error.message : ""), true);
+      else message(error instanceof Error && !(error instanceof TypeError) ? error.message : "Could not read the current note. Check the connection before trying again.", true);
     } finally {
       busy = false;
       if (options.editor() === editor && !editor?.state.cancelled) editor?.setNavigationPending(false);

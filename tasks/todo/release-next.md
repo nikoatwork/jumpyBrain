@@ -1,5 +1,6 @@
 # Changes
 
+- Settling, snoozing or bringing back the note you have open no longer reports a false failure when someone else edits it at the same moment: it tells you the change was saved and refreshes the sidebar. If the connection drops mid-action it says the change may have been saved instead of showing "Failed to fetch", and never repeats it.
 - Guarded CLI appends reach open note editors without a false replacement warning when only routine metadata also changes. Replacing saved content still preserves a version for review.
 - Labels stay steady when hovering across a large graph. You can still click labels to open notes.
 - Cutting the first line of a new note now saves without asking you to review a false edit conflict.
