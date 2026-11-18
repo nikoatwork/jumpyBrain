@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Open-note attention outcomes
+
+- Current-note Settle/Snooze/Bring back already worked through the live owner (since 2026-11-10); this closes the residual gaps. A valid PATCH receipt is reported as saved even when a racing peer revision supersedes it, a lost reply is "possibly saved" and never retried, confirmation waits for an in-flight checkpoint, and readers are refused with a clear message. Verified with extended 1280/390px Chromium smokes. [Reproduction and verification](done/2026-11-18_tasks-live-note-attention.md).
+
 ## 2026-11-18 — Page backlinks
 
 - Pages show "Linked from (N)" from one read-only canonical scan that reuses the graph's link resolution, so links written before a page existed count. "Open in graph" focuses the map on the page. Related pages no longer repeats linking notes. Verified with focused tests and Chromium at 1280/390px in both themes, plus a read-only remote profile and the hosted shell. [Outcome, cost and limits](done/2026-11-18_tasks-page-backlinks.md).

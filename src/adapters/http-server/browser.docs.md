@@ -183,6 +183,18 @@ pending and rejected writes, changed-source backend restart, explicit caret rese
 fresh input/Undo and retained failed drafts at 1280/390px. Session/controller unit
 tests add scope, reader, stale-receipt, title, composition and uncertain-write gates.
 
+Outcomes stay separate facts. A rejected PATCH (412 or another 4xx, including reader
+403) changed nothing. A dispatched PATCH whose reply is lost, malformed or 5xx is
+reported as possibly saved, rereads the sidebar and is never retried. A valid
+receipt proves the canonical write; if the open note cannot then confirm it (a peer
+revision already superseded it, or it has not caught up), the toast says it saved,
+offers no Undo and rereads the sidebar instead of claiming failure or asking to
+reopen. The open note's confirmation waits for a checkpoint already being
+reconciled rather than failing early. Readers are refused before any PATCH. The
+same smoke covers edit-then-Settle caret and own body Undo across the metadata
+checkpoint, another note's Settle/Undo, a racing peer revision, a lost reply, reader
+refusal and a synthetic mid-reply scope change.
+
 The list rechecks on entry, confirmed writes/actions, focus/pageshow and every 15 seconds while visible (or earlier at `nextWakeAt`). Failed reads retry after 30 seconds. Hidden/pagehide pauses timers and aborts reads; scope tokens suppress late results even if abort is ignored. Due refresh updates the sidebar without rewriting Markdown. No scheduling daemon or persisted browser state is required. Browser timers recheck after sleep/focus rather than promising background OS notifications.
 
 Verification: `test/note-attention.test.js`, `test/note-attention-browser.test.js`, companion gateway/idle-lock tests and production `scripts/note-attention-smoke.mjs` cover canonical/hash/save policy, timers, scope, local calendar/DST, sidebar keyboard activation, exact body/caret preservation, independent persistent pins and 1280/390/320 layouts in both themes. Real OS sleep, assistive technologies and other browsers remain separate manual checks.

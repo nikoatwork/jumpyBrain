@@ -25,7 +25,7 @@ measured limits and negative overage controls. No push, installation or release.
 
 - `scripts/package-budget.mjs`, `test/package-footprint.test.js` — limits and retained enforcement.
 - [Footprint guide](../../docs/build-footprint.md) — owning budget policy and rationale.
-- [Live metadata follow-up](../todo/tasks-live-note-attention.md) — supported current-note attention across live/HTTP publication.
+- [Live metadata follow-up](2026-11-18_tasks-live-note-attention.md) — supported current-note attention across live/HTTP publication.
 
 ## Verification and outcome
 
@@ -33,6 +33,6 @@ measured limits and negative overage controls. No push, installation or release.
 - `npm run check:package-size`: **passed**, actual package **1,462,963 archive / 4,625,618 unpacked / 3,097,281 runtime bytes / 666 files**. Remaining capacity: **37,037 / 174,382 / 102,719 bytes / 34 files**. The footprint guide is excluded from the package, and this task/follow-up are repository-only, so these final documentation changes do not alter the measured artifact.
 - `node --test test/local-pack-scripts.test.js test/local-pack-properties.test.js`: **31/31 passed**, including required runtime/installer resources, stale/forbidden files and omission controls.
 - Reused the already-built editor/runtime from the preceding session pilot, source `bc754a441f5b18240568e1923668ef6b79d4a15a` integrated by `c612fef`. Verified all **267** TypeScript/build/package inputs against its pinned manifest; none changed. Only the directly loaded budget script/test and repository docs/planning changed, so rebuilding or repeating Chromium would not exercise an affected runtime boundary.
-- Created [current-note live attention](../todo/tasks-live-note-attention.md) as the next scoped editor follow-up. It starts with a failing reproduction and requires revision-aware publication, private-draft/Undo/caret preservation and real Chromium attention actions. General payload trimming remains with [portable installation](../todo/tasks-portable-installation-project-integration.md). The new list stays active because implementation was not requested in this turn.
+- Created [current-note live attention](2026-11-18_tasks-live-note-attention.md) as the next scoped editor follow-up. It starts with a failing reproduction and requires revision-aware publication, private-draft/Undo/caret preservation and real Chromium attention actions. General payload trimming remains with [portable installation](../todo/tasks-portable-installation-project-integration.md). The new list stays active because implementation was not requested in this turn.
 - Owning footprint documentation and the completed budget decision in the changelog are updated. No user-facing release note is needed for packaging policy/planning alone. Relative links and `git diff --check` are verified before commit.
 - Limits: these are npm artifact policy checks, not native installation, published release, semantic quality or app behavior validation. Prior full frozen editor evidence is unchanged. No version bump, push, installation or release was performed.

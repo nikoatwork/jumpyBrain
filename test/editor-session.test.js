@@ -12,7 +12,7 @@ function memoryStorage() {
     getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value), removeItem: key => entries.delete(key) };
 }
 function fixture(t, options = {}) {
-  const previous = globalThis.WebSocket, frames = [], sockets = [], held = [];
+  const previous = globalThis.WebSocket, frames = [], sockets = [], held = [], log = [];
   let canonical = { documentId: "note", epoch: "epoch", revision: 0, prefix: "---\ntitle: Note\n---\n", body: "Saved body", title: "Note", file: "notes/note.md", contentHash: "hash-0", saved: true };
   class Socket {
     static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
@@ -25,8 +25,10 @@ function fixture(t, options = {}) {
       if (frame.method === "edit") {
         canonical = { ...canonical, revision: canonical.revision + 1, body: applySourceSplices(canonical.body, frame.params.operations), contentHash: "hash-" + (canonical.revision + 1),
           operation: { revision: canonical.revision + 1, splices: frame.params.operations, operationId: frame.params.operationId, actor: JSON.stringify(["writer", "tab"]) } };
-        result = canonical;
+        result = canonical; log.push(canonical.operation);
       }
+      if (frame.method === "history.read") result = { documentId: "note", epoch: canonical.epoch, fromRevision: frame.params.fromRevision, toRevision: frame.params.toRevision,
+        operations: log.filter(operation => operation.revision > frame.params.fromRevision && operation.revision <= frame.params.toRevision) };
       const reply = () => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result }) });
       if (options.hold === frame.method) held.push(reply); else queueMicrotask(reply);
     }
@@ -55,9 +57,10 @@ function fixture(t, options = {}) {
       const revision = canonical.revision + 1;
       canonical = { ...canonical, prefix, revision, contentHash: "metadata-" + revision,
         operation: { revision, splices: [], actor: "metadata-writer", operationId: "metadata-" + revision } };
+      log.push(canonical.operation);
       return { id: "note", title: canonical.title, content: canonical.prefix + canonical.body, contentHash: canonical.contentHash };
     },
-    broadcast() { sockets.at(-1).onmessage?.({ data: JSON.stringify({ event: "document", documentId: "note", snapshot: canonical }) }); },
+    broadcast(snapshot = canonical) { sockets.at(-1).onmessage?.({ data: JSON.stringify({ event: "document", documentId: "note", snapshot }) }); },
     replaceSurface(value) { shown = value; },
     changeScope() { scope = "other-brain/principal/tab"; }, retire() { current = false; } };
 }
@@ -103,6 +106,22 @@ test("live metadata confirmation allows an already observed matching checkpoint 
   h.broadcast(); await tick();
   assert.equal(await h.session.acceptMetadata(receipt, "hash-0"), false);
   assert.equal(h.session.state.contentHash, later.contentHash, "a stale receipt never rewinds the live owner");
+});
+
+test("live metadata confirmation waits for a checkpoint already being reconciled instead of failing early", async t => {
+  const h = fixture(t); await h.session.connect(); await tick();
+  h.session.setNavigationPending(true);
+  const receipt = h.metadata(), { operation, ...withoutOperation } = h.canonical;
+  // Without inline splices the broadcast must read source history first.
+  h.setHold("history.read"); h.broadcast(withoutOperation); await tick();
+  assert.equal(h.held.length, 1, "the live checkpoint is still reconciling");
+  assert.equal(h.session.state.contentHash, "hash-0");
+  const confirming = h.session.acceptMetadata(receipt, "hash-0"); await tick();
+  h.held.shift()();
+  assert.equal(await confirming, true);
+  assert.equal(h.session.state.contentHash, receipt.contentHash);
+  assert.equal(h.session.state.draft, "Saved body"); assert.equal(h.shown, "Saved body");
+  assert.equal(h.frames.some(frame => ["edit", "title", "resync"].includes(frame.method)), false);
 });
 
 test("live metadata confirmation protects private input and scoped authorization across its read", async t => {

@@ -411,6 +411,11 @@ topic preview's transient linked-page context, a net 731 gzip bytes (185,577
 total, 184,846 before, macOS ARM64, Node 26.7.0). The reviewed ceiling rises to
 **186,000 bytes**, leaving 423. Markup and styles stay server-rendered.
 
+Open-note attention outcome reporting (2026-11-18) adds receipt checks and reply
+classification. Merged with page backlinks, the bundle is 185,861 gzip bytes,
+leaving 139 under the 186,000 ceiling. The next editor addition needs its own
+measured review.
+
 Measured and not adopted: a newer syntax target (0 bytes), dropping `console`
 calls (41), removing the in-bundle Lucide notice (559, needed for the licence)
 and renaming `_`/`__` properties (871–1,511, with a real risk of breaking
