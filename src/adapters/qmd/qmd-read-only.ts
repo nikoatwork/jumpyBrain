@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { databasePath, derivedRoot, manifestPath, QMD_COLLECTION, QMD_DREAM_COLLECTION, resolveQmdSdk } from "./qmd-cli.js";
+import { databasePath, indexStateRoot, manifestPath, QMD_COLLECTION, QMD_DREAM_COLLECTION, resolveQmdSdk } from "./qmd-cli.js";
 import { checkExecution, MemoryExecutionError, readExecution, runQmdChild, withQmdOperation } from "./qmd-execution.js";
 
 const messages = {
@@ -48,8 +48,8 @@ async function assertAbsent(file: string, code: ReadOnlyQmdCode): Promise<void> 
 export async function observeReadOnlyQmdGeneration(root: string): Promise<ReadOnlyGeneration> {
   checkExecution();
   try {
-    await assertAbsent(path.join(derivedRoot(root), "index.lock"), "read_only_busy");
-    await assertAbsent(path.join(derivedRoot(root), "index-pending.json"), "read_only_pending");
+    await assertAbsent(path.join(indexStateRoot(root), "index.lock"), "read_only_busy");
+    await assertAbsent(path.join(indexStateRoot(root), "index-pending.json"), "read_only_pending");
     const db = databasePath(root);
     const wal = await fileState(`${db}-wal`);
     if (wal && wal.split(":")[2] !== "0") throw new ReadOnlyQmdError("read_only_wal");
@@ -63,8 +63,8 @@ export async function observeReadOnlyQmdGeneration(root: string): Promise<ReadOn
     // Reject changes even within this observation, not just across the operation.
     if (manifestState !== await fileState(manifestPath(root), true) || dbState !== await fileState(db, true)
       || wal !== await fileState(`${db}-wal`) || shm !== await fileState(`${db}-shm`)) throw new ReadOnlyQmdError("read_only_changed");
-    await assertAbsent(path.join(derivedRoot(root), "index.lock"), "read_only_busy");
-    await assertAbsent(path.join(derivedRoot(root), "index-pending.json"), "read_only_pending");
+    await assertAbsent(path.join(indexStateRoot(root), "index.lock"), "read_only_busy");
+    await assertAbsent(path.join(indexStateRoot(root), "index-pending.json"), "read_only_pending");
     return { generation: manifest.generation, signature: JSON.stringify([dbState, manifestState, wal, shm,
       createHash("sha256").update(bytes).digest("hex")]) };
   } catch (error) {
