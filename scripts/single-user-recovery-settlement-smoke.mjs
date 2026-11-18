@@ -39,9 +39,11 @@ const toastText = page => page.locator('#toast-message').innerText();
 async function interceptPatch(page, between, lose = false) {
   await page.route('**/memories/all/documents/**', async route => {
     if (route.request().method() !== 'PATCH') return route.continue();
+    if (lose === 'conflict') return route.fulfill({ status: 409, json: { error: { code: 'source_conflict', message: 'The open note has an unresolved conflict.' } } });
     const response = await route.fetch(), packet = await response.json();
     await between?.(packet);
-    if (lose) await route.abort('failed'); else await route.fulfill({ response, json: packet });
+    if (lose === 'replaced') await route.fulfill({ status: 409, json: { error: { code: 'backend_replaced', message: 'The backend changed during this request. Retry after reviewing any unconfirmed write.' } } });
+    else if (lose) await route.abort('failed'); else await route.fulfill({ response, json: packet });
   });
   return () => page.unroute('**/memories/all/documents/**');
 }
@@ -195,6 +197,31 @@ try {
     assert.equal(await toastText(page), 'Note brought back.');
     await exact(page, file, expected);
     results.push(`${width}: a lost PATCH reply stays uncertain and is not retried`);
+
+    // A committed write answered by a gateway 409 (backend replaced) is uncertain, never "not saved".
+    const replacedPatch = patchRequests;
+    unroute = await interceptPatch(page, undefined, 'replaced');
+    await act(page, 'settle'); await idle(page); await unroute();
+    assert.match(await toastText(page), /^Could not confirm whether the attention change was saved/);
+    assert.equal(await page.locator('#toast-action').isVisible(), false);
+    await page.waitForTimeout(300);
+    assert.equal(patchRequests, replacedPatch + 1, 'a possibly committed PATCH is never retried');
+    assert.match(await readFile(file, 'utf8'), /attention_at: null/, 'the 409 reply followed a committed write');
+    await exact(page, file, expected);
+    await act(page, 'reactivate'); await idle(page);
+    assert.equal(await toastText(page), 'Note brought back.');
+    await exact(page, file, expected);
+    results.push(`${width}: a committed write answered by 409 stays uncertain and is not retried`);
+
+    // A definitive pre-publication rejection (live write guard) still says "not saved".
+    const conflictPatch = patchRequests;
+    unroute = await interceptPatch(page, undefined, 'conflict');
+    await act(page, 'settle'); await idle(page); await unroute();
+    assert.match(await toastText(page), /^The attention change was not saved\./);
+    assert.equal(patchRequests, conflictPatch + 1);
+    assert.doesNotMatch(await readFile(file, 'utf8'), /attention_at: null/, 'nothing was published');
+    await exact(page, file, expected);
+    results.push(`${width}: a live-guard 409 before publication reports not saved`);
 
     // Permission: a reader can open the note but publish nothing, here or elsewhere.
     const readerContext = await browser.newContext({ viewport: { width, height: 850 }, reducedMotion: 'reduce' });

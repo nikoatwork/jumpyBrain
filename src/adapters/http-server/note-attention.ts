@@ -10,6 +10,8 @@ import { viewportMargin } from "./browser-design-system.js";
 type Editor = EditorSession;
 type Action = { action: "settle" | "reactivate" } | { action: "snooze"; until: string };
 type SavedNote = { id: string; title: string; content: string; contentHash: string };
+/** A stalled reply must not hold "Saving…" and the navigation lock forever. */
+const PATCH_REPLY_MS = 30_000;
 export function snoozeChoices(now = new Date()) {
   const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0);
   const monday = new Date(now); monday.setDate(monday.getDate() + (8 - (monday.getDay() || 7))); monday.setHours(9, 0, 0, 0);
@@ -42,6 +44,17 @@ function attentionValue(prefix: string): "settled" | string | undefined {
   if (metadata.attention_at === null) return "settled";
   return attentionTimestamp(metadata.attention_at);
 }
+
+/** A receipt must show the requested change; anything else is not evidence of it. */
+function reflects(content: string, action: Action) {
+  const metadata = parseFrontmatter(content).frontmatter;
+  if (action.action === "reactivate") return !Object.hasOwn(metadata, "attention_at");
+  const value = attentionValue(splitEditableDocument(content).frontmatterPrefix);
+  if (action.action === "settle") return value === "settled";
+  return action.action === "snooze" && value !== undefined && value !== "settled" && Date.parse(value) === Date.parse(action.until);
+}
+/** Rejected by the live-session write guard before publication. */
+const UNSAVED_CODES = new Set(["source_conflict", "live_edits_pending"]);
 
 export function installNoteAttention(options: {
   document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
@@ -95,15 +108,16 @@ export function installNoteAttention(options: {
       dispatched = true;
       const result = await options.json(memoryDocumentPath(id), {
         method: "PATCH", headers: { "Content-Type": "application/json", "If-Match": saved.contentHash }, body: JSON.stringify(action),
+        signal: AbortSignal.timeout(PATCH_REPLY_MS),
       }) as SavedNote;
       if (!valid()) return;
-      if (result?.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("Unconfirmed attention receipt.");
+      if (result?.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string" || !reflects(result.content, action)) throw new Error("Unconfirmed attention receipt.");
       // The receipt proves the canonical write. Whether the open editor has
       // observed it is a separate fact: its live owner follows canonical
       // revisions itself, so a newer peer revision is not a failed write.
       if (editor?.state.documentId === id && !await editor.acceptMetadata(result, saved.contentHash)) {
         if (!valid()) return;
-        message("Attention saved, but the open note changed afterwards or has not caught up yet. The sidebar shows its current state.");
+        message("Attention saved, but the open note changed afterwards or has not caught up yet. Check the sidebar once it refreshes.");
         options.changed();
         return;
       }
@@ -119,10 +133,13 @@ export function installNoteAttention(options: {
     } catch (error) {
       if (!valid()) return;
       const status = Number((error as { status?: number })?.status) || 0;
+      const code = (error as { code?: unknown })?.code;
       if (status === 412) message("The note changed. Review the latest version before trying again.", true);
-      else if (dispatched && (!status || status >= 500)) {
-        // Lost/failed reply after dispatch: the change may have been saved.
-        message("Could not confirm whether the attention change was saved. The sidebar shows the saved state; check it before trying again.", true);
+      else if (dispatched && (!status || status >= 500 || ((status === 404 || status === 409) && !(typeof code === "string" && UNSAVED_CODES.has(code))))) {
+        // Lost/failed reply after dispatch: the change may have been saved. A
+        // gateway 409 (backend replaced) or a post-publication collaboration
+        // failure can follow a committed write, so only definitive rejections say "not saved".
+        message("Could not confirm whether the attention change was saved. Check the sidebar once it refreshes before trying again.", true);
         options.changed();
       } else if (status) message("The attention change was not saved. " + (error instanceof Error ? error.message : ""), true);
       else message(error instanceof Error && !(error instanceof TypeError) ? error.message : "Could not read the current note. Check the connection before trying again.", true);

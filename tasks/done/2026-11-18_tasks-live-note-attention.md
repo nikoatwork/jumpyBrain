@@ -64,8 +64,18 @@ Tested source: `master` at `3a1f42c2` plus this task's scoped changes; one `npm 
 - `npm run check:package-size` (with this worktree's QMD engine `node_modules` moved aside, as in a normal pack): archive 3,202,592 / 3,300,000 bytes, unpacked 8,845,102, 764 files.
 - `git diff --check`: clean.
 
+### Independent review follow-up (2026-11-18)
+
+An independent review (three rounds) led to further narrow fixes in `note-attention.ts`:
+- After dispatch, 404/409 replies are uncertain ("could not confirm whether saved") unless the error code is a literal `source_conflict` or `live_edits_pending` string (pre-publication live write-guard rejections, which still say "not saved"). A gateway `backend_replaced` 409 can follow a committed write.
+- The PATCH carries a 30 s deadline, so a stalled reply ends as uncertain and releases "Saving…" and the navigation lock without a retry.
+- A receipt must show the requested change (settle → `attention_at: null`; snooze → the exact `until`; Bring back → no `attention_at` key). Otherwise the outcome is uncertain.
+- Uncertain toasts say to check the sidebar once it refreshes, not that it already shows the saved state.
+- New smoke cases: a committed write answered by 409 `backend_replaced` stays uncertain and is not retried; a 409 `source_conflict` before publication says "not saved". After rebuilding, `single-user-recovery-settlement-smoke.mjs`, `note-attention-smoke.mjs` and the four attention/session unit test files pass. The editor bundle is 185,101 gzip bytes; it exceeds this branch's old 185,000 ceiling, so the size check now relies on the reviewed 186,000 ceiling set by the page-backlinks change.
+
 ## Remaining limits
 
 - Chromium on a disposable local server only. Native Mac lifecycle, other browser engines, physical input/IME, a live VPS and real credential or brain switching during a held reply were not exercised; the mid-reply scope change is a synthetic credential-revision bump, while real scope/principal/cancel fences remain covered by `editor-session` unit tests.
 - After an unconfirmed-but-saved outcome the local pin is kept and no Undo is offered; the user acts again from the reread sidebar. An action on another note still waits for the open note's pending input to flush, as before.
+- Declined review items (follow-ups): reconciling the pin after a saved-but-unconfirmed Settle; keeping the outcome during a companion brain-switch freeze (the `writable()` fence predates this change); having the server keep its receipt when a collaboration step fails after publication; and checking receipt settlement fingerprints against content. The last guards only against a server that answers a Settle with an unchanged note. The core writer always records the current settlement hash, so a conforming server does not do this.
 - The frozen editor profile was not run because input, history and recovery behavior did not change.
