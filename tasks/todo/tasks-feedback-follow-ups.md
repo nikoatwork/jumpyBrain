@@ -43,9 +43,9 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 - [Legacy managed upgrades](../done/2026-11-14_tasks-legacy-managed-upgrade.md): Nov 10 upgrade/migration implemented and verified 2026-11-14; broader distribution and project integration remain separate.
 
 - [Runtime hygiene](../done/2026-11-08_tasks-desktop-runtime-hygiene.md): implementation finalized with packaged launch checks and explicit storage/platform limits. Exact historical macOS 26 failure remains unverified; reopen on a matching failure or new diagnostics.
-- [Hosted build/operations](tasks-hosted-build-and-operations.md): actual systemd-manager validation remains open after container/proxy/restore work.
+- [Hosted build/operations](../done/2026-11-18_tasks-hosted-build-and-operations.md): closed 2026-11-18; real systemd-manager validation recorded as an untested limit.
 - [Portable installation](tasks-portable-installation-project-integration.md): remaining compiler/platform/payload and project-integration work.
-- [Workspace retrieval evaluation](tasks-workspace-retrieval-evaluation.md): broader quality work; prior semantic candidates were rejected, not shipped as ranking fixes.
+- [Workspace retrieval evaluation](../done/2026-11-18_tasks-workspace-retrieval-evaluation.md): closed 2026-11-18 with long-document, VPS-cost and answer-judgment research recorded as limits; prior semantic candidates were rejected, not shipped as ranking fixes.
 - Properties and saved views: dropped 2026-11-14 and the list deleted; boards cover the need. Wider workflow/product ideas retain the [completed discovery decisions](../done/2026-11-02_tasks-feedback-product-discovery.md).
 
 No raw private messages or attachments are stored here. Priorities are triage judgments, not confirmed causes or release promises. Finish each retained fix under [task workflow](../../docs/task-workflow.md), then update its email-index outcome and owner link.

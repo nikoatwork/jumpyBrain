@@ -1,6 +1,6 @@
 # Repair container build inputs and close hosted operation gaps
 
-Priority: P1 for container build; P2 for operator documentation and credential ergonomics. Status: packaging implemented and Linux ARM64 image/operations fixtures passed on 2026-11-02; active pending actual systemd-manager validation of the documented unit's sandbox, boot/restart and resource enforcement. No deployment or image publication performed.
+Priority: P1 for container build; P2 for operator documentation and credential ergonomics. Status: closed 2026-11-18 by owner decision. Packaging and Linux ARM64 image/operations fixtures passed on 2026-11-02; the real systemd-manager gate (2.3) was **not** run and is recorded as an untested limit below. No deployment or image publication performed.
 
 The November 10 shared-brain rate-limit and JSON-error report was completed by [the focused admission/error task](../done/2026-11-14_tasks-shared-brain-admission-errors.md), which also documents proxy rate-limit ownership and `limit_req_status 429`; this list retains deployment and systemd gates.
 
@@ -13,7 +13,7 @@ Make the documented Docker deployment build from a clean context and give operat
 - [VPS deployment report, 2026-10-30](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=fb7d4d0a-6c1b-49ce-b7e6-4d64dbe76bc1) identifies missing build scripts in Dockerfile and requests scoped credentials, reproducible setup, safer service defaults and restore guidance.
 - Before repair, Dockerfile copied source/configuration before `npm run build` but omitted `scripts/`; the build invokes an editor build script. Clean-context reproduction and full build/runtime closure are verified below.
 - Scoped named reader/writer credentials and revocation now exist in [collaboration](../../docs/collaboration.md#separate-access). Do not create a duplicate authorization subsystem or describe all issued credentials as whole-brain writers.
-- [Portable installation](tasks-portable-installation-project-integration.md) owns published artifact installation. [Public sandbox hardening](../done/2026-11-14_tasks-public-sandbox-hardening.md) settled that sandbox restrictions stay at the proxy/gateway ([posture](../../docs/vps-deploy.md#public-writable-sandbox)); this list owns private hosted build/runbook gaps.
+- [Portable installation](../todo/tasks-portable-installation-project-integration.md) owns published artifact installation. [Public sandbox hardening](../done/2026-11-14_tasks-public-sandbox-hardening.md) settled that sandbox restrictions stay at the proxy/gateway ([posture](../../docs/vps-deploy.md#public-writable-sandbox)); this list owns private hosted build/runbook gaps.
 - [Remote UX outcome](../done/2026-10-31_tasks-remote-switching-ux.md) covers app permission explanations, older-server boards and identical-install Keychain continuity. Signing across changed releases remains a separate distribution limit.
 
 ## Relevant files
@@ -32,15 +32,15 @@ Make the documented Docker deployment build from a clean context and give operat
   - [x] 1.2 Copy the required build inputs and include the actual hosted runtime dependency closure. Keep secrets, local state, evals and private memory out of the image.
   - [x] 1.3 Run the built image against a disposable mounted brain; verify health, initialization, authenticated CLI read/write/index paths and restart persistence. A health response alone does not prove retrieval readiness.
   - [x] 1.4 Add a focused clean-context build check to the relevant deployment/release gate; report Docker/platform availability honestly without expanding the dormant scale-testing program.
-- [/] 2.0 Reconcile credential and deployment guidance with current support.
+- [~] 2.0 Reconcile credential and deployment guidance with current support.
   - [x] 2.1 Link issued reader/writer credentials from the shared-memory guide; distinguish bootstrap administration, server authorization and device-local read-only settings.
   - [x] 2.2 Document deliberate rotate/revoke verification with old-key rejection and safe secret delivery. CLI remains environment-only; reuse agent-host secret injection and existing Mac native storage. A new cross-platform CLI store is explicitly deferred because provider/unattended-access policy is separate from this packaging repair and target routing.
-  - [/] 2.3 Checksum-pinned release/systemd example, explicit writable paths, resource limits and proxy/firewall assumptions documented. Disposable Debian checks passed for checksum mismatch refusal, extraction, locked installs, non-root init/index/serve, `systemd-analyze verify` and nginx HTTPS/authenticated protocol-2 WSS. **Remaining:** run the actual unit under a disposable Linux systemd manager; verify sandbox writable-path behavior, boot/restart/stop and cgroup limits. The docs label the unit as an operator example until this passes.
+  - [~] 2.3 Checksum-pinned release/systemd example, explicit writable paths, resource limits and proxy/firewall assumptions documented. Disposable Debian checks passed for checksum mismatch refusal, extraction, locked installs, non-root init/index/serve, `systemd-analyze verify` and nginx HTTPS/authenticated protocol-2 WSS. **Remaining:** run the actual unit under a disposable Linux systemd manager; verify sandbox writable-path behavior, boot/restart/stop and cgroup limits. The docs label the unit as an operator example until this passes. **Closed unverified 2026-11-18:** no disposable systemd VM was available on the owner's Mac; the owner chose to close the list with this gate recorded as a limit.
   - [x] 2.4 Add a migration inventory/drain checklist for all service/container/CLI/raw-file writers and retired redeployments/secrets. Explain client and server upgrades separately.
   - [x] 2.5 Distinguish replacement backups from recurring off-host backups, identify canonical versus unique operational data, and exercise restoration into a disposable root before documenting recovery success.
-- [/] 3.0 Verify and finalize.
+- [x] 3.0 Verify and finalize.
   - [x] 3.1 Record image/source digest, platform, actual runtime smoke and restore/credential checks; leave untested Linux/proxy assumptions explicit.
-  - [/] 3.2 Owning docs, pending release note and selective hosted-container changelog updated. Commit the verified scoped increment; retain this active list until 2.3 passes, then archive and repair inbound references under [task completion](../../docs/task-workflow.md). Do not deploy to a user's VPS or publish an image as part of this task without authorization.
+  - [x] 3.2 Owning docs, pending release note and selective hosted-container changelog updated. Commit the verified scoped increment; archived 2026-11-18 with 2.3 recorded as an untested limit; archive and repair inbound references under [task completion](../../docs/task-workflow.md). Do not deploy to a user's VPS or publish an image as part of this task without authorization.
 
 ## Verification — 2026-11-02
 
@@ -62,4 +62,10 @@ Tested source base: `a7b5db0de1186d629c6ef53238d1072bcbe2144a` plus this lane's 
 - Generic nginx HTTPS/WSS passed locally; real Coolify, public DNS/TLS/firewall, remote secret distribution and off-host backup storage/encryption were not tested or deployed. Operators must verify their own environment.
 - Linux ARM64 lexical retrieval passed. Linux AMD64, semantic GGUF/GPU runtime behavior and model sizing were not tested; no semantic or multi-platform support claim is added.
 - Root/engine dependency graphs are locked. The Node base/Debian inputs can move; record/promote an actual tested image digest rather than promising bit-identical rebuilds.
-- Task remains active deliberately; references from the feedback index/integration list still point here. Parent may integrate the verified packaging increment while retaining the named systemd gate.
+- Closed 2026-11-18 by owner decision with the systemd gate unverified. `docs/vps-deploy.md` already labels the unit an operator example that has not been proven under a real systemd manager, so no doc change is needed. Reopen as a focused task if an operator reports a unit, sandbox, restart or cgroup problem, or when a disposable systemd VM is available.
+
+## Outcome — 2026-11-18
+
+- Delivered (2026-11-02, already on `master`): clean-context Docker build, locked runtime/engine dependencies, non-root hosting, the `npm run smoke:hosted` gate (retrieval, credential rotation/revocation, backup/restore), credential and migration guidance, and a checksum-verified release/systemd/nginx operator example. Later work moved the admission/error contract and separate index storage into their own archived tasks.
+- Not verified: the systemd unit under a real systemd manager (sandbox writable paths, boot/restart/stop, cgroup limits), Linux AMD64, semantic GGUF/GPU runtime, real Coolify/DNS/TLS/firewall and off-host backup storage. Operators must verify these in their own environment.
+- Verification for this closure: documentation-only; no source or test changed, so no new test run. Relative links repaired and checked.

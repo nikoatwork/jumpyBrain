@@ -1,6 +1,6 @@
 # Natural questions and cited-range reads
 
-Status: complete, 2026-10-29. All arms rejected; production and default evaluator reads retained. Follow-up to [selection boundaries](../done/2026-10-29_tasks-retrieval-selection-boundaries.md). Parent: [workspace evaluation](../todo/tasks-workspace-retrieval-evaluation.md).
+Status: complete, 2026-10-29. All arms rejected; production and default evaluator reads retained. Follow-up to [selection boundaries](../done/2026-10-29_tasks-retrieval-selection-boundaries.md). Parent: [workspace evaluation](2026-11-18_tasks-workspace-retrieval-evaluation.md).
 
 ## Scope
 

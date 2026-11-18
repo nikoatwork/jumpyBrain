@@ -1,6 +1,6 @@
 # Knowledge-workspace retrieval evaluation and baseline
 
-Status: baseline v1 established 2026-10-28; broader evaluation remains active. [Measured scorecard](../../evals/workspace-retrieval/reports/2026-10-28-baseline-v1.md). Original experiments are archived. The [2026-10-29 named-source combination](../../evals/workspace-retrieval/reports/2026-10-29-discovery-v5.md) passed fresh quality/cost and production-parity gates and is adopted for lexical retrieval. Independent answer judgments, larger workspaces/documents, human use and Linux/VPS costs remain open.
+Status: closed 2026-11-18 by owner decision. Baseline v1 established 2026-10-28; the open research items below are recorded as limits, not completed work. [Measured scorecard](../../evals/workspace-retrieval/reports/2026-10-28-baseline-v1.md). Original experiments are archived. The [2026-10-29 named-source combination](../../evals/workspace-retrieval/reports/2026-10-29-discovery-v5.md) passed fresh quality/cost and production-parity gates and is adopted for lexical retrieval. Independent answer judgments, larger workspaces/documents, human use and Linux/VPS costs remain open.
 
 ## Goal
 
@@ -54,32 +54,32 @@ Target ten cases per journey, with 24 development and 56 reserved comparison cas
 
 ## Tasks
 
-- [/] 1.0 Design and review a credible workspace fixture and evaluation protocol.
+- [~] 1.0 Design and review a credible workspace fixture and evaluation protocol.
   - [x] 1.1 Inspect current search/recall/expansion, temporal policy, linked-page/source-check behavior, package exclusions and existing test conventions. Reuse supported operations without adding alternate evaluation-only product paths. Document the in-repo ownership boundary in the eval guide.
-  - [/] 1.2 Author the fictional corpus with stable canonical IDs, original source notes, current-state pages and claim-adjacent citations. Include ordinary human writing, long/nested sections, aliases, near-duplicate titles, changed terminology, low-relevance neighbors and uneven topical coverage. Review plausibility and file lengths before writing the final query set.
+  - [~] 1.2 Author the fictional corpus with stable canonical IDs, original source notes, current-state pages and claim-adjacent citations. Include ordinary human writing, long/nested sections, aliases, near-duplicate titles, changed terminology, low-relevance neighbors and uneven topical coverage. Review plausibility and file lengths before writing the final query set.
   - [x] 1.3 Author natural tasks across the eight journeys without copying source sentences as the default query. Label search versus recall, required clauses and sources, acceptable alternatives, prohibited inferences, expected ambiguity/abstention and depth/date options. Do not make every answer discoverable from a title or one tiny paragraph.
   - [x] 1.4 Review corpus/questions/rubrics for circularity, accidental shortcuts and information absent from the sources. Freeze scenario-family development/reserved splits and permitted tuning. Keep corpus and gold/rubric directories separate; index only the corpus, never answers, task lists, runner files or reports.
   - [x] 1.5 Add small versioned mutation scenarios: external edit, renamed/deleted source, changed decision, stale synthesis and index removal/rebuild. Pin source snapshots and an explicit reference clock; gold supports each snapshot rather than pretending dates establish truth. Keep protected correctness/lifecycle cases separate from quality averages.
 
-- [/] 2.0 Implement the smallest reproducible runner and scoring/report format.
+- [~] 2.0 Implement the smallest reproducible runner and scoring/report format.
   - [x] 2.1 Add a documented opt-in command that creates disposable roots, indexes the exact corpus and exercises real supported search, compact recall and guarded expansion. No production/personal/shared-brain writes; fixture setup is not part of query latency.
   - [x] 2.2 Support distinct lexical and provisioned-semantic runs with verified readiness, pinned QMD/model identity and network/model downloads disabled. Missing models or failed branches are unavailable/degraded outcomes, not passing semantic scores. A clean lexical run must remain possible without API credentials.
   - [x] 2.3 Implement bounded non-oracle interaction replay, canonical citation/range/hash checks, evidence diagnostics, pinned token accounting and per-case raw records. Keep gold access confined to scoring; an evaluated agent cannot inspect the fixture tree or rubric outside its allowed tools.
   - [x] 2.4 Produce a concise machine-readable and Markdown report with per-journey results, failure examples, actual read coverage and full-interaction costs. Keep manual/adjudicated labels distinct from automatic proxies; add a fixed optional answer-agent runner only if it can be reproduced without coupling the product to one provider.
-  - [/] 2.5 Separate quality runs, quiet-window timing and small local/hosted parity/lifecycle checks. Record repeat count, cache state and full hardware/runtime details; do not benchmark under unrelated contention or infer shared-server capacity from one request.
+  - [~] 2.5 Separate quality runs, quiet-window timing and small local/hosted parity/lifecycle checks. Record repeat count, cache state and full hardware/runtime details; do not benchmark under unrelated contention or infer shared-server capacity from one request.
   - [x] 2.6 Add only meaningful deterministic runner/scoring regressions, including budget/invalid-source/error accounting and exclusion of gold from retrieval. Verify normal tests/build/pack/install do not depend on the eval corpus or introduce model/network work.
 
-- [/] 3.0 Run, inspect and freeze the unchanged-product baseline — prerequisite for all experiments.
+- [~] 3.0 Run, inspect and freeze the unchanged-product baseline — prerequisite for all experiments.
   - [x] 3.1 Freeze source/compiled artifact identity, corpus/query/rubric/runner hashes, QMD and model hashes, tokenizer, settings, clock and interaction policy. Evaluation tooling may change before this freeze; retrieval behavior must remain the current product. Record any unavailable runtime/model/environment explicitly.
   - [x] 3.2 Run development and reserved cases against the unchanged product, recording lexical and verified-semantic results separately. Retain representative real search/open and local/hosted parity observations; record unsupported/untested surfaces honestly.
-  - [/] 3.3 Adjudicate full query-bound evidence, inspect every failure category and a sample of successes, and record practical user impact. Specifically retain quoted-identifier/relaxation failures and missing alias/ancestor context as known controls rather than silently fixing them during baseline creation.
+  - [~] 3.3 Adjudicate full query-bound evidence, inspect every failure category and a sample of successes, and record practical user impact. Specifically retain quoted-identifier/relaxation failures and missing alias/ancestor context as known controls rather than silently fixing them during baseline creation.
   - [x] 3.4 Commit a compact baseline report, exact rerun commands and immutable input manifest; archive bulky raw outputs outside tracked files with location/checksums. Prove a second clean run reproduces deterministic quality/cost outputs, documenting timing/model nondeterminism separately.
   - [x] 3.5 Publish the baseline scorecard and failure inventory before implementing any experimental retrieval change. Predeclare each experiment's target cases, effect size, protected regressions, context/latency/RSS limits and judgment procedure. If the baseline does not show the hypothesized failure, record a no-go or diagnostic-only pilot rather than expanding scope to manufacture a win.
 
-- [ ] 4.0 Publish and finalize the baseline deliverable.
+- [x] 4.0 Publish and finalize the baseline deliverable.
   - [x] 4.1 Document the scorecard, failure inventory, reproducibility, model/environment availability and limits; do not claim answer accuracy without an evaluated answer agent.
   - [x] 4.2 Verify packaging excludes evaluation assets while preserving the existing `dist/` runtime, and document tracked reproducible inputs versus ignored generated runs. No runtime relocation is required merely to exclude development tooling.
-  - [/] 4.3 Run remaining broader checks, record exact tested snapshots and archive/commit the completed parent task under [the task workflow](../../docs/task-workflow.md). The original experiment lists are already archived; their completion does not satisfy the open parent checks.
+  - [x] 4.3 Run remaining broader checks, record exact tested snapshots and archive/commit the completed parent task under [the task workflow](../../docs/task-workflow.md). The original experiment lists are already archived; their completion does not satisfy the open parent checks.
 
 ## Follow-up experiment lists
 
@@ -202,3 +202,12 @@ Verification: read the current source, architecture/adapter contracts, frozen re
 - Recommendation: retain lexical default and optional embeddings; prioritize evidence completeness and simple navigation. No product backend change is justified by this pilot. Local embedding preparation was modest in this run, so model-execution overhead and dependency/packaging complexity must be evaluated separately.
 
 Broader work remains with this parent: a separately frozen confirmation should use deterministic grep ordering/pagination, the corrected citation gate, a consistent geography/calendar knowledge policy, repeated answering and fresh knowledge-worker tasks. Human search, multilingual/long-document retrieval, weaker agents and actual jumpyBrain configuration/cost comparisons remain outside this completed pilot. Do not rerun now-seen pilot cases as fresh confirmation or rewrite its original frozen outcomes. The full 1,540-question LoCoMo dataset was not run.
+
+## Closure — 2026-11-18
+
+Closed by owner decision. The open research items are recorded as limits, not as completed work.
+
+- Delivered: the in-repo fictional-workspace eval (`evals/workspace-retrieval/`) with a reproducible, hash-addressed lexical and semantic baseline; nine frozen experiment reports; one adopted lexical improvement (named-source candidate discovery, 2026-10-29); measured no-adoption decisions for the other arms; the embedding-dependency assessment; and the adapted LoCoMo pilot.
+- Partial and closed (`[~]`): 1.2 very long documents and large workspaces were never measured (largest fixture 248 pages / 168 tasks). 2.5 quiet-window and Linux/VPS operating costs were measured only in local quiet windows. 3.3 independent query-bound judgment and answer/abstention accuracy were done only for samples and the LoCoMo pilot.
+- Decision carried forward: keep lexical retrieval as the default and embeddings optional. Removing embeddings stays unresolved; the comparison it would need is written up in the 2026-11-07 assessment above. Start a new, narrowly frozen task if that decision or a specific retrieval failure becomes a priority. Do not reopen this parent.
+- Verification for this closure: documentation-only; no source, eval or test changed, so no new run. Relative links repaired and checked.

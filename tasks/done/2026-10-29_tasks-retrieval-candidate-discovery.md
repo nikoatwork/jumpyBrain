@@ -41,7 +41,7 @@ Test whether bounded canonical-metadata discovery recovers named sources missing
 
 ## Relevant files
 
-- [Broader evaluation plan](../todo/tasks-workspace-retrieval-evaluation.md)
+- [Broader evaluation plan](2026-11-18_tasks-workspace-retrieval-evaluation.md)
 - `evals/workspace-retrieval/{run,execute,experiment-hooks,discovery-policy}.mjs`
 - `evals/workspace-retrieval/DISCOVERY-EXPERIMENT.md`, `discovery-confirmation/`, compact v5 report/JSON/freeze/timing records
 - `src/core/retrieval-policy/named-subject.ts`, core barrel/docs, `src/adapters/qmd/qmd-driver.ts` and owning docs

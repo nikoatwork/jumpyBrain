@@ -1,6 +1,6 @@
 # Retrieval ordering and follow-up selection boundaries
 
-Status: complete, 2026-10-29. All three experimental arms rejected; current production and default evaluator reads retained. Follow-up to [adopted discovery](../done/2026-10-29_tasks-retrieval-candidate-discovery.md). Parent: [workspace evaluation](../todo/tasks-workspace-retrieval-evaluation.md).
+Status: complete, 2026-10-29. All three experimental arms rejected; current production and default evaluator reads retained. Follow-up to [adopted discovery](../done/2026-10-29_tasks-retrieval-candidate-discovery.md). Parent: [workspace evaluation](2026-11-18_tasks-workspace-retrieval-evaluation.md).
 
 ## Contract
 

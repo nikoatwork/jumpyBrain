@@ -10,7 +10,7 @@ Tell users and agents what retrieval is ready to do, identify weak or degraded m
 
 - [Agent review part 2, 2026-11-02](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=9254c8d1-7155-45b1-9dc7-dc49c85b9fe0) reports weak conceptual lexical results, no semantic setup nudge, migrated-note date skew and unclear inactive score components on a lexical-only brain.
 - These are one reviewer's observations. Do not copy their private query corpus or infer a universal quality threshold from reported QMD scores. Lexical readiness, semantic availability and actual answer relevance are distinct.
-- [Workspace evaluation](../todo/tasks-workspace-retrieval-evaluation.md) remains the owner of frozen quality/interaction-cost comparisons and broader human/VPS judgments. This list owns diagnostics and targeted date/readiness regressions; reuse that suite for any ranking change.
+- [Workspace evaluation](2026-11-18_tasks-workspace-retrieval-evaluation.md) remains the owner of frozen quality/interaction-cost comparisons and broader human/VPS judgments. This list owns diagnostics and targeted date/readiness regressions; reuse that suite for any ranking change.
 - [Desktop RAM](2026-11-03_tasks-desktop-ram-next-improvements.md) owns its existing model-cost experiment budget. No automatic model download, semantic activation or new benchmark sweep belongs to this plan.
 
 ## Relevant files
@@ -57,7 +57,7 @@ Source snapshot: `f86f5174d5bde4adcbe978a7ca838982fc9018f8` plus this scoped inc
 
 ## Parent acceptance and policy decision — 2026-11-02
 
-Retain the explicit observational doctor probe and all investigation regressions; **defer an import-aware recency change** to the existing [workspace evaluation](../todo/tasks-workspace-retrieval-evaluation.md). This resolves the alternative adopt/defer gate in this task; no default ranking or imported Markdown metadata was changed.
+Retain the explicit observational doctor probe and all investigation regressions; **defer an import-aware recency change** to the existing [workspace evaluation](2026-11-18_tasks-workspace-retrieval-evaluation.md). This resolves the alternative adopt/defer gate in this task; no default ranking or imported Markdown metadata was changed.
 
 The evidence supports this decision: fixed explicit `date` already makes scores/order independent of import creation/edit time, and explicit temporal filters use strict evidence time rather than creation fallback. The undated-import fixture demonstrates a default-ranking preference for recent ingestion, but does not establish the private report's exact source or a single event date that can safely replace writing time. Preserved source YAML/body dates and multi-period notes are not automatically canonical envelope dates. A changed fallback therefore needs paired evidence coverage/cost results before adoption; a score of 1 on an irrelevant lexical distractor separately demonstrates why execution success or rank alone cannot pass that gate.
 

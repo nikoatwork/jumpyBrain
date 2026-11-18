@@ -8,7 +8,7 @@ Start three isolated implementation lanes from the same committed snapshot:
 
 1. [Idle-note editing](../done/2026-11-02_tasks-stale-note-editing.md): editor/source mapping, focused regressions and real editor checks. Preserve private-draft and collaboration safeguards; establish a reproducible cause before fixing.
 2. [CLI help/validation](../done/2026-11-02_tasks-cli-help-and-validation.md): early side-effect-free help, concise usage and strict argument gaps. Do not change target discovery or agent instruction/output schemas.
-3. [Hosted build/operations](../todo/tasks-hosted-build-and-operations.md): container input/runtime closure, focused build gate and accurate hosted guidance. Do not change ordinary CLI dispatch, editor code or server authorization architecture.
+3. [Hosted build/operations](2026-11-18_tasks-hosted-build-and-operations.md): container input/runtime closure, focused build gate and accurate hosted guidance. Do not change ordinary CLI dispatch, editor code or server authorization architecture.
 
 Each delegate owns its task record, implementation, focused tests and owning docs in its prepared worktree. They are not alone in the repository and must preserve other work. Shared release notes, changelog and feedback index may need integration reconciliation. Parent owns merges, shared-document reconciliation, combined checks and T3 source-thread settlement.
 
@@ -120,7 +120,7 @@ Completed source threads for CLI help, guidance/lint, connections, discovery and
 Three integrated source tasks/threads remain active because they own actual unfinished work:
 
 - [Existing-note editing follow-up](../done/2026-11-02_tasks-stale-note-editing.md): at this integration checkpoint the failed selection/idle lifecycle and matching packaged-Mac reproduction were unavailable. Subsequently, the user withdrew the idle premise; ordinary word/line command failure was reproduced and fixed with actual packaged checks. The exact historical shortcut remains unknown.
-- [Hosted operations](../todo/tasks-hosted-build-and-operations.md): documented systemd sandbox, boot/restart and resource enforcement still need a real disposable systemd manager. ARM64 lexical container/proxy evidence does not establish AMD64, semantic models or a real deployment.
+- [Hosted operations](2026-11-18_tasks-hosted-build-and-operations.md): documented systemd sandbox, boot/restart and resource enforcement still need a real disposable systemd manager. ARM64 lexical container/proxy evidence does not establish AMD64, semantic models or a real deployment.
 - [Runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md): the reported agent-shell launch failure remains unreproduced. Legacy/unproven staging and customized/untracked integrations remain conservatively preserved; no cleanup of the user's existing gigabytes is claimed.
 
 These follow-ups retain canonical active owners and do not leave a pending merge or required integration check. Aggregate notes remain in `tasks/todo/release-next.md` for a separately requested release. This integration list is complete and archived; the integration thread can settle after its final commit.

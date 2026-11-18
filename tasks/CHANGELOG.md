@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Hosted operations and retrieval evaluation closed
+
+- Closed both long-running lists by owner decision. Their open items are recorded as limits, not as completed work. Hosted operations delivered the clean Docker build, the hosted smoke gate and operator guidance; the documented systemd unit was never run under a real systemd manager and remains an operator example. The retrieval evaluation delivered the in-repo baseline, nine frozen reports and one adopted lexical improvement. Long documents, VPS costs, answer judgment and the embedding-removal decision remain unmeasured. [Hosted operations](done/2026-11-18_tasks-hosted-build-and-operations.md), [retrieval evaluation](done/2026-11-18_tasks-workspace-retrieval-evaluation.md).
+
 ## 2026-11-18 — Three simplification proposals declined
 
 - After source-checked research, the owner declined extracting the browser shell's inline HTML/CSS/JS into served assets, a shared smoke-test harness, and splitting `src/types.ts`; each cost more churn and risk than its benefit. A lighter rule replaces each: new browser logic goes into typed modules bundled via `browser-entry.ts`, new smokes reuse the existing shared helpers, and new types sit next to their owning module. No source changed. Decisions: [shell assets](done/2026-11-18_tasks-adapter-string-raw-simplify.md), [smoke harness](done/2026-11-18_tasks-smoke-harness-simplify.md), [types](done/2026-11-18_tasks-types-co-location-simplify.md).
@@ -417,7 +421,7 @@
 
 ## 2026-11-02 — Hosted container packaging
 
-- Repaired clean-context Docker builds and locked runtime/search dependencies, with non-root hosting and a real disposable retrieval/rotation/restore gate. [Verification and remaining Linux service gate](todo/tasks-hosted-build-and-operations.md).
+- Repaired clean-context Docker builds and locked runtime/search dependencies, with non-root hosting and a real disposable retrieval/rotation/restore gate. [Verification and remaining Linux service gate](done/2026-11-18_tasks-hosted-build-and-operations.md).
 
 ## 2026-11-02 — Consistent CLI help
 

@@ -1,6 +1,6 @@
 # Adapted Letta LoCoMo retrieval pilot
 
-Completed 2026-11-07. The explicitly authorized local comparison ran end to end through existing Codex subscription access, coordinated by T3. It is an adapted LoCoMo pilot, not a reproduction of Letta's published score. The broader [retrieval evaluation](../todo/tasks-workspace-retrieval-evaluation.md) remains active; the [feedback index](../feedback.md) records partial resolution of the November 6 request.
+Completed 2026-11-07. The explicitly authorized local comparison ran end to end through existing Codex subscription access, coordinated by T3. It is an adapted LoCoMo pilot, not a reproduction of Letta's published score. The broader [retrieval evaluation](2026-11-18_tasks-workspace-retrieval-evaluation.md) remains active; the [feedback index](../feedback.md) records partial resolution of the November 6 request.
 
 ## Outcome
 
