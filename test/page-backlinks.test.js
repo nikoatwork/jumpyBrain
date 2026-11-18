@@ -75,7 +75,11 @@ test("hosted document route returns a remote-safe backlink packet", async t => {
   await write("pages/p.md", note(1, "P", "Page"));
   await write("notes/a.md", note(2, "A", "About [[P]]."));
   const server = await startJumpyBrainHttpServer({ root, apiKeys: ["fixture"], port: 0, autoIndex: false });
-  t.after(() => server.close());
+  // Close before the fixture's root removal (after hooks run in registration order).
+  try { await hostedChecks(server, root); } finally { await server.close(); }
+});
+
+async function hostedChecks(server, root) {
   const get = suffix => fetch(server.url + "/memories/all/documents/" + suffix, { headers: { Authorization: "Bearer fixture" } });
   const response = await get(id(1) + "?backlinks=1");
   assert.equal(response.status, 200);
@@ -89,7 +93,7 @@ test("hosted document route returns a remote-safe backlink packet", async t => {
   assert.equal(missing.status, 404); await missing.body?.cancel();
   const unauthenticated = await fetch(server.url + "/memories/all/documents/" + id(1) + "?backlinks=1");
   assert.equal(unauthenticated.status, 401); await unauthenticated.body?.cancel();
-});
+}
 
 function uiHarness() {
   let focused = null;
