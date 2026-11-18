@@ -98,11 +98,9 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .node .node-halo { pointer-events: none; opacity: .7; transition: opacity .15s ease; }
     .node .node-sheen { fill: url(#map-node-light); pointer-events: none; }
     .node.unresolved .node-core { fill: var(--node-unresolved); stroke-dasharray: 3 2; }
-    .node text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
-    .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; pointer-events: auto; }
+    /* Labels live in the label layer; node groups hold only a tooltip and circle, so no label styles hang off .node hover. */
     .node:hover .node-core, .node:focus-visible .node-core, .node.selected .node-core { stroke: var(--focus-ring); stroke-width: 4; }
     .node:hover .node-halo, .node:focus-visible .node-halo, .node.selected .node-halo { opacity: 1; }
-    .node.selected text { fill: var(--ink); font-weight: var(--weight-semibold); }
 
     @media ${media.narrow} {
       .toolbar { padding: var(--space-3) var(--space-4); gap: var(--space-1); }

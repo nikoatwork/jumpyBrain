@@ -4,7 +4,7 @@
 
 - Own QMD binary resolution, derived QMD collection paths, indexing, query execution, ranking helpers, and snippet expansion.
 - Provide a small adapter barrel consumed by app local-memory and processing composition: build index, load manifest, and search index.
-- Treat QMD state under `.jumpybrain/` as derived and rebuildable from canonical Markdown files.
+- Treat QMD index state as derived and rebuildable from canonical Markdown files. The default location is `.jumpybrain/` under the memory root.
 
 ## Non-responsibilities
 
@@ -13,6 +13,8 @@
 - Do not become a required dependency of `src/core/index.ts`.
 
 ## Index lifecycle and readiness
+
+`JUMPYBRAIN_INDEX_DIR` can put the index manifest, SQLite files, QMD homes and index lock on a separate local disk. The adapter keys that location by the resolved memory root, and the writer and read-only paths use the same location. Keep the setting stable for the backend lifetime. Canonical Markdown, policy, credentials and collaboration recovery stay with the memory root.
 
 Resolver setup failures identify an explicit `JUMPYBRAIN_QMD_BIN` selection and advise correcting/unsetting it before installation advice. This is diagnostic guidance around the existing resolver, not another discovery strategy; doctor uses the same resolver through the app/runtime inspection seam and does not claim inference validation.
 

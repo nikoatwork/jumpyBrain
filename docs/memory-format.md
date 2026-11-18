@@ -14,7 +14,7 @@ memory-root/
   preferences/
   pages/              # topical/current-state synthesized memory
   drawings/           # optional <Name>.excalidraw sketches; workspace files, never indexed
-  .jumpybrain/        # derived/rebuildable; do not edit
+  .jumpybrain/        # derived/rebuildable; do not edit (except private access/recovery state below)
 ```
 
 Drawings are standard Excalidraw files created in the app or dropped into `drawings/`. They are not memory: search, recall and agents do not read them. Mention one from a note as `[[Name.excalidraw]]` and let the note carry the meaning.
@@ -25,7 +25,7 @@ Create this layout with:
 jumpybrain init --root ./memory
 ```
 
-`jumpybrain.json` lets future CLIs detect incompatible memory-root schema changes before writing or indexing. Markdown files remain the canonical memory content. Derived state under `.jumpybrain/`, including remote index state and legacy dream batch metadata, is operational support data rather than memory. Stateless dream windows do not create or modify dream state.
+`jumpybrain.json` lets future CLIs detect incompatible memory-root schema changes before writing or indexing. Markdown files remain the canonical memory content. Derived state under `.jumpybrain/`, including remote index state and legacy dream batch metadata, is operational support data rather than memory. Stateless dream windows do not create or modify dream state. `.jumpybrain/access.json` and `.jumpybrain/recovery/` are private operational state and are not disposable: they must survive index rebuilds and root moves. The QMD search index (`index.json`, `qmd-cache/`, `qmd-config/`, `qmd-home/`, `index.lock`, `index-pending.json`, `index-failure.json`) alone is rebuildable and can be relocated wholesale to a separate local disk with `JUMPYBRAIN_INDEX_DIR`; it re-indexes automatically when the configured location is empty or missing while the rest of `.jumpybrain/` stays with the root.
 
 For repo dogfooding, `jumpybrain.json` may include an optional relative `indexRoot`, such as `".."`, so the derived recall index can cover workspace Markdown while new memories are still written under `memory/`.
 

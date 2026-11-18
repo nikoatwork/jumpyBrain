@@ -1,5 +1,21 @@
 # Task Changelog
 
+## 2026-11-18 — Separate hosted index storage
+
+- `JUMPYBRAIN_INDEX_DIR` moves rebuildable search state to a separate local disk. Real Linux ARM64 Docker/QMD checks passed through index-volume loss, rebuild and fresh recall with canonical notes, access and recovery preserved. Network filesystems remain unsupported; dependency trimming is deferred. [Outcome and verification](done/2026-11-18_tasks-hosted-index-location.md).
+
+## 2026-11-18 — Guarded CLI appends in live editors
+
+- Shared publication evidence lets open editors adopt guarded appends with routine metadata changes while retaining recovery for real source loss. Verified with a real remote CLI against two local Chromium viewers. [Reproduction and verification](done/2026-11-18_tasks-cli-live-note-updates.md).
+
+## 2026-11-18 — Steady hover in large graphs
+
+- Hover keeps graph labels in place and follows nodes beneath overlapping labels. Verified on a 420-note Chromium fixture in both themes at desktop and narrow widths. [Reproduction and verification](done/2026-11-18_tasks-graph-hover-flicker.md).
+
+## 2026-11-17 — First-line cut saves correctly
+
+- The editor captures the selected Markdown range before cutting. The new-note regression verifies canonical saves at desktop and narrow widths and draft recovery after a genuine external change. [Reproduction and verification](done/2026-11-17_tasks-new-note-false-conflict.md).
+
 ## 2026-11-17 — Repository root cleanup
 
 - Grouped research and terminology under `docs/` and container definitions under `deploy/`, removing four root entries while preserving public installer and SDK paths. [Outcome and verification](done/2026-11-17_tasks-root-layout.md).

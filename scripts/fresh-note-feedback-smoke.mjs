@@ -21,10 +21,30 @@ try {
     const transport = await installCollaborationSmokeTransport(page);
     await page.goto(`${server.url}/#apiKey=${token}`);
     await newNote(page, "#home-new");
-    for (const mode of ["rapid", "delayed", "held-ack", "selected", "select-all"]) {
+    for (const mode of ["rapid", "delayed", "held-ack", "selected", "select-all", "cut"]) {
       if (mode === "select-all") {
         await page.locator("#note-editor").focus();
         const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
+        await page.keyboard.press(`${modifier}+A`);
+        await page.keyboard.press("Backspace");
+      } else if (mode === "cut") {
+        // Deleting the first line including its separator, through a real cut.
+        // The deletion runs inside Lexical's own command handler with no
+        // beforeinput capture, so only the explicit cut capture can prove the
+        // author's own gesture. A missing proof must raise a conflict.
+        const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
+        await page.locator("#note-editor h1").click({ clickCount: 3 });
+        await page.keyboard.press(`${modifier}+x`);
+        await page.waitForFunction(() => {
+          const collaboration = state.editor.collaboration;
+          return collaboration.state.status === "conflict" ||
+            (collaboration.state.status === "saved" && collaboration.snapshot.body === "\n# ");
+        });
+        const live = await page.evaluate(() => state.editor.collaboration.state);
+        assert.equal(live.status, "saved", `${width}/${mode}: the author's own cut should save (${live.message})`);
+        assert.equal(await editorMarkdown(page), "\n# ", `${mode} removes the first line with its separator`);
+        await canonicalMatches(page);
+        await page.locator("#note-editor").focus();
         await page.keyboard.press(`${modifier}+A`);
         await page.keyboard.press("Backspace");
       } else if (mode === "selected") {
@@ -87,10 +107,22 @@ try {
     await page.keyboard.insertText("Editing works after review");
     await saved(page);
     await canonicalMatches(page);
+    // A genuine external change still raises the conflict protection on this
+    // same single-author note: removing the file outside the app must surface
+    // a conflict, retain the draft, and never silently save over it.
+    const external = await page.evaluate(() => state.editor.collaboration.snapshot.file);
+    await rm(path.join(root, external), { force: true });
+    await page.waitForFunction(() => state.editor.collaboration.state.status === "conflict");
+    assert.match(await page.evaluate(() => state.editor.collaboration.state.message), /changed unsafely/);
+    await page.keyboard.insertText(" typed during review");
+    const conflictDraft = await page.evaluate(() => ({ status: state.editor.collaboration.state.status, dirty: state.editor.collaboration.state.dirty, body: state.editor.collaboration.body }));
+    assert.equal(conflictDraft.status, "conflict", "an external source change is never the author's own edit");
+    assert.equal(conflictDraft.dirty, true);
+    assert.match(conflictDraft.body, / typed during review\n?$/, "the draft stays retained during the external conflict");
     assert.deepEqual(errors, []);
     await page.close();
   }
-  console.log("Fresh-note feedback smoke passed: rapid/delayed/held-ack and selected deletion, empty-note saves, replacement/reload, plain dismissible feedback, diagnostics and retained-draft recovery at desktop/mobile widths.");
+  console.log("Fresh-note feedback smoke passed: rapid/delayed/held-ack, selected and cut deletion (first line including its separator), empty-note saves, replacement/reload, plain dismissible feedback, diagnostics, retained-draft recovery and a genuine external-change conflict at desktop/mobile widths.");
 } finally {
   await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true });
 }
@@ -104,6 +136,8 @@ async function canonicalMatches(page) {
 }
 
 async function newNote(page, selector) {
+  // Narrow viewports keep both New note controls inside the sidebar drawer.
+  if (!await page.locator(selector).isVisible().catch(() => false)) await page.locator("#toggle-sidebar").click();
   const response = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/memories/all/notes"));
   await page.locator(selector).click();
   const created = await (await response).json();

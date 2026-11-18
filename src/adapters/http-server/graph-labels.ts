@@ -1,7 +1,7 @@
 /** Screen-space label placement, independent of SVG and text measurement APIs. */
 export interface GraphLabelCandidate {
   id: string; x: number; y: number; radius: number; title: string;
-  /** Lower values win. Negative values denote active hover/focus/selection. */
+  /** Lower values win. Negative values denote active focus/selection; hover must not use them or placements flicker under the pointer. */
   priority?: number;
 }
 export interface GraphLabelPlacement {

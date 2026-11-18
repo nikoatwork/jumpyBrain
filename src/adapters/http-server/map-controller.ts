@@ -636,8 +636,11 @@ export function createMapController(options: MapControllerOptions) {
         ...positions.get(node.id)!,
         radius: circleRadius(node),
         title: node.title,
+        // Hover never influences placement: repainting labels on every pointer
+        // move is what flashed them across a dense map. Focus and selection
+        // keep their boost so keyboard targets stay identifiable.
         priority:
-          node.id === hovered || node.id === focused
+          node.id === focused
             ? -100
             : node.id === state.selected
               ? -90
@@ -862,6 +865,12 @@ export function createMapController(options: MapControllerOptions) {
       (target as Element | null)
         ?.closest?.("[data-node-id]")
         ?.getAttribute("data-node-id") ?? null;
+    // Labels stay click targets, but they never own hover: a shown label over a
+    // dense cluster must not steal the pointer from the node beneath it.
+    const hoverIdentity = (target: EventTarget | null) =>
+      (target as Element | null)
+        ?.closest?.(".node[data-node-id]")
+        ?.getAttribute("data-node-id") ?? null;
     svg.addEventListener("pointerdown", (event) => {
       if (event.button !== 0 || event.isPrimary === false) return;
       down = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
@@ -888,7 +897,7 @@ export function createMapController(options: MapControllerOptions) {
         updateViewport();
       } else {
         const next =
-          identity(event.target) || hit(event.clientX, event.clientY);
+          hoverIdentity(event.target) || hit(event.clientX, event.clientY);
         if (next !== hovered) {
           hovered = next;
           updateViewport();

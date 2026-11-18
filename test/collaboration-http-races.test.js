@@ -82,7 +82,24 @@ async function fixture(t) {
     });
     return { status: response.status, body: await response.json() };
   };
-  return { root, file, rpc, base, snapshot, read, put, latest: () => latest };
+  const call = async (method, args) => {
+    const response = await fetch(server.url + "/_backend/call", {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ method, args }),
+    });
+    return { status: response.status, body: await response.json() };
+  };
+  const withinDeadline = async (label, timeoutMs, probe) => {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      if (probe()) return;
+      if (Date.now() > deadline)
+        assert.fail(`${label}: live delivery deadline of ${timeoutMs} ms exceeded`);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+  return { root, file, rpc, base, snapshot, read, put, call, latest: () => latest, withinDeadline };
 }
 test("simultaneous metadata HTTP PUT and live source edit cannot silently overwrite one another", async (t) => {
   const { rpc, base, snapshot, read, put, file } = await fixture(t);
@@ -145,6 +162,48 @@ test("simultaneous metadata HTTP PUT and live source edit cannot silently overwr
   assert.equal(current.frontmatter.custom, "retained");
   assert.equal(current.id, id);
   assert.equal(await readFile(file, "utf8"), current.content);
+});
+test("a guarded HTTP PUT append publishes to live viewers without destructive recovery", async (t) => {
+  const { read, put, latest, withinDeadline } = await fixture(t);
+  const initial = await read();
+  const appended = await put(initial, initial.content + "Appended through the PUT boundary.\n");
+  assert.equal(appended.status, 200);
+  assert.equal(appended.body.unchanged, undefined);
+  await withinDeadline("PUT append", 3000, () =>
+    latest()?.contentHash === appended.body.newContentHash,
+  );
+  assert.equal(latest().body.endsWith("Appended through the PUT boundary.\n"), true);
+  assert.equal(latest().recovery, undefined, "a hash-guarded supported append is not a destructive replacement");
+  assert.equal(latest().saved, true);
+  assert.equal((await read()).contentHash, appended.body.newContentHash);
+  assert.equal(
+    (await put(initial, initial.content + "Duplicate of the earlier request.\n")).status,
+    412,
+    "a stale hash rejects before publication",
+  );
+});
+test("a guarded backend RPC document update publishes to live viewers without destructive recovery", async (t) => {
+  const { read, call, latest, withinDeadline } = await fixture(t);
+  const initial = await read();
+  const response = await call("updateMemoryDocument", [
+    id,
+    initial.content + "Appended through the RPC boundary.\n",
+    { ifMatch: initial.contentHash },
+  ]);
+  assert.equal(response.status, 200);
+  await withinDeadline("RPC append", 3000, () =>
+    latest()?.contentHash === response.body.result.newContentHash,
+  );
+  assert.equal(latest().body.endsWith("Appended through the RPC boundary.\n"), true);
+  assert.equal(latest().recovery, undefined, "a hash-guarded supported backend update is not a destructive replacement");
+  assert.equal(latest().saved, true);
+  const failed = await call("updateMemoryDocument", [
+    id,
+    initial.content + "Stale duplicate.\n",
+    { ifMatch: initial.contentHash },
+  ]);
+  assert.equal(failed.status, 400, "a stale hash rejects before publication");
+  assert.match(failed.body.error.message, /precondition/i);
 });
 test("legacy whole-document proposals require a current hash during live editing", async (t) => {
   const { rpc, base, snapshot, read, put } = await fixture(t);

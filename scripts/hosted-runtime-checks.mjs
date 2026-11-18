@@ -22,6 +22,28 @@ async function statusCode(key, url = '/memories/all/status', cookie) {
   const headers = cookie ? { Cookie: cookie } : key ? { Authorization: `Bearer ${key}` } : {};
   return (await fetch(origin + url, { headers, signal: AbortSignal.timeout(5000) })).status;
 }
+// Mirrors indexStateRoot from src/adapters/qmd/qmd-cli.ts (same hashing key).
+function separateIndexRoot() {
+  const configured = process.env.JUMPYBRAIN_INDEX_DIR?.trim();
+  if (!configured) return null;
+  return path.join(path.resolve(configured), 'index',
+    createHash('sha256').update(path.resolve(root)).digest('hex'));
+}
+// Proves the separate index volume is actually used and canonical storage stays
+// free of derived index artifacts; no-op unless the smoke configured the volume.
+async function assertSeparateIndex() {
+  const indexRoot = separateIndexRoot();
+  if (!indexRoot) return;
+  for (const file of ['index.json', path.join('qmd-cache', 'qmd', 'index.sqlite')]) {
+    assert.ok((await stat(path.join(indexRoot, file))).size > 0, `missing separate-index state: ${file}`);
+  }
+  for (const artifact of ['index.json', 'index.lock', 'index-pending.json', 'index-failure.json',
+    'qmd-cache', 'qmd-home', 'qmd-config']) {
+    await assert.rejects(stat(path.join(root, '.jumpybrain', artifact)), { code: 'ENOENT' },
+      `index artifact must stay off the canonical root: ${artifact}`);
+  }
+  console.log(`PASS: derived index lives on the separate volume, canonical root holds only state (${indexRoot}).`);
+}
 async function verify(state) {
   assert.equal(await statusCode(state.writer.token), 200);
   assert.equal(await statusCode(state.oldWriter.token), 401);
@@ -84,9 +106,11 @@ if (mode === 'ready') {
     accessHash: digest(await readFile(path.join(root, '.jumpybrain/access.json'))) };
   await writeFile(stateFile, JSON.stringify(state), { mode: 0o600 });
   await verify(state);
+  await assertSeparateIndex();
   console.log(`PASS: initialization, assets, production dependencies, real QMD index/recall, reader denial, named rotation/revocation and cookie rejection (Node ${process.version}, QMD 2.8.3).`);
 } else if (mode === 'persistent') {
   await verify(JSON.parse(await readFile(stateFile, 'utf8')));
+  await assertSeparateIndex();
   console.log('PASS: canonical bytes, revoked credentials and fresh nonempty lexical retrieval survive container replacement/restore.');
 } else if (mode === 'bootstrap-accepted' || mode === 'bootstrap-rejected') {
   assert.equal(await statusCode(process.env.JUMPYBRAIN_API_KEY), mode === 'bootstrap-accepted' ? 200 : 401);
@@ -124,6 +148,7 @@ if (mode === 'ready') {
   // Retain the current revocations for subsequent persistence verification.
   state.accessHash = digest(await readFile(path.join(root, '.jumpybrain/access.json')));
   await writeFile(stateFile, JSON.stringify(state), { mode: 0o600 });
+  await assertSeparateIndex();
   console.log('PASS: stopped-root backup, complete loss/restore with exact canonical/access/recovery bytes, index rebuild and changed-access restore refusal.');
 } else {
   throw new Error('Unknown hosted fixture mode.');

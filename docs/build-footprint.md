@@ -4,6 +4,42 @@ Keep the local CLI/runtime distribution small. `npm test` checks the actual npm
 manifest and byte budgets after building; `npm run cli:pack` applies the same
 checks to its real tarball before recording successful package metadata.
 
+## 2026-11-17 hosted image QMD dependency evaluation
+
+A hosted deployment asked whether the Docker image can shed QMD 2.8.3
+dependencies a Markdown brain does not use (code grammars, QMD's own MCP server)
+and the native build tools they need. This is a measured evaluation from the
+pinned engine lockfile and npm metadata, not a change; no dependency surgery
+was performed. Docker was unavailable during the initial evaluation; the
+[2026-11-18 separate-volume verification](../tasks/done/2026-11-18_tasks-hosted-index-location.md#final-docker-verification-2026-11-18)
+subsequently built and exercised the unchanged dependency graph on Linux ARM64.
+No smaller-image claim or before/after size comparison is made.
+
+`scripts/engine/package-lock.json` resolves **178 packages** for
+`@tobilu/qmd@2.8.3`, matching the reporter's count. All of the candidates are
+**hard `dependencies`** of the QMD package, so no `--omit` flag, optional
+dependency or install switch can remove them; the published
+`optionalDependencies` only cover `sqlite-vec` platform binaries.
+
+| Candidate group (locked tree) | Packages | Published unpacked bytes (npm metadata) |
+| --- | ---: | ---: |
+| tree-sitter grammars (`go` 0.25.0, `javascript` 0.23.1, `python` 0.25.0, `rust` 0.24.0, `typescript` 0.23.2) + `web-tree-sitter` 0.26.12 | 6 | 75,562,371 |
+| QMD MCP server 2.0.0 + `@modelcontextprotocol/core` 2.0.0 | 2 | 7,612,939 |
+| `node-llama-cpp` 3.20.0 (semantic embeddings) + platform binaries | 15 | 38,502,605 (prebuild; compiled size larger) |
+| `sqlite-vec` 0.1.9 core + 5 platform binaries | 6 | small loadable extensions |
+
+A Markdown brain indexes only `.md` files and never serves QMD's MCP surface,
+so grammars and the MCP server are unused weight in the hosted image. A clean
+sandbox install also confirmed `node-llama-cpp` cannot prebuild llama.cpp
+without the image's compiler toolchain, which is why the Dockerfile's
+toolchain stage exists. Removing any of this needs an upstream change to
+`@tobilu/qmd` (optional grammars/MCP or separate lexical/embedding packages);
+npm overrides or lockfile edits against the supported version pin would be
+fragile and are deliberately not attempted. An upstream ask is the recorded
+path; measure the built image before and after in the hosted container gate
+when a supported variant exists.
+
+
 ## Repeatable checks
 
 - `npm run build` then `npm run check:package-size`: compressed download,

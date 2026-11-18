@@ -14,7 +14,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [x] **P2 — Nested checkboxes after Obsidian import.** [Completed in source](../done/2026-11-13_tasks-checkbox-rendering.md): import already preserved bytes; the editor now renders tab/four-space nested task lists with exact toggles. One indentation unit per note; ordered `1. [ ]` stays literal. Pending release.
 
-- **P1 — CLI whole-note updates around an open live editor (Nov 10).** [Focused investigation and implementation plan](tasks-cli-live-note-updates.md) owns the remaining work; its checklist is canonical. Preserve canonical bytes, drafts and revision/hash safeguards; do not auto-retry a potentially committed write.
+- [x] **P1 — CLI whole-note updates around an open live editor (Nov 10).** [Verified in source](../done/2026-11-18_tasks-cli-live-note-updates.md): guarded appends with routine metadata changes reach both open viewers without false destructive recovery. Deliberate replacement retains the prior version. The historical stale-view report remains unconfirmed. Pending release.
 
 - [x] **P2 — Repeated stale-index warnings in Mac search.** [Quiet maintenance presentation completed](../done/2026-11-10_tasks-quiet-search-freshness.md): repeated Search use no longer dispatches maintenance toasts; scoped recovery controls and real query/reindex errors remain. Desktop/narrow Chromium and existing automatic-publication checks pass. The November 8 attachment was inspected; historical HTTP 503 causes remain unproven. This source fix was completed after v0.3.21 and is pending release.
 
@@ -32,9 +32,9 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Existing owners, without duplicate checklists
 
-- [ ] [New-note false conflict](tasks-new-note-false-conflict.md): Nov 17, proposed P1. Mac app conflict after deleting the first line of an unshared new note.
-- [ ] [Graph hover flicker](tasks-graph-hover-flicker.md): Nov 17, proposed P2. Large-graph hover flicker in the Mac app.
-- [ ] [Hosted index location](tasks-hosted-index-location.md): Nov 17 (two emails), proposed P2. Network storage for canonical files and a smaller hosted image.
+- [x] [New-note false conflict](../done/2026-11-17_tasks-new-note-false-conflict.md): Nov 17, P1. Cutting the starter heading now saves in the shared editor. Genuine external changes still trigger recovery. Chromium verified the fix. Pending release.
+- [x] [Graph hover flicker](../done/2026-11-18_tasks-graph-hover-flicker.md): Nov 17, P2. Dense graph labels stay steady under the pointer. Verified in Chromium with focus and label clicks preserved. Pending release.
+- [x] [Hosted index location](../done/2026-11-18_tasks-hosted-index-location.md): Nov 17 (two emails), P2. Separate local index storage passed real Docker volume-loss/rebuild checks. Canonical network storage stays unsupported; dependency trimming is deferred pending an upstream variant. Pending release; MCP access retains its separate owner.
 - [ ] [Org MCP access](tasks-org-mcp-access.md): Nov 17, proposed P2. Needs a product decision on the CLI-only rule before building.
 - [ ] [Page backlinks](tasks-page-backlinks.md): Nov 14, proposed P2. Show notes linking to a page and open the graph centred on it.
 

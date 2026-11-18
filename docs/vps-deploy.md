@@ -7,7 +7,7 @@ Read the [shared-memory quickstart](cloud-shared-memory.md) first. Route schemas
 ## What this gives you
 
 - Canonical memory stored as Markdown under `/srv/jumpybrain/memory`.
-- Derived QMD/index state **and private access/recovery data** under `/srv/jumpybrain/memory/.jumpybrain/`.
+- Derived QMD/index state **and private access/recovery data** under `/srv/jumpybrain/memory/.jumpybrain/`. Optionally, the rebuildable index alone can live on a separate local disk through `JUMPYBRAIN_INDEX_DIR` while access/recovery and other root-owned state stay put.
 - A local HTTP server on `127.0.0.1:3787`.
 - Public HTTPS through nginx/Caddy/another reverse proxy.
 - CLI access from agents with `--target-url` and `JUMPYBRAIN_API_KEY`.
@@ -288,3 +288,4 @@ backup does not replace recurring encrypted off-host backups.
 - Add basic rate limiting at the reverse proxy.
 - Back up `/srv/jumpybrain/memory` regularly.
 - Run one server process against one local disk memory root for V1; do not horizontally scale this server yet.
+- `JUMPYBRAIN_INDEX_DIR` may move only the rebuildable index to another local disk. The memory root must stay on a supported local filesystem: canonical writes use exclusive lock files, `link()`-based moves and atomic rename, and collaboration recovery depends on them. Those guarantees are unverified on SMB/NFS/Azure Files, so network storage for the memory root remains unsupported even with a separate index location.

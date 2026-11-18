@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { AccessError, AccessStore, type AccessRole, type Principal } from "../access-control/index.js";
-import { createCollaborationHub } from "../../app/collaboration/index.js";
+import { canonicalPublicationEvidence, createCollaborationHub } from "../../app/collaboration/index.js";
 import { createLiveServer } from "../live/index.js";
 import { callBackend } from "../../app/backend-rpc.js";
 import { backendCallMutates, backendDocumentPrecondition } from "../backend-protocol.js";
@@ -186,7 +186,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
           const guard = backendDocumentPrecondition(method, args);
           if (guard) await collaboration.beforeLegacyWrite(guard.id, guard.ifMatch);
           const result = await callBackend(root, method, args, controller.signal, await packageVersion(), typeof body.qmdBinary === "string" ? body.qmdBinary : body.qmdBinary === null ? null : undefined);
-          if (backendCallMutates(method)) { await collaboration.notifyCanonicalWrite(); options.onMemoryWrite?.(); }
+          if (backendCallMutates(method)) { await collaboration.notifyCanonicalWrite(undefined, canonicalPublicationEvidence(result, guard?.ifMatch)); options.onMemoryWrite?.(); }
           return result;
         };
         try {writeJson(response, 200, {result: await (backendCallMutates(method) ? enqueueWrite(operation) : operation())});}

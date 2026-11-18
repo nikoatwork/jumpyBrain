@@ -54,6 +54,8 @@ packaging setting, run:
 
 ```sh
 npm run smoke:hosted
+# Exercise a separate index volume, including its loss and rebuild.
+npm run smoke:hosted -- --separate-index
 ```
 
 Docker with a running Linux daemon and network access to image, Debian and npm
@@ -99,7 +101,26 @@ JUMPYBRAIN_SERVER_PORT=3001
 # Replace ... through Coolify's private secret UI.
 JUMPYBRAIN_SERVER_API_KEYS=...
 JUMPYBRAIN_QMD_BIN=/usr/local/bin/qmd
+# Optional: keep the rebuildable index on a separate volume.
+# JUMPYBRAIN_INDEX_DIR=/data/jumpybrain-index
 ```
+
+`JUMPYBRAIN_INDEX_DIR` is an optional operational setting, not a policy
+toggle. When set, the server keeps the derived search/index state for this
+root under `<value>/index/<per-root key>/` instead of the memory root's
+`.jumpybrain/` symlink-free local directory, publishing its manifest,
+the QMD SQLite database and QMD cache/config homes there. It is disposable:
+recreate the directory (or lose the volume) and the next maintenance cycle
+rebuilds it, while automatic reading keeps working during the gap. The path
+must be empty or dedicated to this deployment; each memory root gets its own
+`<per-root key>` subdirectory, so two roots sharing one directory cannot
+corrupt each other, but the deployment still owns the whole configured
+directory. This setting relocates the rebuildable index only. Canonical
+Markdown, access credentials and collaboration recovery stay on the memory
+root's supported local filesystem; storing those on a network share
+(SMB/NFS/Azure Files) is untested and not a supported deployment. The
+configured index location must be on a supported local disk filesystem too —
+the SQLite index is rebuildable, but its write pattern is local-disk-only.
 
 The configured key is a bootstrap administrator secret. Give ordinary clients
 separate [issued reader/writer credentials](collaboration.md#separate-access)
@@ -129,6 +150,13 @@ directory, take a backup and inspect current ownership before changing it. A new
 Docker named volume inherits the image directory's ownership; existing volumes
 retain their prior ownership. Set CPU, memory and process limits for your actual
 corpus/model (the lexical smoke uses two CPUs, 2 GiB and 256 processes).
+
+If the rebuildable index should live on its own volume (for example a faster
+local disk), set `JUMPYBRAIN_INDEX_DIR` to a persistent or deliberately
+ephemeral mount such as `/data/jumpybrain-index`; see the environment-variable
+guidance above for its rebuild and support limits. The index volume can be
+recycled without touching the memory root, but the memory root itself remains
+the deployment's canonical state.
 
 ## Domains and HTTPS
 
