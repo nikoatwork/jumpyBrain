@@ -58,6 +58,10 @@ Local search validates/resolves optional `temporal` before root/backend access a
 
 `document-delete.ts` exposes observational `previewMemoryDocumentDeletion` and explicitly applied `deleteMemoryDocument` through the local runtime. Preview uses guarded canonical ID reads and bounded examples (20) of inbound canonical links and declared relationship matches. Counts are advisory, not a complete dependency graph; preview and apply are separate reads. Removal delegates to core publication safeguards, leaves surviving bytes/links unchanged, and reports `removed:true`, `indexed:false`, stale index and pending indexing. Ordinary readiness detects the changed canonical set; reconcile with incremental index, never by repeating deletion.
 
+## Page backlinks
+
+`backlinks.ts` exposes read-only `memoryDocumentBacklinks(root, id, { limit?, signal? })` through the runtime and server-memory. It scans the editor root's canonical buckets (like ID reads and delete previews, not `indexRoot`), resolves every note's links with the core lookup/resolution the graph uses, and returns notes whose links reach the page: distinct-note `count`, total `links`, title-sorted records (default 100, maximum 500, `truncated`) with ID when valid, link kinds and a plain-text snippet around the first resolved link. Snippets are computed only for returned records. Pre-existing title links resolve once the page exists; self-links and deleted notes are excluded; nothing is cached, indexed, stamped or rewritten. The cost is one metadata pass plus one full read per canonical note: median about 0.5 s on a disposable 3,001-note brain of two-kilobyte notes (comparable to a lean graph call), measured 2026-11-18. Frontmatter alias properties are not link targets, as in the graph.
+
 ## Exact no-op updates
 
 Normal updates still require the prior destination hash. An exact unchanged-content submission returns `unchanged:true` without canonical publication/edit-time changes; stale submissions still fail. This is byte equality, not semantic reconciliation or source checking. Explicit living-page source checks belong to app/dream and never refresh indexes.

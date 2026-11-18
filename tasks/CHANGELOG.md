@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Page backlinks
+
+- Pages show "Linked from (N)" from one read-only canonical scan that reuses the graph's link resolution, so links written before a page existed count. "Open in graph" focuses the map on the page. Related pages no longer repeats linking notes. Verified with focused tests and Chromium at 1280/390px in both themes, plus a read-only remote profile and the hosted shell. [Outcome, cost and limits](done/2026-11-18_tasks-page-backlinks.md).
+
 ## 2026-11-18 — Guarded CLI appends in live editors
 
 - Shared publication evidence lets open editors adopt guarded appends with routine metadata changes while retaining recovery for real source loss. Verified with a real remote CLI against two local Chromium viewers. [Reproduction and verification](done/2026-11-18_tasks-cli-live-note-updates.md).

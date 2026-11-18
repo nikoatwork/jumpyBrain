@@ -34,7 +34,7 @@ test('linked topics use actual edges, valid unique IDs and a 40-note bound', () 
   nodes.push({ id: 'bad', nodeKind: 'document', documentId: 'bad' }, { ...nodes[0], id: 'dup' });
   assert.equal(graphTopicLinks(topic, { nodes, edges: nodes.map(node => ({ source: node.id, target: topic.id })) }).length, 40);
 });
-test('preview is read-only, linked notes survive failed search, and explicit creation retains context', async () => {
+test('preview is read-only, linked notes survive failed search, and explicit creation opens the page', async () => {
   const h = harness(); h.controller.open(topic, graph);
   assert.equal(h.ensure.length, 0);
   assert.equal(h.get('-links').children[0].children[0].textContent, 'Daily log');
@@ -44,8 +44,8 @@ test('preview is read-only, linked notes survive failed search, and explicit cre
   assert.equal(h.ensure[0].title, 'fasting');
   h.ensure[0].resolve({ status: 'found', id: id(2), created: true }); await tick();
   assert.deepEqual(h.navigations, ['/?note=' + id(2)]);
-  assert.deepEqual(h.controller.related(id(2)), [{ id: id(1), title: 'Daily log' }]);
-  h.scope('b'); assert.deepEqual(h.controller.related(id(2)), []);
+  // The created page lists its linking notes through canonical backlinks, not retained preview state.
+  assert.equal('related' in h.controller, false);
 });
 test('read-only and unsafe titles cannot create; late search cannot cross scope or dismissal', async () => {
   const h = harness(); h.writable(false); h.controller.open(topic, graph);

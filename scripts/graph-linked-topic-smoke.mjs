@@ -64,11 +64,14 @@ try {
       await page.waitForURL(url => url.searchParams.has('note'));
       await page.waitForFunction(() => document.querySelector('#note-name').value === 'fasting');
       await page.locator('#toggle-page-details').click();
-      await page.locator('#related-pages').waitFor({ state: 'visible' });
-      assert.equal(await page.locator('#related-pages-list a').count(), 2, 'new page retains linked notes even with unavailable search');
+      // The created page lists its pre-existing links canonically, without search or duplicates.
+      await page.locator('#page-backlinks').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('#page-backlinks-list a').count(), 2, 'new page shows linking notes even with unavailable search');
+      assert.equal(await page.locator('#related-pages').isVisible(), false);
       const pages = (await readdir(path.join(root, 'pages'))).filter(name => name.endsWith('.md'));
       assert.equal(pages.length, 1);
-      assert.match(await readFile(path.join(root, 'pages', pages[0]), 'utf8'), /# fasting/);
+      // New pages carry their title in metadata, without an added H1 (ac2e3fcf).
+      assert.match(await readFile(path.join(root, 'pages', pages[0]), 'utf8'), /^title: "fasting"$/m);
       assert.deepEqual(errors, []);
       // Each layout starts with the same genuinely missing target.
       await context.close();

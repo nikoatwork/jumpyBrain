@@ -38,7 +38,8 @@ export function installRelatedPages(options: {
   search(query: string, signal: AbortSignal, limit: number): Promise<unknown>;
   read?(id: string, signal: AbortSignal): Promise<unknown>;
   href(id: string): string; navigate(url: string): void;
-  linked?(id: string): { id: string; title: string }[];
+  /** Notes already listed under Linked from are not repeated here. */
+  exclude?(id: string): boolean;
 }) {
   const panel = options.document.getElementById("related-pages")!;
   const list = options.document.getElementById("related-pages-list")!;
@@ -47,7 +48,7 @@ export function installRelatedPages(options: {
   let refreshTimer: number | null = null;
   let lastQuery = "", idleTicks = 0;
   const preview = options.read ? installRelatedPagePreview(options.document, options.read, () => identity() === key ? key : "") : null;
-  let displayed: { id: string; title: string }[] = [];
+  let displayed: { id: string; title: string }[] = [], found: { id: string; title: string }[] = [];
   function cancel() {
     request?.abort(); request = null;
     if (refreshTimer !== null) win.clearTimeout(refreshTimer);
@@ -58,7 +59,9 @@ export function installRelatedPages(options: {
     return state?.loaded && !state.cancelled && options.enabled()
       ? JSON.stringify([options.scope(), state.documentId]) : "";
   }
-  function render(pages: { id: string; title: string }[]) {
+  function render(next: { id: string; title: string }[]) {
+    found = next;
+    const pages = next.filter(page => !options.exclude?.(page.id));
     if (JSON.stringify(pages) === JSON.stringify(displayed)) return;
     preview?.close();
     displayed = pages;
@@ -106,9 +109,7 @@ export function installRelatedPages(options: {
       // Never use partial local-only or stale packets to replace recommendations.
       if (!packet || !Array.isArray(packet.results) || packet.index?.stale || packet.localOnly
         || (packet.readiness?.freshness && packet.readiness.freshness !== "fresh")) return;
-      const linked = options.linked?.(state.documentId) ?? [];
-      render([...linked, ...selectRelatedPages(query, packet.results, state.documentId)
-        .filter(page => !linked.some(other => other.id === page.id))]);
+      render(selectRelatedPages(query, packet.results, state.documentId));
     }).catch(() => { /* Keep useful links; explicit Search owns recovery UI. */ })
       .finally(() => {
         win.clearTimeout(timeout);
@@ -123,7 +124,6 @@ export function installRelatedPages(options: {
     cancel(); key = next; lastQuery = ""; idleTicks = 0;
     render([]);
     if (!next) return;
-    render(options.linked?.(options.editor()!.state.documentId) ?? []);
     refresh();
   }
   const stop = () => { preview?.clear(); stopped = true; key = ""; cancel(); render([]); };
@@ -139,7 +139,7 @@ export function installRelatedPages(options: {
       if (key && !request && refreshTimer === null) refreshTimer = win.setTimeout(refresh, 10_000);
     }
   });
-  return { sync };
+  return { sync, refilter: () => render(found) };
 }
 
 /** A single, text-only top-layer hint. Reads occur only after deliberate hover/focus. */

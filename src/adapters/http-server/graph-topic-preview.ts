@@ -45,7 +45,6 @@ export function installGraphTopicPreview(options: {
   const get = (id: string) => options.document.getElementById("graph-topic" + id)!;
   const dialog = get("") as HTMLDialogElement, button = get("-create") as HTMLButtonElement;
   let active: { scope: string; title: string; pages: Page[]; request: AbortController; searchRequest: AbortController; busy: boolean; creationStarted: boolean } | null = null;
-  let created: { scope: string; id: string; pages: Page[] } | null = null;
   const current = (entry: NonNullable<typeof active>) => active === entry && entry.scope === options.scope() && options.enabled() && !entry.request.signal.aborted;
   function close() { active?.request.abort(); active?.searchRequest.abort(); active = null; if (dialog.open) dialog.close(); }
   function append(list: HTMLElement, pages: Page[], entry: NonNullable<typeof active>) {
@@ -74,7 +73,6 @@ export function installGraphTopicPreview(options: {
         const result = await options.ensure(entry.title, entry.request.signal);
         if (!current(entry)) throw new Error("cancelled");
         if (result.status !== "found" || !isValidMemoryDocumentId(result.id)) throw new Error(result.status);
-        created = { scope: entry.scope, id: result.id, pages: entry.pages };
         if (result.created) options.onCreated();
         return options.href(result.id);
       });
@@ -87,7 +85,6 @@ export function installGraphTopicPreview(options: {
   });
   return {
     close,
-    related(id: string | undefined): Page[] { return created?.scope === options.scope() && created.id === id ? created.pages : []; },
     open(node: MemoryGraphNode, graph: MemoryGraphResult | null) {
       if (!options.enabled()) return;
       close();

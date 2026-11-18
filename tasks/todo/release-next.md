@@ -1,5 +1,6 @@
 # Changes
 
+- When other notes link to a page, it now shows **Linked from (N)** with their titles and a short snippet, including links written before the page existed (for example after a Logseq import). The page card's new **Open in graph** button shows the page's connections on the map. Hosted brains need the server updated too.
 - Guarded CLI appends reach open note editors without a false replacement warning when only routine metadata also changes. Replacing saved content still preserves a version for review.
 - Labels stay steady when hovering across a large graph. You can still click labels to open notes.
 - Cutting the first line of a new note now saves without asking you to review a false edit conflict.

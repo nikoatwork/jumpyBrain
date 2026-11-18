@@ -512,6 +512,27 @@ export interface MemoryDocumentDeletePreview extends MemoryDocumentTargetMetadat
   permanent: true;
   references: { links: number; relationships: number; examples: string[]; truncated: boolean };
 }
+/** One canonical note whose links resolve to the requested page. */
+export interface MemoryDocumentBacklink {
+  /** Absent when the linking note has no valid memory ID and cannot be opened by ID. */
+  id?: string;
+  file: string; title: string;
+  /** Resolved link occurrences from this note to the page. */
+  count: number;
+  kinds: MemoryConnectionEdgeKind[];
+  /** Plain text around the first resolved link, for display only. */
+  snippet?: string;
+}
+/** Derived, read-only inbound-link view over fresh canonical Markdown. */
+export interface MemoryDocumentBacklinksResult extends MemoryDocumentTargetMetadata {
+  id: string; file: string; title: string;
+  /** Distinct linking notes, exact even when `backlinks` is limited. */
+  count: number;
+  /** Total resolved link occurrences across all linking notes. */
+  links: number;
+  backlinks: MemoryDocumentBacklink[];
+  limit: number; truncated: boolean;
+}
 export interface MemoryDocumentDeleteResult extends MemoryDocumentTargetMetadata {
   id: string; file: string; removed: true; oldContentHash: MemoryDocumentContentHash;
   indexed: false; index: MemoryDocumentIndexState;
