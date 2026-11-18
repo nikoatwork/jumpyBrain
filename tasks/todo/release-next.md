@@ -1,5 +1,6 @@
 # Changes
 
+- Labels stay steady when hovering across a large graph. You can still click labels to open notes.
 - Cutting the first line of a new note now saves without asking you to review a false edit conflict.
 - Typing a wrong access key while a note is open no longer leaves you stuck on that note; you can navigate away or enter the correct key straight away.
 - Buttons, rows, menus, dialogs and dropdowns now look and behave the same across the app. The brain switcher at the bottom of the sidebar highlights as one row with a proper switch icon, chevrons rotate the same way everywhere, dialogs put Cancel before the main action, and touch layouts get 40px targets consistently.

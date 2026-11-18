@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Steady hover in large graphs
+
+- Hover keeps graph labels in place and follows nodes beneath overlapping labels. Verified on a 420-note Chromium fixture in both themes at desktop and narrow widths. [Reproduction and verification](done/2026-11-18_tasks-graph-hover-flicker.md).
+
 ## 2026-11-17 — First-line cut saves correctly
 
 - The editor captures the selected Markdown range before cutting. The new-note regression verifies canonical saves at desktop and narrow widths and draft recovery after a genuine external change. [Reproduction and verification](done/2026-11-17_tasks-new-note-false-conflict.md).
