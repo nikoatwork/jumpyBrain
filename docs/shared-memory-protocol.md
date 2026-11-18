@@ -881,6 +881,10 @@ Safety baseline:
 - Client-side remote mirrors or sync engines.
 - Multi-process/horizontally scaled server semantics.
 
+## Page backlinks
+
+Authenticated `GET /memories/all/documents/:id?backlinks=1` is read-only and derived. It scans the server memory root's canonical buckets (not a retrieval-only `indexRoot`, an index or a cache) and returns every note whose wiki/title links or relative Markdown links resolve to this page under the same core policy as the graph, so links written before the page existed count once it does. The packet has safe `root:"remote:all"` / target / memory fields, the page's ID/file/title, exact `count` of distinct linking notes, total resolved `links`, `limit` (100), `truncated`, and `backlinks:[{id?, file, title, count, kinds, snippet?}]` sorted by title. `id` is omitted for linking notes without a valid memory ID; `snippet` is plain text (at most about 160 characters) around the first resolved link. Self-links are excluded; deleted files are absent from the fresh scan. Lookup errors match ordinary document reads (400 invalid, 404 missing, 409 duplicate). Servers without this feature ignore the parameter and return the ordinary document read, so clients must check for `backlinks`. Frontmatter alias properties are not resolved. Cost is one canonical metadata pass plus one full read per note: about 0.5 s for 3,000 two-kilobyte notes on a 2026 Apple-silicon laptop.
+
 ## Permanent document deletion
 
 Authenticated `GET /memories/all/documents/:id?deletePreview=1` is observational. It returns ID, relative file, title, contentHash, `permanent:true`, safe `root:"remote:all"` / target / memory fields, and advisory `references:{links,relationships,examples,truncated}`. Examples are capped at 20; this is not a complete corpus dependency graph or a locked snapshot.

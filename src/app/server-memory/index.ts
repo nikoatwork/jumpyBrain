@@ -1,6 +1,6 @@
 import { checkDreamSources } from "../dream/source-check.js";
 import { findMemoryRoot, initializeMemoryRoot } from "../../core/memory-root/index.js";
-import { memoryStatus, graphMemory, indexMemory, overviewMemory, previewMemoryDocumentDeletion, deleteMemoryDocument, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
+import { memoryStatus, graphMemory, indexMemory, overviewMemory, previewMemoryDocumentDeletion, deleteMemoryDocument, memoryDocumentBacklinks, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
 import { processMemory } from "../processing/index.js";
 import { rememberMemory, writeSessionWrapup, type WrapupDraft, type WrapupWriteResult } from "../writing/index.js";
 import { failedCreationIndex, failedCreationReplay } from "../writing/creation-outcome.js";
@@ -348,6 +348,11 @@ function normalizeServerRoot(root: string): string {
 
 export async function previewServerMemoryDeletion(options: { root: string; id: string }) {
   const result = await previewMemoryDocumentDeletion(options.root, options.id);
+  return { ...result, root: "remote:all" as const, target: "remote" as const, memory: "all" as const };
+}
+/** Remote-safe inbound links for the editor; read-only and never indexed. */
+export async function backlinksServerMemory(options: { root: string; id: string; signal?: AbortSignal }) {
+  const result = await memoryDocumentBacklinks(options.root, options.id, { signal: options.signal });
   return { ...result, root: "remote:all" as const, target: "remote" as const, memory: "all" as const };
 }
 export async function deleteServerMemoryDocument(options: { root: string; id: string; ifMatch: string; apply: true }) {

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Page backlinks
+
+- Pages show "Linked from (N)" from one read-only canonical scan that reuses the graph's link resolution, so links written before a page existed count. "Open in graph" focuses the map on the page. Related pages no longer repeats linking notes. Verified with focused tests and Chromium at 1280/390px in both themes, plus a read-only remote profile and the hosted shell. [Outcome, cost and limits](done/2026-11-18_tasks-page-backlinks.md).
+
 ## 2026-11-18 — Separate hosted index storage
 
 - `JUMPYBRAIN_INDEX_DIR` moves rebuildable search state to a separate local disk. Real Linux ARM64 Docker/QMD checks passed through index-volume loss, rebuild and fresh recall with canonical notes, access and recovery preserved. Network filesystems remain unsupported; dependency trimming is deferred. [Outcome and verification](done/2026-11-18_tasks-hosted-index-location.md).

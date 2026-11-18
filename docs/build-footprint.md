@@ -52,7 +52,7 @@ when a supported variant exists.
 
 Budgets in `scripts/package-budget.mjs` are 3.3 MB compressed, 9.1 MB unpacked,
 7.5 MB under `dist/`, and 780 files (decimal units). Existing editor tests retain
-185 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+186 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer; `test/drawings.test.js` holds the lazy drawing editor to
 4.2 MB on disk and a 245 KB gzip entry. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
@@ -405,6 +405,11 @@ bytes for features while keeping the saving from being absorbed unnoticed.
 The access-key controller (2026-11-12) adds 2,688 gzip bytes (183,453 total),
 leaving 1,547 under the ceiling. Its markup and styles are server-rendered from
 a separate module so the bundle does not carry them a second time.
+
+Page backlinks (2026-11-18) add the "Linked from" controller and drop the graph
+topic preview's transient linked-page context, a net 731 gzip bytes (185,577
+total, 184,846 before, macOS ARM64, Node 26.7.0). The reviewed ceiling rises to
+**186,000 bytes**, leaving 423. Markup and styles stay server-rendered.
 
 Measured and not adopted: a newer syntax target (0 bytes), dropping `console`
 calls (41), removing the in-bundle Lucide notice (559, needed for the licence)

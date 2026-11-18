@@ -567,6 +567,11 @@ for (const kind of ['local', 'remote']) test(`folder explorer reads nested canon
   assert.equal(JSON.stringify(packet).includes(root), false);
   assert.equal(JSON.stringify(packet).includes('Private body'), false);
   assert.equal((await f.memory('documents/' + nestedId, undefined, tab, generation)).status, 200);
+  // Linked from is a read on read-only profiles too, local and proxied remote.
+  await writeFile(path.join(root, 'notes/linker.md'), `---\nid: mem_a0000000-0000-4000-8000-000000000003\ntitle: Linker\n---\nSee [[Nested companion note]].\n`);
+  const backlinks = await f.memory('documents/' + nestedId + '?backlinks=1', undefined, tab, generation);
+  assert.equal(backlinks.status, 200, await backlinks.clone().text());
+  assert.deepEqual((await backlinks.json()).backlinks.map(link => [link.title, link.snippet]), [['Linker', 'See [[Nested companion note]].']]);
   assert.equal((await f.memory('files', undefined, tab, generation - 1)).status, 409);
   assert.equal((await f.memory('files', undefined, 'unknown-tab', generation)).status, 409);
   assert.equal((await fetch(f.gateway.url + '/memories/all/files')).status, 401);

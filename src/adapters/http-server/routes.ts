@@ -15,7 +15,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
-import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { backlinksServerMemory, getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import { attentionServerMemory, patchServerMemoryAttention } from "../../app/server-memory/attention.js";
 import { listServerMemoryFiles } from "../../app/server-memory/folder-explorer.js";
 import { ensureServerMemoryTitle, isSafeReferencePageTitle } from "../../app/server-memory/index.js";
@@ -471,7 +471,8 @@ export async function routeRequest(context: { principal?: Principal; collaborati
     if (request.method === "GET") {
       try {
         const packet = url.searchParams.get("deletePreview") === "1"
-          ? await previewServerMemoryDeletion({ root, id }) : await readServerMemoryDocument({ root, id });
+          ? await previewServerMemoryDeletion({ root, id })
+          : url.searchParams.get("backlinks") === "1" ? await backlinksServerMemory({ root, id, signal }) : await readServerMemoryDocument({ root, id });
         logger.info("remote_document_read_success", { path: url.pathname, status: 200, id: packet.id, file: packet.file });
         writeJson(response, 200, packet);
       } catch (error) {

@@ -14,6 +14,7 @@
 - Follow the [public protocol](../../../docs/shared-memory-protocol.md) for schemas, auth, CSP, compatibility, and errors; follow the [browser contract](browser.docs.md) for editor/map/companion state and verification.
 
 - Authenticated `GET /memories/all/attention` delegates metadata selection to app/server-memory; `PATCH /memories/all/documents/:id` requires If-Match, parses strict attention intent and uses the shared write queue. Route handlers do not implement attention semantics or rewrite Markdown. See the public protocol for packets and errors.
+- Authenticated `GET /memories/all/documents/:id?backlinks=1` delegates the read-only [page backlinks](../../../docs/shared-memory-protocol.md#page-backlinks) scan to app/server-memory and maps lookup errors like document reads. Companion gateways already treat document GETs as reads, so read-only profiles can list backlinks.
 
 ## Non-responsibilities
 

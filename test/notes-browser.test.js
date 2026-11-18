@@ -9,7 +9,7 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 
 const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, pageBacklinks: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }

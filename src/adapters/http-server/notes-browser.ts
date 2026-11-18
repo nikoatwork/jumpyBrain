@@ -173,7 +173,13 @@ ${referencePresentationStyles}
     .save-state { margin: 0; white-space: nowrap; }
     #note-message { white-space: pre-wrap; }
     #note-file { overflow-wrap: anywhere; }
-    #related-pages { margin-top: var(--space-8); font-size: var(--text-ui); }
+    #related-pages, #page-backlinks { margin-top: var(--space-8); font-size: var(--text-ui); }
+    #page-backlinks + #related-pages { margin-top: var(--space-6); }
+    #page-backlinks-list { margin-inline: calc(-1 * var(--row-inset)); }
+    .page-backlink { display: grid; align-items: start; gap: 0; padding-block: var(--space-2); }
+    .page-backlink-title { color: var(--ink); overflow-wrap: anywhere; }
+    .page-backlink-snippet { color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+    #page-backlinks-more { margin-top: var(--space-1); }
     #related-page-preview { --popover-width: var(--width-popover); position: fixed; inset: auto; margin: 0; width: min(var(--popover-width), calc(100vw - var(--space-4))); pointer-events: none; }
     #related-page-preview span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: normal; }
     .note-frontmatter { margin-top: var(--space-6); color: var(--ink-soft); font-size: var(--text-caption); }
@@ -434,6 +440,12 @@ export const notesViews = String.raw`
       <p id="note-editor-hint" aria-hidden="true" hidden>Start writing, or type / for options…</p>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
       </div>
+      <nav id="page-backlinks" aria-labelledby="page-backlinks-heading" hidden>
+        <h2 id="page-backlinks-heading" class="list-section-label list-section-label--flush">Linked from (<span id="page-backlinks-count">0</span>)</h2>
+        <ul id="page-backlinks-list" class="list-reset"></ul>
+        <button id="page-backlinks-more" class="quiet-button quiet-button--plain button--sm" type="button" hidden></button>
+        <p id="page-backlinks-limited" class="empty-state empty-state--inline" hidden>Showing the first 100 linking notes.</p>
+      </nav>
       <nav id="related-pages" aria-label="Related pages" hidden>
         <h2 class="list-section-label list-section-label--flush">Related pages</h2><ul id="related-pages-list" class="chip-list"></ul>
       </nav>
@@ -443,6 +455,7 @@ export const notesViews = String.raw`
       <div class="page-card-heading"><h2 class="list-section-label list-section-label--flush">Page</h2><div class="page-card-actions" role="group" aria-label="Page actions">
   <button id="copy-note-draft" class="icon-button" type="button" aria-label="Copy" title="Copy" hidden>${copyIcon}</button>
   <button id="copy-note-file-path" class="icon-button" type="button" aria-label="Copy file path" title="Copy file path" hidden>${browserIcons.link}</button>
+  <button id="open-note-graph" class="icon-button" type="button" aria-label="Open in graph" title="Open in graph" hidden>${browserIcons.graph}</button>
   <button id="delete-note" class="icon-button" type="button" aria-label="Delete note" title="Delete note…" hidden>${browserIcons.remove}</button>
       </div></div>
       <div id="note-board-memberships" class="chip-list" role="group" aria-label="Boards containing this page" hidden></div>
@@ -1157,6 +1170,7 @@ async function setConnectionKey(key) {
   lifecycleActions?.refresh?.();
   folderExplorer.sync();
   relatedPages.sync();
+  pageBacklinks.sync();
   recentWrites.reset();
   map.reset();
   sidebarPages.refresh();
@@ -1289,9 +1303,18 @@ const livingSources = JumpyBrainBrowser.installLivingSources({
   json: (url, options) => graphJson(url, options),
   navigate: (id) => navigation.navigate("/?note=" + encodeURIComponent(id)),
 });
+const pageBacklinks = JumpyBrainBrowser.installPageBacklinks({
+  document, editor: () => state.view === "note" ? state.editor : null,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
+  enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  load: (id, signal) => graphJson("/memories/all/documents/" + encodeURIComponent(id) + "?backlinks=1", { signal }),
+  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  navigate: (url) => navigation.navigate(url),
+  changed: () => relatedPages.refilter(),
+});
 const relatedPages = JumpyBrainBrowser.installRelatedPages({
   document, editor: () => state.view === "note" ? state.editor : null,
-  linked: (id) => graphTopicPreview.related(id),
+  exclude: (id) => pageBacklinks.has(id),
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   search: (query, signal, limit) => recentWrites.search(query, signal, limit),
@@ -1330,6 +1353,11 @@ window.addEventListener("popstate", (event) => {
   if (connectionDialog.open) closeConnection();
   navigation.pop({ url: shellUrl(), index: Number.isSafeInteger(event.state?.jumpyBrainIndex) ? event.state.jumpyBrainIndex : 0 });
 });
+// Saves first like any link, then shows this page's connections on the map.
+$("open-note-graph").addEventListener("click", () => {
+  const file = state.view === "note" && state.editor?.state.loaded ? state.editor.state.file : "";
+  if (file) navigation.navigate("/graph?focus=" + encodeURIComponent(file));
+});
 for (const [id, url] of [["home-link", "/"], ["notes-link", "/"], ["graph-link", "/graph"]]) {
   $(id).addEventListener("click", (event) => {
     // Native new-tab navigation does not abandon the current draft.
@@ -1338,6 +1366,7 @@ for (const [id, url] of [["home-link", "/"], ["notes-link", "/"], ["graph-link",
   });
 }
 
+let urlGraphFocus = "";
 function showPage(url) {
   graphTopicPreview.close();
   noteFind.close(false);
@@ -1388,6 +1417,7 @@ function showPage(url) {
   if (state.editor) state.editor.cancel();
   state.editor = null;
   relatedPages.sync();
+  pageBacklinks.sync();
   noteWorkspace.sync();
   extensionUI?.documentChanged();
   $("note-retry").hidden = true;
@@ -1402,7 +1432,13 @@ function showPage(url) {
   } else if (state.view === "drawing") {
     document.title = "Drawing · jumpyBrain";
   } else if (state.view === "graph") {
-    if (!map.hasCurrentGraph()) loadGraph(); else queueGraphLayout(0, true);
+    // Open in graph names its page in the URL; a plain map visit clears that focus again.
+    const focus = target.searchParams.get("focus"), focusInput = $("focus");
+    const nextFocus = focus ?? (focusInput.value === urlGraphFocus ? "" : focusInput.value);
+    urlGraphFocus = focus ?? "";
+    if (focus !== null) state.selected = focus;
+    if (nextFocus !== focusInput.value) { focusInput.value = nextFocus; loadGraph(); }
+    else if (!map.hasCurrentGraph()) loadGraph(); else queueGraphLayout(0, true);
     $("query").focus({ preventScroll: true });
   } else {
     $("home-new").focus();
@@ -1421,6 +1457,7 @@ async function showNote(documentId, focusEnd = false) {
     if (state.editor) state.editor.cancel();
     state.editor = null;
     relatedPages.sync();
+    pageBacklinks.sync();
     noteWorkspace.sync();
     extensionUI?.documentChanged();
     $("note-title").textContent = "";
@@ -1441,6 +1478,7 @@ async function showNote(documentId, focusEnd = false) {
     $("note-recover").hidden = true;
     $("copy-note-draft").hidden = true;
     $("copy-note-file-path").hidden = true;
+    $("open-note-graph").hidden = true;
     $("delete-note").hidden = true;
     $("note-save-state").textContent = "";
     $("note-external-state").textContent = "";
@@ -1630,6 +1668,7 @@ function syncEditorUi(editorState) {
   lifecycleActions?.refresh?.();
   folderExplorer.sync();
   relatedPages.sync();
+  pageBacklinks.sync();
   if (typeof feedbackDiagnostics !== "undefined") {
     const marker = editorState.saveStatus + ":" + editorState.unconfirmedSave + ":" + editorState.saveErrorCode;
     if (state.lastDiagnosticSave !== marker) {
@@ -1653,6 +1692,8 @@ function syncEditorUi(editorState) {
   $("copy-note-draft").hidden = !editorState.loaded;
   $("copy-note-file-path").hidden = !currentNoteFilePath();
   $("copy-note-file-path").disabled = editorState.navigationPending || (companionMode && (companionFrozen || companionSessionFailed));
+  $("open-note-graph").hidden = !editorState.loaded || !editorState.file;
+  $("open-note-graph").disabled = editorState.navigationPending;
   if (companionMode && typeof boardsUI !== "undefined") boardsUI.syncNote();
   $("delete-note").hidden = !editorState.loaded;
   $("delete-note").disabled = editorState.navigationPending || companionLocked;

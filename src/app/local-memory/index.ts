@@ -157,6 +157,7 @@ export async function ensureMemoryDocumentIds(rootArg: string): Promise<ProcessM
 }
 
 export { previewMemoryDocumentDeletion, deleteMemoryDocument } from "./document-delete.js";
+export { memoryDocumentBacklinks } from "./backlinks.js";
 
 export { inspectLocalSearchEngine } from "../../adapters/qmd/index.js";
 
