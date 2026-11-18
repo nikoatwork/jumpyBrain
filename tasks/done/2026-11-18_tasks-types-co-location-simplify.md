@@ -40,26 +40,31 @@ Stop `src/types.ts` (836 lines, currently imported by 79 files across every laye
   - [x] 1.5 Define the verification plan: since this is type-only, behavior verification is mostly pinned by `npm run build` (tsc full check), the architecture and package gates above, plus scanning scripts/smokes for any runtime-type assumptions broken by the move
   - [x] 1.6 Deliverable: `docs/deep-dives/types-co-location-simplify/research.md` and an updated "Deep dive findings" section in this list
   - [x] 1.7 Independent source-checked review of the research (2026-11-16): corrections in research.md section 11 and under "Review corrections" below; pilot corrected accordingly
-- [ ] 2.0 **Clarify:** Go/no-go and scope (owner: user, with research doc in hand). Decide:
-  - [ ] 2.1 Approve the corrected pilot (3.0): move the retrieval-policy types next to their owner with a compatibility shim at the old path. Developer-facing ownership clarity only; no user-visible behaviour, speed or size change
-  - [ ] 2.2 Public type names: keep the package's exported type names exactly as today (recommended, via a non-re-exported `contracts.ts`), or accept four newly public names (`ScoreBreakdown`, `IndexingPolicy`, `IndexedDocument`, `IndexManifest`) as an explicit decision
-  - [ ] 2.3 Accept the temporary two-way type-only dependency between `src/types.ts` and `src/core/retrieval-policy/` until the memory-root/provenance waves, or widen the pilot to remove it
-  - [ ] 2.4 Is external type-path compatibility (`jumpybrain/dist/types.js` deep imports) a hard requirement? It decides whether the shim is timed or permanent
-- [ ] 3.0 Proposal execution phase 1 (only after 2.0 approves): migrate the retrieval-policy pilot with a re-export shim at `src/types.ts`
-  - [ ] 3.1 Move the 12 non-temporal pilot types into a new `src/core/retrieval-policy/contracts.ts` that `retrieval-policy/index.ts` does **not** re-export (keeps public names unchanged; adds 2 packed files, `.js` + `.d.ts`, against the 780-file budget). Move the 4 temporal types into `temporal.ts`. Optionally defer `IndexManifest`: its only consumer is `qmd-driver.ts` and its `qmdCollection` field makes it QMD-specific
-  - [ ] 3.2 In `src/types.ts`, add the `export type { … } from` shim lines **and** a separate `import type` for the moved names still used inside `types.ts` (`MemoryRootConfig.indexing`, `MemoryRootStatus.readiness`); the shim alone does not bring them into scope
-  - [ ] 3.3 Rewrite the importers in the 29-file pilot list; none of the 15 inline `import("…types.js")` queries references a pilot type, so none needs rewriting in this pilot
-  - [ ] 3.4 Update `src/core/retrieval-policy/retrieval-policy.docs.md` (and `src/core/core.docs.md` if the barrel policy wording changes) so the new type ownership is documented
-  - [ ] 3.5 No `test/architecture-boundaries.test.js` change is expected (every target is core-domain); edit it only if the run shows a new edge
-- [ ] 4.0 Verify pilot migration with zero-regression evidence and record it in this list
-  - [ ] 4.1 `npm run build`, then `node --test test/architecture-boundaries.test.js test/source-graph-contracts.test.js test/core-boundary.test.js test/package-entrypoints.test.js test/package-footprint.test.js`
-  - [ ] 4.2 Exported type names: diff the exported names of `dist/index.d.ts`, `dist/runtime/index.d.ts` and `dist/core/index.d.ts` before/after; expect no change (or exactly the four names if 2.2 chose that)
-  - [ ] 4.3 Output size: `.js` output byte-identical (`dist/types.js` stays `export {};`); `.d.ts` output grows by a few hundred bytes for the shim and new file. Record `node scripts/check-package-size.mjs` and accept the churn explicitly or reject the direction
-- [ ] 5.0 Proposal execution phase 2 (only after 4.0 evidence is accepted): decide the remaining-domain roll-out order, or if the pilot evidence argues against it, record the decision and archive
+- [x] 2.0 **Clarify:** Go/no-go and scope (owner: user, with research doc in hand). Decide:
+  - [x] 2.1 **Declined.** Approve the corrected pilot (3.0): move the retrieval-policy types next to their owner with a compatibility shim at the old path. Developer-facing ownership clarity only; no user-visible behaviour, speed or size change
+  - [x] 2.2 Not applicable (pilot declined); exported type names stay as today. Public type names: keep the package's exported type names exactly as today (recommended, via a non-re-exported `contracts.ts`), or accept four newly public names (`ScoreBreakdown`, `IndexingPolicy`, `IndexedDocument`, `IndexManifest`) as an explicit decision
+  - [x] 2.3 Not applicable (pilot declined). Accept the temporary two-way type-only dependency between `src/types.ts` and `src/core/retrieval-policy/` until the memory-root/provenance waves, or widen the pilot to remove it
+  - [x] 2.4 Not decided; only relevant if a migration is reopened. Is external type-path compatibility (`jumpybrain/dist/types.js` deep imports) a hard requirement? It decides whether the shim is timed or permanent
+- [-] 3.0 Proposal execution phase 1 (only after 2.0 approves): migrate the retrieval-policy pilot with a re-export shim at `src/types.ts`
+  - [-] 3.1 Move the 12 non-temporal pilot types into a new `src/core/retrieval-policy/contracts.ts` that `retrieval-policy/index.ts` does **not** re-export (keeps public names unchanged; adds 2 packed files, `.js` + `.d.ts`, against the 780-file budget). Move the 4 temporal types into `temporal.ts`. Optionally defer `IndexManifest`: its only consumer is `qmd-driver.ts` and its `qmdCollection` field makes it QMD-specific
+  - [-] 3.2 In `src/types.ts`, add the `export type { … } from` shim lines **and** a separate `import type` for the moved names still used inside `types.ts` (`MemoryRootConfig.indexing`, `MemoryRootStatus.readiness`); the shim alone does not bring them into scope
+  - [-] 3.3 Rewrite the importers in the 29-file pilot list; none of the 15 inline `import("…types.js")` queries references a pilot type, so none needs rewriting in this pilot
+  - [-] 3.4 Update `src/core/retrieval-policy/retrieval-policy.docs.md` (and `src/core/core.docs.md` if the barrel policy wording changes) so the new type ownership is documented
+  - [-] 3.5 No `test/architecture-boundaries.test.js` change is expected (every target is core-domain); edit it only if the run shows a new edge
+- [-] 4.0 Verify pilot migration with zero-regression evidence and record it in this list
+  - [-] 4.1 `npm run build`, then `node --test test/architecture-boundaries.test.js test/source-graph-contracts.test.js test/core-boundary.test.js test/package-entrypoints.test.js test/package-footprint.test.js`
+  - [-] 4.2 Exported type names: diff the exported names of `dist/index.d.ts`, `dist/runtime/index.d.ts` and `dist/core/index.d.ts` before/after; expect no change (or exactly the four names if 2.2 chose that)
+  - [-] 4.3 Output size: `.js` output byte-identical (`dist/types.js` stays `export {};`); `.d.ts` output grows by a few hundred bytes for the shim and new file. Record `node scripts/check-package-size.mjs` and accept the churn explicitly or reject the direction
+- [-] 5.0 Proposal execution phase 2 (only after 4.0 evidence is accepted): decide the remaining-domain roll-out order, or if the pilot evidence argues against it, record the decision and archive
 
-## Blockers
+## Outcome
 
-- 2.0 is waiting on the user's go/no-go. Research (1.0) and its review (1.7) are recorded; no type has been moved.
+Decided 2026-11-18 by the owner: **no-go on migrating existing types.** No source changed; tasks 3.0–5.0 are cancelled (marked `[-]`).
+
+- Why: `src/types.ts` is type-only (`dist/types.js` is empty), so the gain is ownership clarity. The pilot rewrites imports in 29 files and brings a compatibility shim, a temporary two-way type dependency and a public-name decision; the full move touches 78 files.
+- Rule adopted instead, recorded in [core module docs](../../src/core/core.docs.md): declare new contract types next to the module that owns them (as `core/boards/model.ts` and `core/migration/types.ts` already do) and do not add new types to `src/types.ts`. Move an existing type only when its domain is being changed anyway, keeping layer rules and exported type names unchanged.
+- Verification: documentation-only; links reviewed and `git diff --check` run.
+- Revisit if `src/types.ts` keeps growing despite the rule, or before a deliberate breaking release that could drop the deep `dist/types.js` path.
 
 ## Deep Dive
 

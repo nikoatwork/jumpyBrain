@@ -1,6 +1,12 @@
 # Org-wide access to a shared brain from Claude via MCP
 
-Priority: proposed P2, to confirm. Status: planned 2026-11-17 from feedback; needs a product decision first.
+Priority: proposed P2, to confirm. Status: **parked 2026-11-18 by the owner**; no product decision or MCP work until it is reactivated. Planned 2026-11-17 from feedback.
+
+## Parked: what works today
+
+- The CLI remains the supported way to reach a shared brain: each member installs it and points it at the hosted server (`--target-url` plus their own access key). Recall, search, show and explicit writes work this way.
+- Claude Code and Claude Desktop setups that can run shell commands use that CLI through the installed jumpyBrain skill. claude.ai in the browser cannot run the CLI, so it has no access until an MCP surface exists.
+- Reactivate this list when the owner takes up the product decision in 1.0; nothing below has started.
 
 ## Goal
 

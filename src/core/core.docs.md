@@ -4,6 +4,7 @@
 
 - Own backend-agnostic core submodules for canonical Markdown scanning/parsing, protected document-update merge policy, memory-root setup/status, provenance helpers, retrieval-depth policy, and pure dream cursor/limit/path policy.
 - Re-export backend-agnostic public memory APIs from core submodules, protected edit policy, pure writing policy, and only curated core-safe shared types.
+- Declare new contract types next to the module that owns them (as `boards/model.ts` and `migration/types.ts` do); do not add new types to `src/types.ts`. Move an existing type out of it only when its domain is being changed anyway, keeping layer rules and exported type names unchanged ([decision](../../tasks/done/2026-11-18_tasks-types-co-location-simplify.md)).
 - Decode valid JSON double-quoted frontmatter strings (including escaped quotes/backslashes); retain forgiving quote stripping for non-JSON/legacy quotes. This scalar policy does not change canonical body line-ending normalization; import envelopes verify raw body bytes separately.
 - `serialized-budget.ts` supplies compact JSON-plus-LF serialization, UTF-8 byte accounting, and shared 1024–65536-byte packet budget validation; callers own evidence selection and envelope errors.
 - `document-id-format.ts` owns the browser-safe canonical ID pattern/validator; `document-id.ts` re-exports that policy and adds UUID generation.

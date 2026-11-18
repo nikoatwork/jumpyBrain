@@ -41,24 +41,29 @@ Cut the operational weight of browser verification: one shared smoke harness (di
   - [x] 1.5 Define the regression-verification plan: how to prove each migrated script still exercises its scenario (before/after behavior parity, not just exit codes), and how docs and `package.json` command references stay consistent
   - [x] 1.6 Deliverable: `docs/deep-dives/smoke-harness-simplify/research.md` and an updated "Deep dive findings" section in this list
   - [x] 1.7 Independent source-checked review of the research (2026-11-16): corrections in research.md section 10 and under "Review corrections" below; pilot narrowed accordingly
-- [ ] 2.0 **Clarify:** Go/no-go and scope (owner: user, with research doc in hand). Decide:
-  - [ ] 2.1 Approve the narrowed pilot (3.0): a small shared setup file plus three scripts migrated, every command name and docs row unchanged. It proves readability and unchanged failure detection; it does not make tests faster or reduce commands
-  - [ ] 2.2 Keep one file per scenario and keep smokes out of `node --test` (research recommends both; no change to the release-gate mapping)
-  - [ ] 2.3 Acceptance bar: same assertions exercised before/after (counted, see 4.1), injected faults still caught, loop not slower, no gate-pinned script touched
-- [ ] 3.0 Proposal execution phase 1 (only after 2.0 approves): build `scripts/smoke-harness.mjs` v1 and migrate the narrowed pilot only
-  - [ ] 3.1 Harness v1 scope: temp brain, server start, browser launch/page factory, and a cleanup stack that runs steps in reverse registration order and accepts scenario-added steps (evidence copy, report writes) before temp-folder removal. Leave `recordSmokeEvidence` out of v1
-  - [ ] 3.2 Pilot: `scripts/collaboration-overlap-smoke.mjs`, `scripts/theme-smoke.mjs`, `scripts/graph-warning-smoke.mjs` (none is pinned by a verification gate). Do not migrate `scripts/ux-uncertain-save-smoke.mjs` (pinned by `test/fixtures/architecture-contracts/profile.json:16,119`; needs a reviewed contract delta). Use `scripts/access-keys-smoke.mjs` only as an uncommitted dry run of the multi-brain/gateway escape hatches
-  - [ ] 3.3 Do not modify `scripts/playwright-runtime.mjs`, `scripts/editor-smoke-helpers.mjs` or `scripts/collaboration-smoke-transport.mjs`: all three are pinned assertion roots in the multiplayer gate inventories. The harness imports them; it does not grow them
-  - [ ] 3.4 Keep each pilot script a standalone runnable with the same package.json entry and docs table row; update `docs/testing.md` only if an invocation changes (none is planned)
-- [ ] 4.0 Verify pilot migration with zero-regression evidence and record it in this list
-  - [ ] 4.1 Run each pilot before and after on the same commit/build. Parity: `collaboration-overlap` compares its stdout JSON `results` array; `theme` and `graph-warning` print only PASS lines, so count executed assertions (temporary counter in a scratch copy, or add a results array as a deliberate part of the pilot) and confirm injected faults still fail with the same named check
-  - [ ] 4.2 Time the before/after loop (build + run) and record it; the loop must be **not slower** (the pilot keeps the build prefix, so no speedup is expected by design)
-  - [ ] 4.3 `npm run guard:staged` on the migration commit; confirm `test/architecture-contracts` profile/inventories are untouched (no pinned file changed)
-- [ ] 5.0 Proposal execution phase 2 (only after 4.0 evidence is accepted): decide roll-out scope (subset vs all 99; package.json script trimming; possible node--test embedding) as a separate follow-up list
+- [x] 2.0 **Clarify:** Go/no-go and scope (owner: user, with research doc in hand). Decide:
+  - [x] 2.1 **Declined.** Approve the narrowed pilot (3.0): a small shared setup file plus three scripts migrated, every command name and docs row unchanged. It proves readability and unchanged failure detection; it does not make tests faster or reduce commands
+  - [x] 2.2 **Kept as today.** Keep one file per scenario and keep smokes out of `node --test` (research recommends both; no change to the release-gate mapping)
+  - [x] 2.3 Not applicable (pilot declined). Acceptance bar: same assertions exercised before/after (counted, see 4.1), injected faults still caught, loop not slower, no gate-pinned script touched
+- [-] 3.0 Proposal execution phase 1 (only after 2.0 approves): build `scripts/smoke-harness.mjs` v1 and migrate the narrowed pilot only
+  - [-] 3.1 Harness v1 scope: temp brain, server start, browser launch/page factory, and a cleanup stack that runs steps in reverse registration order and accepts scenario-added steps (evidence copy, report writes) before temp-folder removal. Leave `recordSmokeEvidence` out of v1
+  - [-] 3.2 Pilot: `scripts/collaboration-overlap-smoke.mjs`, `scripts/theme-smoke.mjs`, `scripts/graph-warning-smoke.mjs` (none is pinned by a verification gate). Do not migrate `scripts/ux-uncertain-save-smoke.mjs` (pinned by `test/fixtures/architecture-contracts/profile.json:16,119`; needs a reviewed contract delta). Use `scripts/access-keys-smoke.mjs` only as an uncommitted dry run of the multi-brain/gateway escape hatches
+  - [-] 3.3 Do not modify `scripts/playwright-runtime.mjs`, `scripts/editor-smoke-helpers.mjs` or `scripts/collaboration-smoke-transport.mjs`: all three are pinned assertion roots in the multiplayer gate inventories. The harness imports them; it does not grow them
+  - [-] 3.4 Keep each pilot script a standalone runnable with the same package.json entry and docs table row; update `docs/testing.md` only if an invocation changes (none is planned)
+- [-] 4.0 Verify pilot migration with zero-regression evidence and record it in this list
+  - [-] 4.1 Run each pilot before and after on the same commit/build. Parity: `collaboration-overlap` compares its stdout JSON `results` array; `theme` and `graph-warning` print only PASS lines, so count executed assertions (temporary counter in a scratch copy, or add a results array as a deliberate part of the pilot) and confirm injected faults still fail with the same named check
+  - [-] 4.2 Time the before/after loop (build + run) and record it; the loop must be **not slower** (the pilot keeps the build prefix, so no speedup is expected by design)
+  - [-] 4.3 `npm run guard:staged` on the migration commit; confirm `test/architecture-contracts` profile/inventories are untouched (no pinned file changed)
+- [-] 5.0 Proposal execution phase 2 (only after 4.0 evidence is accepted): decide roll-out scope (subset vs all 99; package.json script trimming; possible node--test embedding) as a separate follow-up list
 
-## Blockers
+## Outcome
 
-- 2.0 is waiting on the user's go/no-go. Research (1.0) and its review (1.7) are recorded; no script has been migrated.
+Decided 2026-11-18 by the owner: **no-go.** No script, npm entry or doc command changed; tasks 3.0–5.0 are cancelled (marked `[-]`).
+
+- Why: shared setup is only about 9–14% of smoke lines, a build costs about 2 s so the pilot cannot be faster, one-file-per-scenario with a documenting header is deliberate and ~86 smoke paths are referenced from live docs, and the helpers a harness would build on are pinned assertion roots in the multiplayer gates.
+- Rule adopted instead, recorded in the [testing guide](../../docs/testing.md): new smoke scripts reuse the existing shared helpers (`scripts/playwright-runtime.mjs` for Chromium, `scripts/collaboration-smoke-transport.mjs` for fault injection) and follow the setup of a current smoke rather than inventing another; no new harness layer.
+- Verification: documentation-only; links reviewed and `git diff --check` run.
+- Revisit if writing new smokes becomes painful or the smoke count grows enough that measured duplication exceeds the falsifiers in the research doc.
 
 ## Deep Dive
 

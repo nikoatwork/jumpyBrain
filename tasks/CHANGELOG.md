@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Three simplification proposals declined
+
+- After source-checked research, the owner declined extracting the browser shell's inline HTML/CSS/JS into served assets, a shared smoke-test harness, and splitting `src/types.ts`; each cost more churn and risk than its benefit. A lighter rule replaces each: new browser logic goes into typed modules bundled via `browser-entry.ts`, new smokes reuse the existing shared helpers, and new types sit next to their owning module. No source changed. Decisions: [shell assets](done/2026-11-18_tasks-adapter-string-raw-simplify.md), [smoke harness](done/2026-11-18_tasks-smoke-harness-simplify.md), [types](done/2026-11-18_tasks-types-co-location-simplify.md).
+
 ## 2026-11-18 — Open-note attention outcomes
 
 - Current-note Settle/Snooze/Bring back already worked through the live owner (since 2026-11-10); this closes the residual gaps. A valid PATCH receipt is reported as saved even when a racing peer revision supersedes it, a lost reply is "possibly saved" and never retried, confirmation waits for an in-flight checkpoint, and readers are refused with a clear message. Verified with extended 1280/390px Chromium smokes. [Reproduction and verification](done/2026-11-18_tasks-live-note-attention.md).

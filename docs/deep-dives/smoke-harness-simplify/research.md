@@ -3,7 +3,7 @@
 Research-only. No source, build, branch or git state was changed. All numbers below
 were measured on the working tree at HEAD `f2e5a84e` with `ls`/`wc`/`grep`/`node -e`
 read-only commands. The proposal under review is
-[tasks/todo/tasks-smoke-harness-simplify.md](../../../tasks/todo/tasks-smoke-harness-simplify.md);
+[tasks/done/2026-11-18_tasks-smoke-harness-simplify.md](../../../tasks/done/2026-11-18_tasks-smoke-harness-simplify.md);
 its evidence numbers were re-derived here and several need correcting (section 2).
 
 > **Review 2026-11-16:** an independent source check found errors in the pilot, the gate analysis and the parity plan. Section 10 records them and the narrowed pilot; inline notes mark the affected claims.

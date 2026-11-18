@@ -1,6 +1,6 @@
 # Research: co-locating `src/types.ts` contracts with owning modules (task 1.0 deep dive)
 
-Read-only research for [tasks/todo/tasks-types-co-location-simplify.md](/Users/monkey/dev/jumpyBrain/tasks/todo/tasks-types-co-location-simplify.md). No source, build, branch, or git state was changed. All counts below were measured directly from the repo (grep/ripgrep plus a small Node script that resolves every relative import specifier to a file), not taken from the proposal.
+Read-only research for [tasks/done/2026-11-18_tasks-types-co-location-simplify.md](../../../tasks/done/2026-11-18_tasks-types-co-location-simplify.md). No source, build, branch, or git state was changed. All counts below were measured directly from the repo (grep/ripgrep plus a small Node script that resolves every relative import specifier to a file), not taken from the proposal.
 
 > **Review 2026-11-16:** an independent source check found that the pilot would change the public type surface, plus several count and layout errors. Section 11 records them and the corrected pilot; inline notes mark the affected claims.
 

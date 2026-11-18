@@ -1,6 +1,6 @@
 # Deep dive: serving the browser UI from static assets instead of `String.raw` blocks
 
-Task 1.0 research for [tasks/todo/tasks-adapter-string-raw-simplify.md](/Users/monkey/dev/jumpyBrain/tasks/todo/tasks-adapter-string-raw-simplify.md). Read-only research; no source, build, branch or git state was changed. All file references are absolute. Commands were run read-only (grep/wc/node parsing of sources, git log/read-only git commands); no builds or test runs were executed.
+Task 1.0 research for [tasks/done/2026-11-18_tasks-adapter-string-raw-simplify.md](../../../tasks/done/2026-11-18_tasks-adapter-string-raw-simplify.md). Read-only research; no source, build, branch or git state was changed. All file references are absolute. Commands were run read-only (grep/wc/node parsing of sources, git log/read-only git commands); no builds or test runs were executed.
 
 ## 1. Verification of the proposal's evidence numbers
 

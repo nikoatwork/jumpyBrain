@@ -9,6 +9,7 @@ Before finalizing any repository change, use the smallest checks that exercise t
 - Build once with `npm run build` before checks importing `dist/`. Reuse a build only when its relevant source is unchanged. Run builds sequentially with checks consuming their output; rebuilding during a check invalidates its evidence.
 - Run selected Node files with `node --test test/<relevant-file>.test.js`. Narrow by test name only when the remaining cases are unrelated. Find feature tests with `rg` and confirm their prerequisites in the runner/module docs.
 - Browser examples use `npx --package=playwright node scripts/<runner>.mjs`, provisioned Chromium (or the supported Chrome fallback), and disposable Markdown. Helpers exporting functions are not standalone test commands.
+- New smoke scripts stay one standalone file per scenario. Reuse `scripts/playwright-runtime.mjs` for Chromium and `scripts/collaboration-smoke-transport.mjs` for fault injection, and follow a current smoke's setup instead of adding another harness layer ([decision](../tasks/done/2026-11-18_tasks-smoke-harness-simplify.md)).
 - For a bug fix, reproduce the failure in a focused case and retain the regression where practical. Reuse fault injection rather than adding another framework for each scenario.
 
 | Change | Smallest useful selection |
