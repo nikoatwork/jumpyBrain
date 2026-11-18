@@ -17,7 +17,7 @@ export interface DoctorReport {
   ok: boolean;
   cli: DoctorCheck & { version: string };
   node: DoctorCheck & { version: string };
-  qmd: DoctorCheck & { binary: string };
+  qmd: DoctorCheck & { binary: string; source: "override" | "package" | "path" };
   retrievalProbe: { status: "not_run" | "passed" | "empty" | "failed"; mode: "lexical"; message: string; warnings?: string[] };
   memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; semanticSetup?: import("../types.js").SemanticSetupStatus; readiness?: RetrievalReadiness };
   integrations: Record<string, DoctorCheck & { path: string }>;
@@ -100,7 +100,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     `jumpyBrain doctor: ${report.ok ? "ok" : "attention needed"}`,
     `- CLI: ${statusIcon(report.cli.ok)} ${report.cli.message}`,
     `- Node: ${statusIcon(report.node.ok)} ${report.node.message}`,
-    `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message}`,
+    `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message} Selected: ${report.qmd.binary} (${ENGINE_SOURCES[report.qmd.source]}).`,
     `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.source}) — ${report.memoryRoot.message}`,
     ...(report.memoryRoot.semanticSetup ? [`- Semantic setup: ${report.memoryRoot.semanticSetup.state}${report.memoryRoot.semanticSetup.nextAction ? ". " + report.memoryRoot.semanticSetup.nextAction : ""}`] : []),
     ...(report.memoryRoot.readiness ? [`- Readiness: ${report.memoryRoot.readiness.freshness}; modes: ${report.memoryRoot.readiness.modes.join(", ") || "none"}; embeddings: ${report.memoryRoot.readiness.embedding}`] : []),
@@ -120,6 +120,8 @@ export function formatDoctorReport(report: DoctorReport): string {
   } else lines.push("- Project integrations not inspected; pass --root to establish a scope.");
   return lines.join("\n");
 }
+
+const ENGINE_SOURCES = { override: "JUMPYBRAIN_QMD_BIN", package: "installed beside jumpyBrain", path: "PATH" } as const;
 
 function statusIcon(ok: boolean): string {
   return ok ? "ok" : "missing";

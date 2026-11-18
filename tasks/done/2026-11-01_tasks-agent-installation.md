@@ -2,7 +2,7 @@
 
 ## Goal
 
-Implement the focused installer proposal in [portable installation](../todo/tasks-portable-installation-project-integration.md): one repeatable operation for local agents and optional Mac app, verified releases, private search dependencies, accurate machine-readable completion, and safe recovery. Work is isolated on `feat/agent-installation`. The owner subsequently authorized uninstall/reinstall of the personal CLI and Mac app, preserving notes/profiles, and optional integration into master. No push or release is authorized.
+Implement the focused installer proposal in [portable installation](2026-11-18_tasks-portable-installation-project-integration.md): one repeatable operation for local agents and optional Mac app, verified releases, private search dependencies, accurate machine-readable completion, and safe recovery. Work is isolated on `feat/agent-installation`. The owner subsequently authorized uninstall/reinstall of the personal CLI and Mac app, preserving notes/profiles, and optional integration into master. No push or release is authorized.
 
 ## Tasks
 

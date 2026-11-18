@@ -4,6 +4,47 @@ Keep the local CLI/runtime distribution small. `npm test` checks the actual npm
 manifest and byte budgets after building; `npm run cli:pack` applies the same
 checks to its real tarball before recording successful package metadata.
 
+## 2026-11-18 consumer install cost and advisories
+
+Measured for the portable-installation work on macOS arm64, Node 26.7.0, npm
+11.19.0, from snapshot `0677fdb9` (v0.3.26 contents). Observations on one
+machine, not release guarantees.
+
+- **CLI package:** 3,209,777 B packed, 8,871,911 B unpacked, 768 files; no
+  source maps, tests or eval files. The largest parts are the served drawing
+  editor (3.9 MiB) and editor bundle, `integrations/` (916 KiB, used by the
+  installer and the Mac app's paired update) and `docs/` (572 KiB).
+- **Consumer install** (`npm install <tarball> --omit=dev` in an empty
+  project): 21,320 KiB of `node_modules`, half of it esbuild's platform binary.
+  Dependencies are only jumpybrain, esbuild and ws; **no Electron package is
+  installed**. Electron appears only as entries in the shipped
+  `integrations/electron` lockfile, which lockfile scanners read; the Mac app's
+  paired update is the only path that installs it.
+- **Startup:** `--version`/`--help` 0.05 s wall and about 58 MiB RSS; importing
+  the runtime 25–40 ms. Neither loads QMD, ws, esbuild or browser assets. esbuild
+  is imported lazily, only for `extensions check/install/enable/reload`.
+- **Engine:** `@tobilu/qmd@2.8.3` with its lockfile is about 204 MiB (154
+  packages). This matches the reported footprint: the CLI is about a tenth of
+  it, and the rest is QMD's hard dependencies (see the evaluation below).
+- **Advisories** (`npm audit --omit=dev`): the CLI's runtime dependencies have
+  none. The 17 root-lockfile advisories are all dev-only, through
+  `@excalidraw/excalidraw`, which is bundled at build time and does not reach
+  consumers (the shipped `runtime-package-lock.json` still lists them). The
+  engine has 9 runtime-path advisories (2 critical, 7 high: simple-git via
+  node-llama-cpp, QMD's MCP server, zod, fast-glob/micromatch/picomatch), all
+  fixed by `@tobilu/qmd@2.9.0`.
+
+Decisions: keep **one package**. The CLI is already small, and splitting off
+`integrations/` or optional esbuild would save little while adding a release
+matrix (optional dependencies install by default anyway). Remote-only use needs
+no engine. The engine advisories are documented residual risk, not fixed here:
+jumpyBrain never runs QMD's MCP server, never builds llama.cpp from git at
+runtime, and passes only its own fixed glob patterns, so none of the flagged
+paths is known to be reachable. Moving to QMD 2.9.0 changes the exact version
+pin that installer, doctor, Desktop and the hosted image all check, so existing
+2.8.3 engines would stop passing; it needs its own migration and retest task
+before adoption. `npm audit fix --force` is not an acceptance criterion.
+
 ## 2026-11-17 hosted image QMD dependency evaluation
 
 A hosted deployment asked whether the Docker image can shed QMD 2.8.3
@@ -114,8 +155,8 @@ and optional extension-renderer gzip limits, dependencies and package contents
 are unchanged by this decision. This does not substitute for release validation.
 
 [Completion and final package measurement](../tasks/done/2026-11-08_tasks-distribution-budget-refresh.md).
-Payload trimming remains under the existing
-[portable installation task](../tasks/todo/tasks-portable-installation-project-integration.md#tasks).
+Payload measurements and the one-package decision are in the
+[portable installation task](../tasks/done/2026-11-18_tasks-portable-installation-project-integration.md#tasks).
 
 ## 2026-11-08 editor session ownership
 

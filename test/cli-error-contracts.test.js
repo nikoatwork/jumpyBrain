@@ -32,8 +32,11 @@ function runCliFailure(args, options = {}) {
   return result;
 }
 
-test("CLI root and remote target failures name the actionable flag or fallback", () => {
-  assert.match(runCliFailure(["status"]).stderr, /--root is required/);
+test("CLI root and remote target failures name the actionable flag or fallback", async () => {
+  // Outside any project memory, so a developer checkout's own markers cannot select a brain.
+  const outside = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-no-project-"));
+  try { assert.match(runCliFailure(["status"], { cwd: outside }).stderr, /--root is required/); }
+  finally { await rm(outside, { recursive: true, force: true }); }
 
   const remote = runCliFailure(["status", "--target-url", "https://brain.example"], { env: { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env" } });
   assert.match(remote.stderr, /JUMPYBRAIN_API_KEY/);

@@ -33,10 +33,16 @@ export function databasePath(root: string): string { return path.join(indexState
 const selectedEngine = new AsyncLocalStorage<{binary: string | null}>();
 /** An authenticated local owner may select its installed engine per operation. */
 export function withQmdBinary<T>(binary: string | null, operation: () => T): T { return selectedEngine.run({binary}, operation); }
-export function resolveQmdBinary(env: NodeJS.ProcessEnv = process.env): string {
+/** Where the selected engine came from: an explicit override, a package installed beside jumpyBrain, or PATH. */
+export type QmdEngineSource = "override" | "package" | "path";
+export function selectQmdEngine(env: NodeJS.ProcessEnv = process.env): { binary: string; source: QmdEngineSource } {
   const selected = selectedEngine.getStore();
-  return (selected ? selected.binary?.trim() : env.JUMPYBRAIN_QMD_BIN?.trim()) || bundledQmdBinary() || "qmd";
+  const override = selected ? selected.binary?.trim() : env.JUMPYBRAIN_QMD_BIN?.trim();
+  if (override) return { binary: override, source: "override" };
+  const installed = packageQmdBinary();
+  return installed ? { binary: installed, source: "package" } : { binary: "qmd", source: "path" };
 }
+export function resolveQmdBinary(env: NodeJS.ProcessEnv = process.env): string { return selectQmdEngine(env).binary; }
 
 /** The CLI and transactional SDK must come from the same explicitly supported installation. */
 export function resolveQmdSdk(): string {
@@ -62,9 +68,12 @@ export function resolveQmdSdk(): string {
 }
 
 function qmdSetupMessage(reason: string): string {
-  const selected = selectedEngine.getStore();
-  const override = selected ? selected.binary?.trim() : process.env.JUMPYBRAIN_QMD_BIN?.trim();
-  return `${reason} ${override ? `Selected JUMPYBRAIN_QMD_BIN=${JSON.stringify(override)}. Correct this override or run \`unset JUMPYBRAIN_QMD_BIN\` to use normal resolution, then retry. ` : ""}If still unavailable, install with \`npm install -g @tobilu/qmd@2.8.3\` or set JUMPYBRAIN_QMD_BIN to its CLI.`;
+  // A CLI forwards whichever engine it resolved to a shared backend; that request's engine wins over
+  // the backend's own startup environment, and it is not necessarily an override.
+  const forwarded = selectedEngine.getStore()?.binary?.trim();
+  const override = forwarded === undefined ? process.env.JUMPYBRAIN_QMD_BIN?.trim() : undefined;
+  return `${reason} ${forwarded ? `Selected engine: ${JSON.stringify(forwarded)} (from JUMPYBRAIN_QMD_BIN, a package beside jumpyBrain, or PATH). Correct or unset JUMPYBRAIN_QMD_BIN if it is set, then retry. `
+    : override ? `Selected JUMPYBRAIN_QMD_BIN=${JSON.stringify(override)}. Correct this override or run \`unset JUMPYBRAIN_QMD_BIN\` to use normal resolution, then retry. ` : ""}If still unavailable, install \`@tobilu/qmd@2.8.3\` in the project that depends on jumpyBrain (\`npm install @tobilu/qmd@2.8.3\`) or globally (\`npm install -g @tobilu/qmd@2.8.3\`), or set JUMPYBRAIN_QMD_BIN to its CLI.`;
 }
 
 export async function runQmd(root: string, args: string[], model?: string): Promise<{ stdout: string; stderr: string }> {
@@ -84,22 +93,39 @@ export async function runQmd(root: string, args: string[], model?: string): Prom
   });
 }
 
-export function inspectLocalSearchEngine(): { ok: boolean; binary: string; message: string } {
-  const binary = resolveQmdBinary();
+export function inspectLocalSearchEngine(): { ok: boolean; binary: string; source: QmdEngineSource; message: string } {
+  const { binary, source } = selectQmdEngine();
   try {
     const sdk = resolveQmdSdk();
     if (!["index.js", "store.js", "llm.js"].every(file => existsSync(path.join(path.dirname(sdk), file)))) throw new Error("QMD SDK files are missing.");
     const probe = spawnSync(binary, ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 65536 });
     const version = probe.status === 0 ? probe.stdout.trim().match(/^(?:qmd\s+)?v?(\d+\.\d+\.\d+)(?:\s+\([a-f0-9]+\))?$/i)?.[1] : undefined;
     if (version !== SUPPORTED_QMD_VERSION) throw new Error("QMD 2.8.3 version check failed.");
-    return { ok: true, binary, message: "QMD 2.8.3 CLI and SDK are available; retrieval requires a separate check." };
-  } catch { return { ok: false, binary, message: "The selected QMD must provide compatible @tobilu/qmd@2.8.3 CLI and SDK. Correct or unset JUMPYBRAIN_QMD_BIN, or rerun the installer." }; }
+    return { ok: true, binary, source, message: "QMD 2.8.3 CLI and SDK are available; retrieval requires a separate check." };
+  } catch { return { ok: false, binary, source, message: "The selected QMD must provide compatible @tobilu/qmd@2.8.3 CLI and SDK. Correct or unset JUMPYBRAIN_QMD_BIN, or rerun the installer." }; }
 }
 
-function bundledQmdBinary(): string | undefined {
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  const candidates = [3, 2, 1].map(level => path.resolve(moduleDir, ...Array(level).fill(".."), "node_modules", ".bin", process.platform === "win32" ? "qmd.cmd" : "qmd"));
-  return candidates.find(candidate => existsSync(candidate));
+/**
+ * Node's own package lookup: the nearest `node_modules/@tobilu/qmd` in this
+ * installation's ancestor directories, so a QMD installed beside jumpyBrain in a
+ * consuming project is found at any nesting depth. It starts from jumpyBrain's
+ * real location, never from the current directory, so an untrusted checkout
+ * cannot supply the engine. The nearest package wins even when it has the wrong
+ * version; the SDK check then fails instead of silently choosing another copy.
+ */
+export function packageQmdBinary(start = realpathSync(path.dirname(fileURLToPath(import.meta.url)))): string | undefined {
+  for (let dir = start; ; dir = path.dirname(dir)) {
+    const modules = path.join(dir, "node_modules");
+    const manifest = path.join(modules, "@tobilu", "qmd", "package.json");
+    if (existsSync(manifest)) {
+      if (process.platform === "win32") return path.join(modules, ".bin", "qmd.cmd");
+      // A broken nearest package stays selected so its check fails visibly instead of falling through to PATH.
+      let relative: unknown = "bin/qmd";
+      try { const bin = JSON.parse(readFileSync(manifest, "utf8")).bin; relative = typeof bin === "string" ? bin : bin?.qmd ?? relative; } catch { /* reported by the SDK check */ }
+      return path.join(path.dirname(manifest), typeof relative === "string" ? relative : "bin/qmd");
+    }
+    if (path.dirname(dir) === dir) return undefined;
+  }
 }
 
 export function qmdVirtualPathToRelative(file: string, collection = QMD_COLLECTION): string | undefined {

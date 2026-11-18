@@ -13,7 +13,7 @@ Support truthful historical capture and deliberate removal through the same loca
 - Client feedback coverage: 7 (backfilled dates), 8 (delete command), 10 (template-dependent lint).
 - [Temporal retrieval](../done/2026-10-11_tasks-temporal-retrieval-correctness.md) already separates declared evidence `date` from writing/import and edit time. At planning time, creation could not accept that field; this task extends the draft while retaining the temporal model.
 - [Maintenance reliability](../done/2026-10-10_tasks-consolidation-maintenance-reliability.md) already removed lint's exact `## Source memories` requirement. Keep this as compatibility/regression verification, not a second lint rewrite.
-- Coordinate derived freshness/results with [self-maintaining recall](2026-10-11_tasks-self-maintaining-recall.md), installation/policy with [project integration](../todo/tasks-portable-installation-project-integration.md), and scheduling with [bounded execution](2026-10-11_tasks-bounded-retrieval-execution.md).
+- Coordinate derived freshness/results with [self-maintaining recall](2026-10-11_tasks-self-maintaining-recall.md), installation/policy with [project integration](2026-11-18_tasks-portable-installation-project-integration.md), and scheduling with [bounded execution](2026-10-11_tasks-bounded-retrieval-execution.md).
 - Read `src/architecture.docs.md` and affected co-located docs before implementation. Core owns date/identity/filesystem safety policy; app owns workflows; CLI/HTTP remain thin.
 
 ## Design direction

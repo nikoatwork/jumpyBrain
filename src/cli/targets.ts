@@ -1,6 +1,8 @@
 import path from "node:path";
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { discoverMemoryRoot } from "../core/memory-root/index.js";
+import { trustedProject } from "./project-trust.js";
 
 export interface CliArgs {
   [key: string]: string | boolean | string[] | undefined;
@@ -39,14 +41,50 @@ export function resolveCliTarget(args: CliArgs, options: ResolveCliTargetOptions
     return { kind: "local", root, source: "environment" };
   }
   const root = installedRoot();
+  // Doctor reports instead of stopping. Legacy recipe discovery may still use the
+  // project itself, but only when no personal brain could be chosen in its place.
+  const mayIgnoreProject = Boolean(options.fallbackRoot) || Boolean(options.allowDiscovery && !root);
+  let project: string | undefined;
+  try { project = discoverProject(root); }
+  catch (error) {
+    if (!mayIgnoreProject) throw new Error(`Could not check this directory for project memory (${(error as NodeJS.ErrnoException).code ?? "unreadable"}). Pass --root <memory-root> or set JUMPYBRAIN_MEMORY_ROOT.`, { cause: error });
+  }
+  if (project) {
+    if (trustedProject(project)) return { kind: "local", root: project, source: "trusted-project" };
+    // Never quietly use the personal brain while an unapproved project memory sits right here.
+    if (!mayIgnoreProject) throw untrustedProjectError(project);
+  }
   if (root) return { kind: "local", root, source: "install-manifest" };
   if (options.allowDiscovery) return { kind: "local", source: "recipe-discovery" };
   if (options.fallbackRoot) return { kind: "local", root: options.fallbackRoot, source: "personal-fallback" };
   throw new Error("--root is required. Set JUMPYBRAIN_MEMORY_ROOT for a configured CLI default.");
 }
 
-// Only the owning managed app's adjacent manifest is configuration. Never read cwd files.
-function installedRoot(): string | undefined {
+/**
+ * The nearest initialized memory root from the current directory, unless it is
+ * the configured personal root itself. Only existence is checked here; trust
+ * comes from the device-local approvals, never from the repository.
+ */
+export function discoverProject(personalRoot = installedRoot(), cwd = process.cwd()): string | undefined {
+  const found = discoverMemoryRoot(cwd);
+  if (!found) return undefined;
+  if (personalRoot) {
+    try { if (realpathSync(personalRoot) === found) return undefined; } catch { /* a missing personal root is reported by the command */ }
+  }
+  return found;
+}
+
+export function untrustedProjectError(root: string): Error {
+  const quoted = `'${root.replace(/'/gu, `'"'"'`)}'`;
+  return new Error([
+    `Found project memory at ${JSON.stringify(root)} that is not approved on this device.`,
+    `To use it for commands run here, the user runs: jumpybrain project trust --root ${quoted}`,
+    "Or choose a brain explicitly with --root <memory-root> or JUMPYBRAIN_MEMORY_ROOT. See: jumpybrain project status",
+  ].join("\n"));
+}
+
+// Only the owning managed app's adjacent manifest is configuration.
+export function installedRoot(): string | undefined {
   const app = fileURLToPath(new URL("../../", import.meta.url));
   if (path.basename(path.resolve(app)) !== "app") return;
   const filename = path.resolve(app, "../install-manifest.json");

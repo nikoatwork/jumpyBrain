@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Project memory approval and project-local search engine
+
+- Commands and installed skills inside a project use its memory once the user runs `jumpybrain project trust`; an unapproved project memory stops commands with that exact command instead of silently using the personal brain, and a repository cannot approve itself. Capture without asking needs the project's `"capture": "durable"` plus device `--allow-capture`. A QMD installed beside jumpyBrain in a consuming project is now found (v0.3.26 missed it), and doctor names the engine and its source. The GitHub release tarball is the supported pinned project dependency; footprint measured and kept as one package; QMD 2.9.0 split into [its own task](todo/tasks-qmd-2.9-upgrade.md). [Outcome, review and limits](done/2026-11-18_tasks-portable-installation-project-integration.md).
+
 ## 2026-11-18 — Hosted operations and retrieval evaluation closed
 
 - Closed both long-running lists by owner decision. Their open items are recorded as limits, not as completed work. Hosted operations delivered the clean Docker build, the hosted smoke gate and operator guidance; the documented systemd unit was never run under a real systemd manager and remains an operator example. The retrieval evaluation delivered the in-repo baseline, nine frozen reports and one adopted lexical improvement. Long documents, VPS costs, answer judgment and the embedding-removal decision remain unmeasured. [Hosted operations](done/2026-11-18_tasks-hosted-build-and-operations.md), [retrieval evaluation](done/2026-11-18_tasks-workspace-retrieval-evaluation.md).

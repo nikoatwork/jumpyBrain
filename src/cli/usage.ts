@@ -9,7 +9,7 @@ interface CommandHelp {
   recipeHelp?: { summary: string; syntax: string; details?: string[]; target?: boolean };
 }
 
-const targetHelp = 'Target: --root <memory-root> OR --target-url <url> (--remote-url alias). Defaults: JUMPYBRAIN_MEMORY_ROOT, then owning install manifest. Use one selector; remote key: JUMPYBRAIN_API_KEY, else the key the app saved for that URL, else JUMPYBRAIN_API_KEY in ~/.config/jumpybrain/.env. status --target-url shows which key is used (never the key).';
+const targetHelp = 'Target: --root <memory-root> OR --target-url <url> (--remote-url alias). Defaults: JUMPYBRAIN_MEMORY_ROOT, then an approved project memory found from this directory (jumpybrain project status), then owning install manifest. Use one selector; remote key: JUMPYBRAIN_API_KEY, else the key the app saved for that URL, else JUMPYBRAIN_API_KEY in ~/.config/jumpybrain/.env. status --target-url shows which key is used (never the key).';
 const actorHelp = 'Writer: --actor human|agent|unknown [--actor-id <id>] [--actor-name <name>]. Omitted edits remain unknown.';
 const readHelp = [
   '--limit <positive integer> (recall: 5, search: 10); --depth shallow|normal|deep (normal).',
@@ -38,6 +38,7 @@ export const commandHelp: Record<string, CommandHelp> = {
   init: { summary: 'Initialize a local Markdown memory root.', syntax: '--root <memory-root> [--force] [--json]' },
   doctor: { summary: 'Inspect local CLI, engine and root readiness.', syntax: '[--root <memory-root>] [--probe-query <text>] [--json] [--check]', details: ['--probe-query tests bounded read-only lexical retrieval without printing matches; it does not test semantic or answer quality. --check exits 1 when required checks or the requested probe fail.'] },
   serve: { summary: 'Host one local memory root.', syntax: '[--root <memory-root>] [--host <host>] [--port <port>] [--api-key <key> ...] [--public-base-url <url>] [--init]', details: ['Defaults/configuration and secure hosting: docs/cloud-shared-memory.md. --init explicitly initializes the selected root.'] },
+  project: { summary: 'Show which brain commands here use, and approve project memory on this device.', syntax: '<status|trust|untrust> [--json]', children: { status: 'Show the brain selected from this directory, any project memory found, its approval and capture policy.', trust: '[--root <memory-root>] [--allow-capture]: approve the project memory found here (or --root) on this device.', untrust: '[--root <memory-root>]: remove that approval, including capture.' }, details: ['Selection order: --root/--target-url, JUMPYBRAIN_MEMORY_ROOT, an approved project memory found from this directory, then the managed personal brain.', 'An unapproved project memory found here stops commands until it is approved or a brain is chosen explicitly.', 'Capture: agents may save durable project decisions/findings without asking only when the project jumpybrain.json sets "capture": "durable" and trust used --allow-capture. Never deletion or remote/team writes.', 'Approval is the user\'s decision; agents never run trust on their own.'] },
   identity: { summary: 'Inspect or set the optional device-local display name.', syntax: '[--name <name>] [--json]', details: ['Shared with Mac Settings. Use --name "" to clear it.'] },
   instructions: { summary: 'Print agent memory guidance.', syntax: '[--topic recall|expand|write|maintenance|feedback|board|setup|all]', details: ['Default: short prerequisites and topic directory. Read the relevant topic before operations; all prints full guidance.', 'agent-hint is an alias. No root, credentials or running app required. Recall and shared writes remain explicit.'] },
   version: { summary: 'Print the installed CLI version.', syntax: '', details: ['Aliases: --version, -v.'] },
@@ -64,7 +65,7 @@ export function usage(): string {
     '',
     'Memory:  recall, search, expand, show, remember, update, delete, wrapup',
     'Local:   init, status, index, tree (overview), process, dream',
-    'Tools:   doctor, serve, backend, access, collaborate, attention, board, connections, extensions, migrate',
+    'Tools:   doctor, project, serve, backend, access, collaborate, attention, board, connections, extensions, migrate',
     'Other:   identity, feedback, instructions (agent-hint), run, version (--version, -v)',
     '',
     'Help: jumpybrain <command> --help | -h | jumpybrain help <command>',

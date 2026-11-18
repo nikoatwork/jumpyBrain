@@ -62,7 +62,8 @@ test("onboarding preview is truthful and installed shell/agent examples preserve
   assert.equal(saved.saved, true);
   const canonical = await readFile(path.join(project, "memory", saved.file), "utf8");
   assert.match(canonical, /Weekly releases apply only to synthetic Aurora/);
-  const recall = skill.split("\n").find(line => line.includes(" recall --root ")).replace("<current task/topic>", "Aurora");
+  // Recall lets the installed CLI select the brain; inside the project that is its own (managed) memory.
+  const recall = skill.split("\n").find(line => line.includes(" recall --topic ")).replace("<current task/topic>", "Aurora");
   assert.equal(JSON.parse(run("sh", ["-c", recall])).kind, "recall");
   const pi = await readFile(path.join(project, ".pi/extensions/jumpybrain-memory.ts"), "utf8");
   for (const [constant, expected] of [["LOCAL_MEMORY_ROOT", path.join(project, "memory")], ["JUMPYBRAIN_BIN", cli]]) {

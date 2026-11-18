@@ -49,7 +49,7 @@ npm install -D /path/to/jumpyBrain/.local-pack/jumpybrain-<version>.tgz
 npx jumpybrain --version
 ```
 
-Local retrieval also requires `npm install -g @tobilu/qmd@2.8.3` (CLI and SDK together); tarball installation does not install QMD or models. Verify with `node node_modules/jumpybrain/scripts/qmd-install-check.mjs qmd`. See [semantic setup](cli-commands.md#indexing-policy-and-recovery).
+Local retrieval also requires `@tobilu/qmd@2.8.3` (CLI and SDK together); tarball installation does not install QMD or models. Install it in the same repo (`npm install -D @tobilu/qmd@2.8.3`, found automatically) or globally (`npm install -g @tobilu/qmd@2.8.3`). Check the selected engine with `npx jumpybrain doctor --root memory`. See [semantic setup](cli-commands.md#indexing-policy-and-recovery).
 
 Repos with a `memory/jumpybrain.json` can use recipe commands without repeating `--root`:
 

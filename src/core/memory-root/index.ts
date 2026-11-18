@@ -1,5 +1,5 @@
 import { mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import type { IndexingPolicy, MemoryRootConfig, MemoryRootInitResult, MemoryRootStatus } from "../../types.js";
 
@@ -128,19 +128,46 @@ function validateIndexingPolicy(policy: IndexingPolicy): void {
 
 export async function findMemoryRoot(startArg?: string): Promise<string> {
   const start = path.resolve(startArg ?? process.cwd());
-  let dir = await realpath(start);
-
-  while (true) {
-    if (existsSync(path.join(dir, MEMORY_CONFIG_FILE))) return dir;
-    const childMemory = path.join(dir, "memory");
-    if (existsSync(path.join(childMemory, MEMORY_CONFIG_FILE))) return await realpath(childMemory);
-
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-
+  // Legacy recipe discovery stays tolerant: an unreadable folder is skipped, as before.
+  const found = discoverMemoryRoot(await realpath(start), { tolerant: true });
+  if (found) return found;
   throw new Error(`Could not find a jumpyBrain memory root from ${JSON.stringify(start)}. Run jumpybrain init --root memory or pass --root <memory-root>.`);
+}
+
+/**
+ * Nearest initialized root at or above `start`: a folder holding jumpybrain.json,
+ * or its `memory/` child. Only checks that the config exists (an unreadable one
+ * throws); never reads, initializes or trusts it. Returns the real path.
+ */
+export function discoverMemoryRoot(start: string, options: { tolerant?: boolean } = {}): string | undefined {
+  const present = options.tolerant ? (file: string) => existsSync(file) : configPresent;
+  for (let dir = path.resolve(start); ; dir = path.dirname(dir)) {
+    if (present(path.join(dir, MEMORY_CONFIG_FILE))) return realpathSync(dir);
+    const childMemory = path.join(dir, "memory");
+    if (present(path.join(childMemory, MEMORY_CONFIG_FILE))) return realpathSync(childMemory);
+    if (path.dirname(dir) === dir) return undefined;
+  }
+}
+
+// Absent is not the same as unreadable: an inaccessible config must not look like "no project here".
+function configPresent(file: string): boolean {
+  try { statSync(file); return true; }
+  catch (error) {
+    if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) return false;
+    throw error;
+  }
+}
+
+/**
+ * Project intent for agent capture, committed with the memory root. "durable"
+ * asks for agents to save durable project decisions/findings without asking each
+ * time; it takes effect only together with a device-local approval. Absent means ask.
+ */
+export async function configuredCapture(root: string): Promise<"ask" | "durable"> {
+  const capture = (await readConfigIfPresent(root))?.config.capture;
+  if (capture === undefined) return "ask";
+  if (capture !== "ask" && capture !== "durable") throw new Error(`Invalid ${MEMORY_CONFIG_FILE} capture: use "ask" or "durable".`);
+  return capture;
 }
 
 function defaultConfig(version = "0.0.0"): MemoryRootConfig {

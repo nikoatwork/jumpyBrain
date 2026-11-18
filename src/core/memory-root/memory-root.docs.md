@@ -16,6 +16,12 @@ Legacy `JUMPYBRAIN_QMD_EMBED=1|true|yes` opts an unconfigured root into semantic
 
 An optional `indexing.modelHash` pins local model bytes by SHA-256. Indexing verifies the digest; a changed configured pin disables semantic readiness/query work until resolved. Core owns the shared policy compatibility check, without importing QMD.
 
+## Project discovery and capture intent
+
+`discoverMemoryRoot(start)` returns the real path of the nearest folder at or above `start` holding `jumpybrain.json`, or its `memory/` child; `findMemoryRoot` wraps it for recipes. It only checks existence and never reads, initializes or trusts the root. Approval and target order belong to the CLI (`src/cli/targets.ts`).
+
+Schema-v1 `jumpybrain.json` may contain `capture: "ask" | "durable"`, the project's committed intent for agent capture; `configuredCapture` validates it and defaults to `"ask"`. It grants nothing alone: the CLI combines it with a device-local approval.
+
 ## Non-responsibilities
 
 - Do not own QMD indexing/search execution or derived index state beyond path policy constants.

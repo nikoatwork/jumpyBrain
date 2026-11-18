@@ -21,12 +21,32 @@ Most memory commands work against either a local Markdown memory root or a hoste
 | `--remote-url <url>` | Alias for `--target-url <url>`. |
 | `JUMPYBRAIN_MEMORY_ROOT` | Configured local CLI default, below explicit selectors. |
 | `JUMPYBRAIN_API_KEY` | Access key for `--target-url` / `--remote-url`. Overrides the key the Mac app saved for that URL; see [remote access keys](#remote-access-keys). |
-| `JUMPYBRAIN_CLI_CONFIG` | Optional path to device-local CLI policy; defaults to `~/.jumpybrain/cli-config.json`. |
+| `JUMPYBRAIN_CLI_CONFIG` | Optional path to device-local CLI policy; defaults to `~/.jumpybrain/cli-config.json`. Project approvals live beside it in `trusted-projects.json`. |
 | `--json` | Print machine-readable JSON when the command supports it. |
 
-Use one explicit root/URL selector; combinations fail. Otherwise use nonempty `JUMPYBRAIN_MEMORY_ROOT`, then `memoryRoot` in the owning managed `app/../install-manifest.json`. Malformed defaults fail unless explicitly overridden. Cwd manifests and app-active profiles never select CLI defaults; remote-only manifests supply no root.
+Use one explicit root/URL selector; combinations fail. Otherwise the CLI uses, in order:
 
-With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` retains legacy ancestor/child-`memory` marker discovery as its last fallback. Discovery grants no approval; trusted project selection remains future work. `status --json` adds `target: {kind, source, root|url}` (remote targets add `credential`, below); doctor adds `memoryRoot.source`: `flag`, `environment`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
+1. nonempty `JUMPYBRAIN_MEMORY_ROOT`;
+2. an **approved project memory**: the nearest initialized root found from the current directory (a folder holding `jumpybrain.json`, or its `memory/` child), when the user approved it on this device;
+3. `memoryRoot` in the owning managed `app/../install-manifest.json` (the personal brain).
+
+If the nearest project memory is not approved, commands stop with the exact `project trust` command instead of silently using the personal brain; so does a project memory folder that cannot be read. A project memory that is the personal root itself needs no approval and cannot be approved as a project. An approved outer project never covers an unapproved inner one. Malformed defaults or approval files fail unless a brain is chosen explicitly. App-active profiles never select CLI defaults; remote-only manifests supply no root.
+
+With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` keeps legacy ancestor/child-`memory` discovery as its last fallback: without a configured personal brain it may still use an unapproved project memory it finds, but with one it stops like other commands. `status --json` adds `target: {kind, source, root|url}` (remote targets add `credential`, below); doctor adds `memoryRoot.source`: `flag`, `environment`, `trusted-project`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
+
+### Project memory approval and capture
+
+```bash
+jumpybrain project status [--json]                                  # which brain commands here use, and why
+jumpybrain project trust [--root <memory-root>] [--allow-capture]  # approve the project found here (or --root)
+jumpybrain project untrust [--root <memory-root>]                  # remove the approval, including capture
+```
+
+Approval is a device-local record (`trusted-projects.json` beside the CLI policy config), keyed by the root's real path; moving the project needs a new approval. A repository cannot approve itself: its committed `jumpybrain.json` only states intent. Approval is the user's decision; agents report the need and never run `trust` on their own. Like the remote read-only guard, this is advisory consent, not a security boundary against local programs.
+
+Capture policy decides whether agents may save **durable project decisions and findings** without asking each time. `capture.effective` is `"durable"` only when the project's `jumpybrain.json` sets `"capture": "durable"`, the user approved with `--allow-capture`, **and** commands in the current directory actually select that project (an explicit `JUMPYBRAIN_MEMORY_ROOT` elsewhere wins); otherwise it is `"ask"`. Re-running `trust` without `--allow-capture` withdraws capture. Capture never covers deletion, bulk changes, personal facts or global/team/remote writes, which keep their explicit-authorization rules. An invalid `capture` value is rejected by `trust` and reported by `status`.
+
+`project status --json` returns `{target, project: {root, trusted, capture: {requested, approved, effective}} | null, personalRoot}`; `target` holds `{error}` when commands here would stop.
 
 ### Remote access keys
 

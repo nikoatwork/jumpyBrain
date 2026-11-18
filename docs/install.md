@@ -92,6 +92,32 @@ Project scope creates `./memory` and installs project-local integrations:
 - Claude Code skill: `.claude/skills/jumpybrain-memory/SKILL.md`
 - Pi extension: `.pi/extensions/jumpybrain-memory.ts`
 
+### Project memory beside your personal brain
+
+A global installation can also use a project's own memory. Initialize it in the repository, then approve it once on this machine:
+
+```bash
+jumpybrain init --root memory
+jumpybrain project trust            # run inside the repository; uses ./memory
+jumpybrain project status           # shows which brain commands here use
+```
+
+Inside an approved project, commands and installed skills without `--root` use the project memory; elsewhere they use your personal brain. A project memory you have not approved stops commands with the exact `trust` command instead of silently writing to your personal brain, and a cloned repository cannot approve itself. Personal facts still go to the personal brain with an explicit `--root`.
+
+To let agents save durable project decisions and findings without asking each time, the project opts in with `"capture": "durable"` in `memory/jumpybrain.json`, and you approve it on your machine with `jumpybrain project trust --allow-capture`. Either side alone keeps the default: ask first. `jumpybrain project untrust` removes the approval. Details: [project memory approval](cli-commands.md#project-memory-approval-and-capture).
+
+### Pin the CLI as a project dependency
+
+Each [GitHub release](https://github.com/nikoatwork/jumpyBrain/releases) includes an npm-installable CLI package. Install a pinned version into a project, with the search engine beside it for local recall:
+
+```bash
+npm install --save-dev https://github.com/nikoatwork/jumpyBrain/releases/download/v<version>/jumpybrain-<version>.tgz
+npm install --save-dev @tobilu/qmd@2.8.3     # only for local recall; remote-only use needs no engine
+npx jumpybrain doctor --root memory           # shows the selected engine and where it came from
+```
+
+Replace `<version>` with a release such as `0.3.26`. Releases after v0.3.26 find a QMD installed in the same project automatically; no absolute path or `JUMPYBRAIN_QMD_BIN` is needed. `JUMPYBRAIN_QMD_BIN` still overrides it, and a global `qmd` on PATH is the last fallback. On Linux, installing QMD compiles native modules, so it needs Python and a C/C++ toolchain (present in the full `node` images, missing from `node:*-slim`). jumpyBrain is not published to the npm registry, and installing it straight from the Git repository is not supported: the package needs a build that Git installs do not run. Use the release package.
+
 ### Optional how-to-dream skill
 
 The [how-to-dream skill](../skills/how-to-dream/SKILL.md) is included under `skills/` in the source checkout, managed runtime, and local package tarball. The installer still installs only the existing memory skill/extension; it does **not** silently enable dreaming or install this optional skill.

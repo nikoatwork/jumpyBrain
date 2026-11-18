@@ -1,5 +1,13 @@
 # Portable installation and project-aware integration
 
+## Outcome — 2026-11-18
+
+Completed. A QMD installed beside jumpyBrain in a consuming project is now found automatically (it was missed by v0.3.26, reproduced on the published package), and doctor names the selected engine and its source. Commands and installed skills inside a project use its memory once the user approves it on this device with `jumpybrain project trust`; an unapproved project stops commands with the exact command instead of silently using the personal brain. Agents may save durable project decisions without asking only when the project requests `"capture": "durable"`, the user approves with `--allow-capture`, and that project is the brain selected. The GitHub release CLI tarball is the supported pinned project dependency; npm publication and Git dependency installs are not supported. Footprint was measured (CLI ~21 MiB, engine ~204 MiB, no Electron in CLI installs) and kept as one package; engine advisories are documented and moved to [the QMD 2.9.0 task](../todo/tasks-qmd-2.9-upgrade.md).
+
+New surface and why: `jumpybrain project status|trust|untrust` and device-local `trusted-projects.json` (the only way to approve a project without letting a repository approve itself); optional `capture` in `jumpybrain.json` (the project's side of capture consent).
+
+Remaining limits: untested on a clean macOS account, Intel Mac, Linux hardware/AMD64 and Windows (Linux ARM64 ran in a container); project-local QMD on Linux needs Python and a C/C++ toolchain; Mac app signing/notarization and cross-release credential continuity were not addressed by this list and stay open limits; approval is advisory consent, not a security boundary; a concurrent `trust`/`untrust` race is unhandled. Behavior change: running commands without `--root` inside a folder with an unapproved `jumpybrain.json` (or `memory/jumpybrain.json`) now stops instead of using the personal brain.
+
 ## Goal
 
 Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer projects and selects the intended memory without integration-specific workarounds. Minimize installed cost while keeping local and shared-server use first-class.
@@ -37,52 +45,70 @@ The November 10 legacy managed git-source upgrade report was resolved by [the fo
 
 ## Relevant files
 
-- `package.json`, `scripts/{pack-local,local-pack-manifest,install-local-cli,public-install,public-uninstall,qmd-install-check,build-editor}.mjs` — artifact/build/install ownership.
-- `src/adapters/qmd/qmd-cli.ts`, `src/cli/doctor.ts`, QMD/package-info module docs — engine discovery and diagnostics.
-- `src/cli/{targets,memory-target,instructions,remote-access-policy}.ts`, `src/core/memory-root/` — root selection, setup, policy boundaries.
-- `skills/jumpybrain-memory/SKILL.md`, `integrations/pi/jumpybrain-memory.ts`, installer integration rendering — agent-independent instructions and configured roots.
-- `docs/{install,local-cli-builds,agent-workflows,cli-commands}.md` — supported workflows.
-- `test/{install-scripts,local-pack-scripts,local-pack-properties,package-entrypoints,remote-access-policy}.test.js` — consumer/distribution regressions.
+- `src/adapters/qmd/qmd-cli.ts`, `src/cli/doctor.ts`, `src/adapters/qmd/qmd.docs.md` — engine selection, diagnostics and setup messages.
+- `src/cli/{targets,project,project-trust,collaborate,commands,usage,instructions}.ts`, `src/cli/cli.docs.md` — target order, project approval, capture policy, help and agent guidance.
+- `src/core/memory-root/index.ts`, `src/core/memory-root/memory-root.docs.md`, `src/types.ts` — shared discovery and the `capture` field.
+- `skills/jumpybrain-memory/SKILL.md`, `integrations/pi/jumpybrain-memory.ts` — let the CLI select the brain.
+- `docs/{install,cli-commands,local-cli-builds,build-footprint}.md` — supported workflows and measurements.
+- `test/{qmd-engine-resolution,project-targeting}.test.js` (new); `test/{cli-error-contracts,cli-target-resolution,memory-cli,onboarding-guidance,onboarding-install}.test.js` (updated).
 
 ## Tasks
 
-- [ ] 0.0 Deliver agent installation and remaining platform gates before broadening project discovery or npm publication. Focused implementation and verification: [agent installation](../done/2026-11-01_tasks-agent-installation.md).
+- [x] 0.0 Deliver agent installation and remaining platform gates before broadening project discovery or npm publication. Focused implementation and verification: [agent installation](../done/2026-11-01_tasks-agent-installation.md).
+  - Proof: Linux ARM64 consumer gate in Docker (`node:22`, 2026-11-18): packed CLI + project-local `@tobilu/qmd@2.8.3`, no global qmd → doctor `ok/package`, remember `indexed`, recall returned the note from an approved project without `--root`. `node:22-slim` failed QMD's native build (no Python), now documented.
   - [x] 0.1 Remove implicit current-directory installer execution; add shared early preflight and a machine-readable plan/result contract.
   - [x] 0.2 Provision a pinned local engine in an installer-owned user directory; align installer, runtime, doctor, Desktop and updater resolution. Keep remote-only CLI use independent of QMD.
   - [x] 0.3 Use verified published artifacts by default and make interrupted fresh installation safely rerunnable. Preserve explicit source/ref and existing ownership policies.
   - [x] 0.4 Add one app + agents setup flow, preserve the selected root, and verify actual local retrieval and Desktop readiness before reporting success.
-  - [ ] 0.5 Complete clean-OS, Intel Mac and Linux hardware gates; disposable failure/recovery and Mac arm64 installation are covered by the focused task. Commands, agent guidance and current native limits are documented.
+  - [~] 0.5 Complete clean-OS, Intel Mac and Linux hardware gates. Linux ARM64 ran in a container (above), not on hardware. Skipped: clean macOS account/VM, Intel Mac and Linux AMD64/hardware — none available on this machine. Recorded as untested limits.
 
-- [ ] 1.0 Establish a reproducible supported distribution
-  - [ ] 1.1 Read architecture/affected docs; inventory executable/runtime/worker/browser/installer assets and supported consumers. Reproduce a clean Git dependency install and existing tarball install without relying on repository `dist`.
-  - [ ] 1.2 Define the minimal npm publication contract: version/engines/exports/bin/files, prebuilt artifacts, reproducible build inputs, license and install-time behavior. Decide whether Git install support earns a tested `prepare` path or stays explicitly unsupported.
-  - [ ] 1.3 Consolidate build/prepack/artifact validation with existing local-pack tooling. Test installation and runtime imports in a clean temporary consumer; validate server assets only for distributions that promise server/browser support.
-  - [ ] 1.4 Add a publication dry-run/release checklist with artifact/version smoke checks. Preserve managed update/uninstall behavior; actual registry publication remains a separately approved step.
+- [x] 1.0 Establish a reproducible supported distribution
+  - Proof: published v0.3.26 release tarball installs from its GitHub URL into a clean consumer (`npm install --save-dev <release .tgz URL> @tobilu/qmd@2.8.3`, 230 MiB with engine); a Git dependency install (`npm install git+file://…#master`) has no `dist/` and no `jumpybrain` binary. A consumer of the current build imports the runtime (181 exports) and runs the CLI.
+  - [x] 1.1 Inventory and reproduction: consumer-facing assets are `dist/` (CLI, runtime, served editor/drawing app), installer scripts, `integrations/` (installer + paired Mac update) and `skills/`. Tarball install works without a checkout; Git install is broken by design (no build lifecycle).
+  - [x] 1.2 Contract decided: the supported pinned artifact is the CLI tarball attached to each GitHub release (already built, validated and versioned by the release workflow). No npm registry publication (`private: true` stays); Git dependency installs stay explicitly unsupported rather than adding a `prepare` that would run the full editor build with all devDependencies in every consumer.
+  - [~] 1.3 Skipped: existing `cli:pack`/`check:package-size`/`local-pack-manifest` already validate the real tarball against required files and budgets; no new build path was added, so there is nothing to consolidate. Clean-consumer install/import was exercised manually (5.1).
+  - [~] 1.4 Skipped: no registry publication, so no publish dry-run. Release assets are already produced and checked by `npm run release` (docs/releases.md); the consumer smoke in 5.1 is recorded here rather than adding another release gate.
 
-- [ ] 2.0 Resolve the consumer's local engine consistently
-  - [ ] 2.1 Define a bounded resolution order covering explicit override, consuming project installation, jumpyBrain-managed/bundled installation, and PATH. Use normal package/installation ancestor resolution rather than fixed-depth `.bin` guesses; do not recursively scan arbitrary directories.
-  - [ ] 2.2 Reuse a single resolver for runtime and doctor, retaining CLI/SDK identity and pinned-version checks. Installer capability checks must remain behaviorally aligned without violating source/script layer boundaries.
-  - [ ] 2.3 Test sibling and nested dependencies, npm execution, symlinked/linked packages, paths containing spaces, unsupported versions, absent SDK, invalid overrides, and applicable Windows executable behavior.
-  - [ ] 2.4 Expose safe selected-engine diagnostics and actionable installation guidance. Confirm remote-client commands never resolve/load QMD unnecessarily.
+- [x] 2.0 Resolve the consumer's local engine consistently
+  - Proof: `test/qmd-engine-resolution.test.js` (8 tests) — the sibling-package test fails on the old fixed-depth resolver and passes on the new one; published v0.3.26 in a clean consumer with project-local QMD and no global qmd reported the engine missing and failed indexing, while the current build reports `ok/package` and indexes/recalls (macOS arm64 and Linux ARM64 container).
+  - [x] 2.1 Order: explicit `JUMPYBRAIN_QMD_BIN` (or authenticated per-operation selection) → nearest `node_modules/@tobilu/qmd` walking up from jumpyBrain's real location (Node package lookup, any depth, never cwd) → `qmd` on PATH. Nearest package wins even when broken or the wrong version, so it fails visibly instead of falling through.
+  - [x] 2.2 Runtime, doctor and backend RPC share `selectQmdEngine`; CLI/SDK identity and exact 2.8.3 checks unchanged. Managed installs keep their shim override; installer `qmd-install-check.mjs` validates the same package identity.
+  - [x] 2.3 Tests: sibling with spaces in path, nested wrong version, missing SDK, broken metadata, override precedence and bad override, PATH fallback, linked package (incl. `--preserve-symlinks`), remote commands never execute the engine. Windows `.bin/qmd.cmd` path is implemented but untested.
+  - [x] 2.4 Doctor shows the selected binary and its source (`JUMPYBRAIN_QMD_BIN`, installed beside jumpyBrain, PATH); setup errors suggest a project-local install. Remote-only consumer (21 MiB, no QMD) ran remote recall to a network error without touching an engine.
 
-- [ ] 3.0 Make project targeting and local write approval explicit
-  - Coordination (2026-11-02): [connections/targeting](../done/2026-11-02_tasks-brain-connections-and-targeting.md) owns `src/cli/targets.ts` explicit-selector/configured-default resolution and doctor/status source diagnostics. Reuse that resolver when adding trusted project selection; do not create a registry or infer trust from arbitrary repository markers. Current order: one explicit root/URL, nonempty `JUMPYBRAIN_MEMORY_ROOT`, owning managed install manifest; only legacy recipes discover markers, only doctor has a personal fallback. This list retains project discovery/approval, installed instruction changes and revocation. Named remote profiles are deferred; remote keys resolve from `JUMPYBRAIN_API_KEY`, then the app-saved key for the URL in `~/.config/jumpybrain/.env` (2026-11-12).
-  - [ ] 3.1 Specify one target-resolution contract shared by CLI and agent instructions: explicit target/root, explicit environment/configuration, unambiguous trusted project selection, personal fallback. Follow existing project-root conventions; do not infer a memory root from arbitrary Markdown or initialize one during discovery.
-  - [ ] 3.2 Implement/reuse bounded project discovery and a machine-readable effective-target/policy operation. Update generated skills to resolve the effective target instead of unconditionally passing their baked-in personal root.
-  - [ ] 3.3 Define minimal project-local capture policy in `jumpybrain.json` (or the existing owning config if safer), with approval/trust represented separately from repo-supplied intent. Default remains ask; trusted opt-in applies only to designated local durable capture, not deletion or global/team/remote writes.
-  - [ ] 3.4 Specify approval revocation/root changes and reject malformed policies. Never treat recalled Markdown, repository instructions from an untrusted clone, or remote content as permission. Avoid a new credential system or a general-purpose policy framework.
-  - [ ] 3.5 Test project/personal coexistence, explicit overrides, nested/ambiguous projects, absent/invalid config, approved versus unapproved opt-in, and remote read-only denial before credentials/input/transport. Align installed Claude Code and Pi integration behavior without hard-coding host-specific defaults.
+- [x] 3.0 Make project targeting and local write approval explicit
+  - Coordination (2026-11-02): [connections/targeting](../done/2026-11-02_tasks-brain-connections-and-targeting.md) owns `src/cli/targets.ts` explicit-selector/configured-default resolution and doctor/status source diagnostics. Reuse that resolver when adding trusted project selection; do not create a registry or infer trust from arbitrary repository markers.
+  - Proof: `test/project-targeting.test.js` (8 tests) plus 5 updated target tests; real consumer: unapproved project stopped `status` with the trust command, `project trust` switched selection to `trusted-project`, recall without `--root` returned the project note.
+  - [x] 3.1 One contract in `targets.ts`, documented in docs/cli-commands.md and taught to agents: `--root/--target-url` → `JUMPYBRAIN_MEMORY_ROOT` → nearest approved project memory from cwd → managed personal root. An unapproved or unreadable nearest project stops commands with the exact trust command; the personal root itself never counts as a project.
+  - [x] 3.2 `discoverMemoryRoot` (core, existence-only, shared with recipe discovery) and `jumpybrain project status --json` (effective target, project, approval, capture, personal root). The skill and Pi integration no longer force `--root` for recall/local tools; personal saves keep `--root`.
+  - [x] 3.3 `capture: "ask" | "durable"` in the project's `jumpybrain.json` (intent) plus device-local `trust --allow-capture` (approval). Effective `durable` only when both are set and commands here select that project. Never deletion, bulk, personal or remote/team writes.
+  - [x] 3.4 `project untrust`; re-trust without `--allow-capture` withdraws capture; approval is keyed by real path (moving needs re-approval); malformed `capture` is rejected by trust and reported by status; malformed approval file fails closed. No credential store or policy framework: one strict JSON file beside the CLI policy config.
+  - [x] 3.5 Tested: coexistence with the managed personal brain, explicit flag/env precedence, nested projects (approved outer never covers unapproved inner), recipes (legacy discovery only without a personal brain), collaborate, unreadable folder, malformed files, remote flags rejected. Existing remote read-only policy tests still pass. Claude Code/Codex skill and Pi share the same CLI-side rule.
 
-- [ ] 4.0 Reduce installation cost using evidence
-  - [ ] 4.1 Measure packed size, production installed size, startup loading, and dependency/advisory paths for CLI-only remote use and local lexical/semantic use on stated platforms. Obtain/reproduce the client's audit JSON; record actual affected reachability and uncertainty.
-  - [ ] 4.2 First remove accidentally shipped dev/test artifacts, avoid eager browser/native loading, and document an engine-free remote install. Check supported upstream lightweight QMD options before proposing a second lexical implementation.
-  - [ ] 4.3 Make an explicit footprint decision: retain one package, provide a minimal packaging profile, or propose separate follow-up backend/package work only if measured benefit justifies ongoing parity/release cost. This ticket does not require replacing QMD or building a new search engine.
-  - [ ] 4.4 Address confirmed dependency risks through tested compatible upgrades/removal or document residual risk. Never use `audit fix --force` as the acceptance criterion; preserve the lifecycle/version-pin contract.
+- [x] 4.0 Reduce installation cost using evidence
+  - Proof: measurements in [build footprint](../../docs/build-footprint.md#2026-11-18-consumer-install-cost-and-advisories).
+  - [x] 4.1 Measured (macOS arm64): CLI tarball 3.2 MB / 8.9 MB unpacked; consumer `node_modules` 21 MiB (half esbuild); no Electron installed; startup 0.05 s with no QMD/ws/esbuild/browser loading; engine ~204 MiB. Audit: 0 runtime advisories for the CLI, 17 dev-only (Excalidraw), 9 on the engine path fixed by QMD 2.9.0. The client's own audit JSON was not available; reachability assessed from our usage.
+  - [~] 4.2 Skipped: no dev/test artifacts are shipped (0 source maps/tests/evals); browser and esbuild already load lazily; engine-free remote install documented and verified. No upstream lightweight QMD variant exists (see 2026-11-17 evaluation).
+  - [x] 4.3 Decision: keep one package. The CLI is already ~21 MiB; splitting `integrations/` or making esbuild optional saves little and adds a release matrix. The engine is the real cost and needs an upstream QMD change.
+  - [x] 4.4 Residual risk documented: engine advisories (simple-git, MCP server, zod, glob libs) are not on paths jumpyBrain uses. A QMD 2.9.0 move changes the exact pin checked by installer, doctor, Desktop and the hosted image, so it needs its own migration task; no `audit fix --force`.
 
-- [ ] 5.0 Validate and simplify the installation experience
-  - [ ] 5.1 Run clean install/update/uninstall and pinned consumer smoke tests for each advertised distribution; exercise local lexical recall and remote-client use with no QMD. Document untested platform/registry paths honestly.
-  - [ ] 5.2 Update installation, configuration, skill, doctor, and owning module docs. Explain root precedence and scoped approval with copyable project/personal examples; remove absolute-path workarounds where superseded.
-  - [ ] 5.3 Run `npm test`; record verification and the complexity review here. Remove duplicate discovery/build/policy helpers and unused packaging experiments. Do not update the changelog for planning alone.
+- [x] 5.0 Validate and simplify the installation experience
+  - [x] 5.1 Clean consumer smokes: published v0.3.26 from its GitHub URL (reproduces the missing-engine bug); current build with project-local QMD on macOS arm64 and Linux ARM64 container (doctor, remember, recall, trust); remote-only consumer without QMD. Managed install/update/uninstall paths were not changed; their existing tests (`install-scripts`, `onboarding-install`) pass. Untested: npm registry, Windows, Intel Mac, clean macOS account.
+  - [x] 5.2 Updated docs/install.md (project memory, pinned project dependency, project-local QMD, Linux toolchain), docs/cli-commands.md (target order, approval, capture), docs/local-cli-builds.md, docs/build-footprint.md, skill, `instructions --topic recall|write`, Pi prompts, and module docs (cli, qmd, memory-root).
+  - [x] 5.3 `npm test`: 2,114 tests, 2,112 passed, 0 failed, 2 skipped (2026-11-18, final working tree); `check:package-size` within budget (3,217,703 B archive, 772 files); `git diff --check` clean. Complexity: one shared discovery helper (`discoverMemoryRoot`, now also behind recipe `findMemoryRoot`), one resolver (`selectQmdEngine`), one small approval file module; no packaging experiments or duplicate helpers added.
+- Proof (5.0): consumer smokes and suite results above.
+- Review: three rounds with an independent reviewer from another provider. Fixed: collaborate bypassing approval, capture reported for a project the write would not target, unreadable project folders falling through to the personal brain, trusting the personal root, writing approval before a manifest error, `--preserve-symlinks` lookup, a broken nearest QMD package falling through to PATH, recipes quietly using the personal brain next to an unapproved project, `project status` crashing on unreadable folders, legacy recipe discovery becoming strict, and engine errors misnaming the selected engine. Declined: a lock against concurrent `trust`/`untrust` (one-off human command, file stays valid), Pi's explicit `--root` for `JUMPYBRAIN_MEMORY_ROOT` (harmless, unchanged behavior), and treating a `@tobilu/qmd` folder without `package.json` as a package. The last engine-message fix (round 3) was verified by the full suite rather than a fourth round.
+
+## Decisions
+
+- No npm registry publication; the GitHub release CLI tarball is the pinned artifact. Git dependency installs stay unsupported.
+- Engine lookup never starts from the current directory, so a cloned repository cannot supply an executable engine.
+- An unapproved project memory **stops** commands instead of falling back to the personal brain. This is a visible behavior change for anyone running commands inside a folder holding `jumpybrain.json` or `memory/jumpybrain.json` (including this checkout's ignored root `jumpybrain.json`); they approve it or pass `--root`.
+- Approval lives in `trusted-projects.json` beside the CLI policy config, not in `cli-config.json`, so older CLIs reading that strict file are unaffected.
+- Approval is advisory consent like the remote read-only guard; agents are told never to run `project trust`. A concurrent trust/untrust race was declined as out of scope for a one-off human command.
+- Capture is effective only for the brain actually selected in the current directory.
+- The skill stays under its 5,500-byte budget: one line in the skill, details in `instructions --topic recall|write`.
+- QMD 2.9.0 is deferred to its own migration task.
 
 ## Agent installation proposal — 2026-11-01
 

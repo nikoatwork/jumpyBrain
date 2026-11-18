@@ -10,7 +10,7 @@ Let an agent register/list an existing local brain for the Mac app without hand-
 
 - [Second-brain setup report, 2026-11-02](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=53419d9b-2c42-4686-b20d-d226e2f8dc8a) reports no supported CLI profile management and revision conflicts after external file edits while the app runs.
 - [Review part 1](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=93c68f07-038e-4d2a-8247-f565481d0361) and [part 5](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=454167e2-14ab-4627-b257-9eb7d8b56448) propose named brains and report doctor ignoring a configured nondefault root. Their suggested precedence is a proposal, not the accepted contract.
-- Coordinate target precedence/project trust with task 3 of [portable installation](../todo/tasks-portable-installation-project-integration.md); do not implement competing resolvers or a second credential registry. That list continues to own project discovery/trust.
+- Coordinate target precedence/project trust with task 3 of [portable installation](2026-11-18_tasks-portable-installation-project-integration.md); do not implement competing resolvers or a second credential registry. That list continues to own project discovery/trust.
 - Existing glossary behavior: app connection switching does not retarget the CLI. Preserve that unless an explicit, documented design change is accepted. Naming a destination never grants remote/team write permission.
 
 ## Relevant files

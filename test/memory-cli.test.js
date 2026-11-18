@@ -86,11 +86,16 @@ test("CLI command parsing uses local transport and target-selection boundaries",
   assert.doesNotMatch(transportSource, /from "\.\.\/(?:qmd|adapters\/qmd)\//);
 });
 
-test("CLI target selection preserves local roots and recognizes remote placeholders", () => {
-  assert.deepEqual(resolveCliTarget({ root: "./memory" }), { kind: "local", root: "./memory", source: "flag" });
-  assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local", source: "recipe-discovery" });
-  assert.deepEqual(resolveCliTarget({ "target-url": "https://brain.example" }), { kind: "remote", url: "https://brain.example", source: "flag" });
-  assert.throws(() => resolveCliTarget({}), /--root is required/);
+test("CLI target selection preserves local roots and recognizes remote placeholders", async () => {
+  // Outside any project memory, so a developer checkout's own markers cannot select a brain.
+  const previous = process.cwd(), outside = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-no-project-"));
+  process.chdir(outside);
+  try {
+    assert.deepEqual(resolveCliTarget({ root: "./memory" }), { kind: "local", root: "./memory", source: "flag" });
+    assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local", source: "recipe-discovery" });
+    assert.deepEqual(resolveCliTarget({ "target-url": "https://brain.example" }), { kind: "remote", url: "https://brain.example", source: "flag" });
+    assert.throws(() => resolveCliTarget({}), /--root is required/);
+  } finally { process.chdir(previous); await rm(outside, { recursive: true, force: true }); }
 });
 
 test("CLI remote target requires API key before local root handling", () => {

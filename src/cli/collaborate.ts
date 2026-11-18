@@ -4,7 +4,6 @@ import { WebSocket } from "../adapters/websocket/index.js";
 import { ensureRootBackend } from "../app/backend-host/index.js";
 import { resolveCliTarget } from "./targets.js";
 import { remoteApiKey } from "./memory-target.js";
-import { createLocalMemoryTransport } from "./local-transport.js";
 import type { ParsedCliArgs } from "./args.js";
 
 const usage =
@@ -87,12 +86,11 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     throw new Error("Use a bounded --stream-id with a streaming operation.");
   if (args.json !== undefined && args.json !== true)
     throw new Error("--json takes no value.");
-  const target = resolveCliTarget(args, { allowDiscovery: true });
+  // Direct writes use the same selection as other commands, including project approval.
+  const target = resolveCliTarget(args);
   let url: string, credential: string;
   if (target.kind === "local") {
-    const backend = await ensureRootBackend(
-      target.root ?? (await createLocalMemoryTransport().findMemoryRoot()),
-    );
+    const backend = await ensureRootBackend(target.root!);
     url = backend.url;
     credential = backend.token;
   } else {

@@ -12,6 +12,13 @@ const GLOBAL_MEMORY_URL = process.env.JUMPYBRAIN_REMOTE_URL || REMOTE_ENV.JUMPYB
 const GLOBAL_MEMORY_API_KEY = process.env.JUMPYBRAIN_API_KEY || REMOTE_ENV.JUMPYBRAIN_API_KEY || "";
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+// JUMPYBRAIN_MEMORY_ROOT stays an explicit choice. Otherwise the CLI selects the
+// brain: a project memory the user approved (jumpybrain project trust) when Pi
+// runs inside it, else the installed personal brain (LOCAL_MEMORY_ROOT).
+function localTargetArgs(): string[] {
+  return process.env.JUMPYBRAIN_MEMORY_ROOT ? ["--root", process.env.JUMPYBRAIN_MEMORY_ROOT] : [];
+}
+
 const limitSchema = Type.Optional(Type.Number({ description: "Maximum results to return. Defaults to 5 for recall and 10 for search." }));
 const tagsSchema = Type.Optional(Type.Array(Type.String(), { description: "Optional memory tags." }));
 const writeTypeSchema = Type.Union([Type.Literal("note"), Type.Literal("finding"), Type.Literal("decision"), Type.Literal("preference")], { description: "Memory note type." });
@@ -29,9 +36,9 @@ export default function jumpybrainMemoryExtension(pi: ExtensionAPI) {
     prefix: "jumpybrain",
     labelPrefix: "jumpyBrain Local",
     target: "local",
-    descriptionTarget: "local configured jumpyBrain memory root",
+    descriptionTarget: "local jumpyBrain memory (an approved project memory here, else the personal brain)",
     promptTarget: "local/project memory",
-    targetArgs: () => ["--root", LOCAL_MEMORY_ROOT],
+    targetArgs: localTargetArgs,
   });
 
   registerMemoryToolset(pi, {
@@ -46,14 +53,15 @@ export default function jumpybrainMemoryExtension(pi: ExtensionAPI) {
   pi.registerCommand("memory-root", {
     description: "Show configured jumpyBrain local/global memory targets",
     handler: async (_args, ctx) => {
-      ctx.ui.notify(`jumpyBrain local memory root: ${LOCAL_MEMORY_ROOT}\nglobal remote memory: ${GLOBAL_MEMORY_URL || "not configured"}`, "info");
+      const project = await runJumpybrain(["project", "status"]);
+      ctx.ui.notify(`${formatForNotify(project)}\nglobal remote memory: ${GLOBAL_MEMORY_URL || "not configured"}`, "info");
     },
   });
 
   pi.registerCommand("memory-status", {
     description: "Check local jumpyBrain memory status",
     handler: async (_args, ctx) => {
-      ctx.ui.notify(formatForNotify(await runJumpybrain(["status", "--root", LOCAL_MEMORY_ROOT])), "info");
+      ctx.ui.notify(formatForNotify(await runJumpybrain(["status", ...localTargetArgs()])), "info");
     },
   });
 
@@ -67,7 +75,7 @@ export default function jumpybrainMemoryExtension(pi: ExtensionAPI) {
   pi.registerCommand("memory-index", {
     description: "Rebuild local jumpyBrain memory index",
     handler: async (_args, ctx) => {
-      ctx.ui.notify(formatForNotify(await runJumpybrain(["index", "--root", LOCAL_MEMORY_ROOT])), "info");
+      ctx.ui.notify(formatForNotify(await runJumpybrain(["index", ...localTargetArgs()])), "info");
     },
   });
 
@@ -86,7 +94,7 @@ export default function jumpybrainMemoryExtension(pi: ExtensionAPI) {
         ctx.ui.notify("Usage: /memory-recall <topic>", "warning");
         return;
       }
-      const result = await runJumpybrain(["recall", "--root", LOCAL_MEMORY_ROOT, "--topic", topic, "--limit", "5"]);
+      const result = await runJumpybrain(["recall", ...localTargetArgs(), "--topic", topic, "--limit", "5"]);
       ctx.ui.setWidget("jumpybrain-memory", formatForWidget(result));
     },
   });
@@ -159,7 +167,7 @@ function registerMemoryToolset(pi: ExtensionAPI, options: ToolsetOptions) {
     promptGuidelines: [
       options.target === "global"
         ? `Use ${options.prefix}_remember only when the user explicitly commands a global/team/remote memory write. Do not treat ordinary approval to remember as approval to write global memory.`
-        : `An explicit remember request authorizes that fact's save to the configured personal local brain without repeating consent. Setup/check alone authorizes no sample write. A machine-wide install is not a shared destination. Shared/global/team/remote destinations, even on this machine, still require explicit destination authorization. Use ${options.prefix}_remember only for authorized durable capture in ${options.promptTarget}.`,
+        : `An explicit remember request authorizes that fact's save to the configured personal local brain without repeating consent. Setup/check alone authorizes no sample write. A machine-wide install is not a shared destination. Shared/global/team/remote destinations, even on this machine, still require explicit destination authorization. Use ${options.prefix}_remember only for authorized durable capture in ${options.promptTarget}. Inside an approved project memory, \`jumpybrain project status --json\` reports capture: only when capture.effective is \"durable\" may you save durable project decisions/findings there without asking; that never covers deletion or remote writes. Personal facts belong in the personal brain, so inside a project memory ask where to save them. Never run \`jumpybrain project trust\` yourself; ask the user.`,
       "Never store secrets, credentials, tokens, raw chat noise, or vague transient status in jumpyBrain memory.",
       "Preserve an unspecified event year. Do not append a current stated-on date unless the user/source supplied it; frontmatter records writing time separately.",
     ],
@@ -255,7 +263,7 @@ function toolResult(result: CommandResult, target: "local" | "global") {
   const text = [result.stdout.trim(), result.stderr.trim()].filter(Boolean).join("\n\n");
   return {
     content: [{ type: "text" as const, text: text || (result.ok ? "jumpyBrain command completed." : "jumpyBrain command failed.") }],
-    details: { ok: result.ok, code: result.code, target, memoryRoot: target === "local" ? LOCAL_MEMORY_ROOT : undefined, memoryUrl: target === "global" ? GLOBAL_MEMORY_URL : undefined },
+    details: { ok: result.ok, code: result.code, target, memoryRoot: target === "local" ? process.env.JUMPYBRAIN_MEMORY_ROOT || undefined : undefined, memoryUrl: target === "global" ? GLOBAL_MEMORY_URL : undefined },
     isError: !result.ok,
   };
 }

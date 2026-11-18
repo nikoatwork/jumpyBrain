@@ -1,6 +1,6 @@
 # Upgrade older managed installations without losing their settings
 
-Priority: P2. Status: implemented and verified on 2026-11-14 (see [Outcome](#outcome-2026-11-14)). This list owns the focused legacy-upgrade report; [portable installation](../todo/tasks-portable-installation-project-integration.md) retains its broader distribution, platform and project-integration work.
+Priority: P2. Status: implemented and verified on 2026-11-14 (see [Outcome](#outcome-2026-11-14)). This list owns the focused legacy-upgrade report; [portable installation](2026-11-18_tasks-portable-installation-project-integration.md) retains its broader distribution, platform and project-integration work.
 
 ## Goal
 

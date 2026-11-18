@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, copyFile, writeFile, rm, symlink, readFile, realpath } from 'node:fs/promises';
+import { mkdtemp, cp, writeFile, rm, symlink, readFile, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -38,9 +38,8 @@ test('explicit selectors override environment, malformed selectors fail and empt
 
 test('owning managed installation supplies its preserved root, ignores cwd manifests and rejects malformed state', async t => {
   const f = await fixture(t), app = path.join(f.temp, 'app');
-  await mkdir(path.join(app, 'dist/cli'), { recursive: true });
+  await cp(path.join(repo, 'dist'), path.join(app, 'dist'), { recursive: true });
   const module = path.join(app, 'dist/cli/targets.js');
-  await copyFile(path.join(repo, 'dist/cli/targets.js'), module);
   await writeFile(path.join(app, 'package.json'), '{"type":"module"}');
   const manifest = path.join(f.temp, 'install-manifest.json');
   const run = async (args = {}, env = {}) => JSON.parse((await exec(process.execPath, ['--input-type=module', '-e', `const {resolveCliTarget}=await import(${JSON.stringify(pathToFileURL(module).href)}); console.log(JSON.stringify(resolveCliTarget(${JSON.stringify(args)})));`], { cwd: app, env: { ...f.env, ...env } })).stdout);
@@ -83,7 +82,8 @@ test('doctor/status/recipes agree on explicit and configured roots; fallback and
   const fallback = await f.cli('doctor', '--json');
   assert.equal(fallback.memoryRoot.source, 'personal-fallback');
   assert.equal(fallback.memoryRoot.root, path.join(f.temp, '.jumpybrain/memory'));
-  assert.match((await f.failure('status', '--json')).message, /--root is required/);
+  // An unapproved cwd project stops direct commands with the approval command; recipes keep legacy discovery.
+  assert.match((await f.failure('status', '--json')).message, /not approved on this device[\s\S]*project trust/);
   assert.match((await f.failure('run', 'memory:status', '--json')).message, /read or parse jumpybrain.json|Failed to read/);
   assert.equal(await readFile(path.join(f.temp, 'jumpybrain.json'), 'utf8'), '{broken repo configuration');
 });

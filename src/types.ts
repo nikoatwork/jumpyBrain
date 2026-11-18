@@ -734,6 +734,8 @@ export interface MemoryRootConfig {
   memoryDirs: string[];
   indexRoot?: string;
   indexing?: IndexingPolicy;
+  /** Project intent for agent capture; effective only with a device-local approval. */
+  capture?: "ask" | "durable";
   createdAt: string;
   createdBy: {
     package: string;

@@ -72,6 +72,10 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
     const { connectionsCli } = await import("./connections.js"); await connectionsCli(args); return;
   }
 
+  if (command === "project") {
+    const { projectCli } = await import("./project.js"); await projectCli(args); return;
+  }
+
   if (command === "identity") {
     const { identityCli } = await import("./identity.js"); await identityCli(args); return;
   }

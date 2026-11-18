@@ -56,7 +56,9 @@ test("entry guidance distinguishes file presence, host discovery and model activ
 
 test("Pi keeps personal-local and remote-team tool guidance separate", async () => {
   const pi = await read("integrations/pi/jumpybrain-memory.ts");
-  assert.match(pi, /targetArgs: \(\) => \["--root", LOCAL_MEMORY_ROOT\]/);
+  // Local tools keep an explicit JUMPYBRAIN_MEMORY_ROOT; otherwise the CLI selects an approved project or the personal brain.
+  assert.match(pi, /targetArgs: localTargetArgs/);
+  assert.match(pi, /JUMPYBRAIN_MEMORY_ROOT \? \["--root", process\.env\.JUMPYBRAIN_MEMORY_ROOT\] : \[\]/);
   assert.match(pi, /prefix: "jumpybrain_global"/);
   assert.match(pi, /return \["--target-url", GLOBAL_MEMORY_URL\]/);
   assert.match(pi, /Do not treat ordinary approval to remember as approval to write global memory/);

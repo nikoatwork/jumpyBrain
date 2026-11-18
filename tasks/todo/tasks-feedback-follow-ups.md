@@ -44,7 +44,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [Runtime hygiene](../done/2026-11-08_tasks-desktop-runtime-hygiene.md): implementation finalized with packaged launch checks and explicit storage/platform limits. Exact historical macOS 26 failure remains unverified; reopen on a matching failure or new diagnostics.
 - [Hosted build/operations](../done/2026-11-18_tasks-hosted-build-and-operations.md): closed 2026-11-18; real systemd-manager validation recorded as an untested limit.
-- [Portable installation](tasks-portable-installation-project-integration.md): remaining compiler/platform/payload and project-integration work.
+- [Portable installation](../done/2026-11-18_tasks-portable-installation-project-integration.md): completed 2026-11-18 (project-local engine, project memory approval, pinned release installs, footprint decision); clean-OS/Intel/Linux hardware, signing and QMD 2.9.0 remain as recorded limits.
 - [Workspace retrieval evaluation](../done/2026-11-18_tasks-workspace-retrieval-evaluation.md): closed 2026-11-18 with long-document, VPS-cost and answer-judgment research recorded as limits; prior semantic candidates were rejected, not shipped as ranking fixes.
 - Properties and saved views: dropped 2026-11-14 and the list deleted; boards cover the need. Wider workflow/product ideas retain the [completed discovery decisions](../done/2026-11-02_tasks-feedback-product-discovery.md).
 

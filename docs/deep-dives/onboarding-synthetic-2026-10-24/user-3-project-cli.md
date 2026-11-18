@@ -38,7 +38,7 @@ After testing, the isolated default personal memory and dry-run CLI shim still d
 
 ## Broader scope and hypotheses
 
-The active `tasks/todo/tasks-portable-installation-project-integration.md` already owns supported artifacts, consumer dependency resolution, effective-target precedence, project/personal coexistence and trusted capture policy. These results do not justify declaring that work complete or adding an npm publication workaround. Keep the small summary/diagnostic fixes above separate from that distribution effort.
+The active `tasks/done/2026-11-18_tasks-portable-installation-project-integration.md` already owns supported artifacts, consumer dependency resolution, effective-target precedence, project/personal coexistence and trusted capture policy. These results do not justify declaring that work complete or adding an npm publication workaround. Keep the small summary/diagnostic fixes above separate from that distribution effort.
 
 Source-supported follow-up, **not reproduced as an installed-project failure**: doctor checks HOME integration paths even with `--root` pointing at a project (`src/cli/doctor.ts`, `integrationChecks`). Here no integrations were actually installed, so its “not installed” results were truthful. Validate a real project-only integration install before claiming doctor misdiagnoses it. Doctor also exits 0 for `ok:false`; this is observed, but not classified as a bug without a documented exit-status contract. Consumers should inspect JSON `ok` today.
 
