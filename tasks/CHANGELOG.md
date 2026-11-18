@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Separate hosted index storage
+
+- `JUMPYBRAIN_INDEX_DIR` moves rebuildable search state to a separate local disk. Real Linux ARM64 Docker/QMD checks passed through index-volume loss, rebuild and fresh recall with canonical notes, access and recovery preserved. Network filesystems remain unsupported; dependency trimming is deferred. [Outcome and verification](done/2026-11-18_tasks-hosted-index-location.md).
+
 ## 2026-11-18 — Guarded CLI appends in live editors
 
 - Shared publication evidence lets open editors adopt guarded appends with routine metadata changes while retaining recovery for real source loss. Verified with a real remote CLI against two local Chromium viewers. [Reproduction and verification](done/2026-11-18_tasks-cli-live-note-updates.md).

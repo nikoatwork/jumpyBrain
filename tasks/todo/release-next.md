@@ -1,5 +1,6 @@
 # Changes
 
+- Hosted deployments can put the rebuildable search index on a separate local disk with `JUMPYBRAIN_INDEX_DIR`. Losing the index volume triggers a rebuild while canonical notes, access credentials and recovery data stay in the memory root. Both locations still require supported local filesystems; network shares remain unsupported.
 - Guarded CLI appends reach open note editors without a false replacement warning when only routine metadata also changes. Replacing saved content still preserves a version for review.
 - Labels stay steady when hovering across a large graph. You can still click labels to open notes.
 - Cutting the first line of a new note now saves without asking you to review a false edit conflict.

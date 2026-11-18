@@ -10,8 +10,10 @@ A hosted deployment asked whether the Docker image can shed QMD 2.8.3
 dependencies a Markdown brain does not use (code grammars, QMD's own MCP server)
 and the native build tools they need. This is a measured evaluation from the
 pinned engine lockfile and npm metadata, not a change; no dependency surgery
-was performed and no image was rebuilt (the Docker daemon was unavailable to
-this verification, so the container size gate stays open).
+was performed. Docker was unavailable during the initial evaluation; the
+[2026-11-18 separate-volume verification](../tasks/done/2026-11-18_tasks-hosted-index-location.md#final-docker-verification-2026-11-18)
+subsequently built and exercised the unchanged dependency graph on Linux ARM64.
+No smaller-image claim or before/after size comparison is made.
 
 `scripts/engine/package-lock.json` resolves **178 packages** for
 `@tobilu/qmd@2.8.3`, matching the reporter's count. All of the candidates are

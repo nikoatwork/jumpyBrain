@@ -34,7 +34,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [x] [New-note false conflict](../done/2026-11-17_tasks-new-note-false-conflict.md): Nov 17, P1. Cutting the starter heading now saves in the shared editor. Genuine external changes still trigger recovery. Chromium verified the fix. Pending release.
 - [x] [Graph hover flicker](../done/2026-11-18_tasks-graph-hover-flicker.md): Nov 17, P2. Dense graph labels stay steady under the pointer. Verified in Chromium with focus and label clicks preserved. Pending release.
-- [ ] [Hosted index location](tasks-hosted-index-location.md): Nov 17 (two emails), proposed P2. Network storage for canonical files and a smaller hosted image.
+- [x] [Hosted index location](../done/2026-11-18_tasks-hosted-index-location.md): Nov 17 (two emails), P2. Separate local index storage passed real Docker volume-loss/rebuild checks. Canonical network storage stays unsupported; dependency trimming is deferred pending an upstream variant. Pending release; MCP access retains its separate owner.
 - [ ] [Org MCP access](tasks-org-mcp-access.md): Nov 17, proposed P2. Needs a product decision on the CLI-only rule before building.
 - [ ] [Page backlinks](tasks-page-backlinks.md): Nov 14, proposed P2. Show notes linking to a page and open the graph centred on it.
 
