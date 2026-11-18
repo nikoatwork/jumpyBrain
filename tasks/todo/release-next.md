@@ -1,5 +1,6 @@
 # Changes
 
+- Guarded CLI appends reach open note editors without a false replacement warning when only routine metadata also changes. Replacing saved content still preserves a version for review.
 - Labels stay steady when hovering across a large graph. You can still click labels to open notes.
 - Cutting the first line of a new note now saves without asking you to review a false edit conflict.
 - Typing a wrong access key while a note is open no longer leaves you stuck on that note; you can navigate away or enter the correct key straight away.

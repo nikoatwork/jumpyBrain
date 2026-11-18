@@ -713,6 +713,192 @@ for (const failure of ["fsync", "rename"]) {
   });
 }
 
+test('a hash-guarded append through the publication boundary updates live sessions without destructive recovery', async (t) => {
+  const { hub, file, root } = await fixture(t);
+  const guarded = `---\nid: ${id}\ntype: note\ntitle: "Guarded append"\ncreated_at: "2026-01-01T00:00:00Z"\nupdated_at: "2026-11-14T00:00:00Z"\ncustom: "keep me"\nlast_editor_kind: "human"\nlast_editor_id: "earlier"\nlast_editor_name: "Earlier human"\n---\nabc\n`;
+  await writeFile(file, guarded);
+  const initial = await hub.open(id, principal, { clientId: "tab" });
+  const snapshots = [];
+  hub.subscribe(id, (snapshot) => snapshots.push(snapshot));
+  const submitted = guarded + "appended by the agent\n";
+  await hub.beforeLegacyWrite(id, initial.contentHash);
+  const published = await updateMemoryDocument(root, id, submitted, {
+    ifMatch: initial.contentHash,
+    actor: { kind: "agent", id: "cli", name: "CLI agent" },
+  });
+  await hub.notifyCanonicalWrite(id, {
+    beforeContentHash: published.oldContentHash,
+    afterContentHash: published.newContentHash,
+  });
+  const observed = await hub.read(id);
+  assert.equal(observed.body, "abc\nappended by the agent\n");
+  assert.equal(observed.contentHash, published.newContentHash);
+  assert.equal(observed.recovery, undefined);
+  assert.ok(snapshots.length > 0, "the publication boundary emits to live subscribers");
+  const delivered = snapshots[snapshots.length - 1];
+  assert.equal(delivered.body, observed.body);
+  assert.equal(delivered.contentHash, published.newContentHash);
+  assert.equal(delivered.recovery, undefined);
+  const acknowledged = await readFile(file, "utf8");
+  assert.match(acknowledged, /custom: "keep me"/);
+  assert.match(acknowledged, /last_editor_kind: "agent"/);
+  assert.ok(!/last_editor_id: "earlier"/.test(acknowledged));
+  // The appendix is emitted as a positioned body operation; metadata-only
+  // advancement still emits a revision-bearing snapshot without stopping.
+  assert.ok(observed.revision > initial.revision, "a supported update advances live revisions");
+  const history = await hub.readHistory({
+    documentId: id,
+    epoch: observed.epoch,
+    fromRevision: initial.revision,
+    toRevision: observed.revision,
+  }, principal);
+  assert.ok(history.operations.length > 0);
+  assert.ok(
+    history.operations.some((operation) =>
+      operation.splices.some((splice) => splice.insert.includes("appended by the agent")),
+    ),
+    "the appended body remains recoverable from contiguous emitted history",
+  );
+});
+const guardedSource = (body, extra = "") =>
+  `---\nid: ${id}\ntype: note\ntitle: "Battery"\ncreated_at: "2026-01-01T00:00:00Z"\nupdated_at: "2026-11-14T00:00:00Z"\ncustom: "keep me"\n${extra}---\n${body}`;
+async function guardedPublication(hub, file, root, submit, submitOptions = {}) {
+  const source = await readFile(file, "utf8");
+  const before = await hub.read(id);
+  await hub.beforeLegacyWrite(id, before.contentHash);
+  const published = await updateMemoryDocument(root, id, submit(source, before), {
+    ifMatch: before.contentHash,
+    actor: submitOptions.actor ?? { kind: "agent", id: "cli", name: "CLI agent" },
+  });
+  const evidence = submitOptions.withoutEvidence === true ? undefined : {
+    beforeContentHash: published.oldContentHash,
+    afterContentHash: published.newContentHash,
+  };
+  await hub.notifyCanonicalWrite(id, evidence);
+  return { before, published, observed: await hub.read(id) };
+}
+test("supported-write classification separates managed bookkeeping from real content loss", async (t) => {
+  const agent = { kind: "agent", id: "cli", name: "CLI agent" };
+  const cases = [
+    {
+      name: "append behind a repeated tail",
+      source: () => guardedSource("abc\nabc\n"),
+      submit: (source) => source + "abc\n",
+      verify: (observed, published) => {
+        assert.equal(observed.body, "abc\nabc\nabc\n");
+        assert.equal(observed.recovery, undefined);
+        assert.equal(observed.contentHash, published.newContentHash);
+      },
+    },
+    {
+      name: "append CRLF and non-BMP text",
+      source: () => guardedSource("alpha line\n").replace(/\n/g, "\r\n"),
+      submit: (source) => source + "Append 🚀🐈‍⬛ done.\r\n",
+      verify: (observed) => {
+        assert.equal(observed.body, "alpha line\r\nAppend 🚀🐈‍⬛ done.\r\n");
+        assert.equal(observed.recovery, undefined);
+      },
+    },
+    {
+      name: "unchanged update",
+      source: () => guardedSource("abc\n"),
+      submit: (source) => source,
+      verify: (observed, published, before) => {
+        assert.equal(observed.recovery, undefined);
+        assert.equal(observed.revision, before.revision);
+        assert.equal(published.unchanged, true);
+      },
+    },
+    {
+      name: "supported custom metadata replacement retains the previous value",
+      source: () => guardedSource("abc\n"),
+      submit: (source) => source.replace('custom: "keep me"', 'custom: "rewritten by the writer"'),
+      actor: { kind: "human", id: "author", name: "Recognized author" },
+      verify: (observed, published, before) => {
+        assert.equal(observed.body, "abc\n");
+        assert.equal(observed.recovery.code, "external_destructive_replacement");
+        assert.equal(observed.revision, before.revision + 1, "a metadata-only supported update advances live history");
+      },
+    },
+    {
+      name: "supported title change",
+      source: () => guardedSource("abc\n"),
+      submit: (source) => source.replace(/^title:.*$/m, 'title: "New supported title"'),
+      verify: (observed) => {
+        assert.equal(observed.title, "New supported title");
+        assert.equal(observed.recovery, undefined);
+      },
+    },
+    {
+      name: "supported custom metadata deletion",
+      source: () => guardedSource("abc\n"),
+      submit: (source) => source.replace(/^custom:.*\n/m, ""),
+      verify: (observed) => {
+        assert.equal(observed.body, "abc\n");
+        assert.equal(observed.recovery.code, "external_destructive_replacement");
+      },
+    },
+    {
+      name: "supported deliberate body replacement",
+      source: () => guardedSource("abc\n"),
+      submit: (source) => source.replace(/abc\n$/, "completely different\n"),
+      verify: (observed) => {
+        assert.equal(observed.body, "completely different\n");
+        assert.equal(observed.recovery.code, "external_destructive_replacement");
+      },
+    },
+  ];
+  for (const scenario of cases) {
+    await t.test(scenario.name, async () => {
+      const { hub, file, root } = await fixture(t);
+      await writeFile(file, scenario.source());
+      const { published, observed, before } = await guardedPublication(hub, file, root, scenario.submit, scenario.actor ? { actor: scenario.actor } : {});
+      scenario.verify(observed, published, before);
+      if (observed.recovery) {
+        const directory = path.join(root, observed.recovery.directory);
+        assert.equal(
+          await readFile(path.join(directory, "external.md"), "utf8"),
+          await readFile(file, "utf8"),
+          `${scenario.name}: the retained external copy matches canonical bytes`,
+        );
+        assert.match(
+          await readFile(path.join(directory, "recovery.json"), "utf8"),
+          /"reason":"external_destructive_replacement"/,
+        );
+      }
+      assert.equal(observed.conflict, undefined, `${scenario.name}: observation still succeeds`);
+    });
+  }
+});
+test("a publication without evidence keeps conservative destructive recovery", async (t) => {
+  const { hub, file, root } = await fixture(t);
+  await writeFile(file, guardedSource("abc\n"));
+  await hub.open(id, principal, { clientId: "tab" });
+  const { observed } = await guardedPublication(hub, file, root, (source) => source + "Appended without evidence.\n", { withoutEvidence: true });
+  assert.equal(observed.body, "abc\nAppended without evidence.\n");
+  assert.equal(observed.recovery.code, "external_destructive_replacement");
+});
+test("a supported append followed by an external replacement keeps conservative recovery", async (t) => {
+  const { hub, file, root } = await fixture(t);
+  await writeFile(file, guardedSource("abc\n"));
+  await hub.open(id, principal, { clientId: "tab" });
+  const before = await hub.read(id);
+  const source = await readFile(file, "utf8");
+  await hub.beforeLegacyWrite(id, before.contentHash);
+  const published = await updateMemoryDocument(root, id, source + "Appended then overwritten.\n", {
+    ifMatch: before.contentHash,
+    actor: { kind: "agent", id: "cli", name: "CLI agent" },
+  });
+  const overwrite = (await readFile(file, "utf8")).replace("abc\n", "external replacement\n");
+  await writeFile(file, overwrite);
+  await hub.notifyCanonicalWrite(id, {
+    beforeContentHash: published.oldContentHash,
+    afterContentHash: published.newContentHash,
+  });
+  const observed = await hub.read(id);
+  assert.equal(observed.body, "external replacement\nAppended then overwritten.\n");
+  assert.equal(observed.recovery.code, "external_destructive_replacement", "evidence of the supported write does not cover later foreign bytes");
+});
 test('declared client names survive live publication and rename without changing authorization or undo ownership', async t => {
   const { hub, file } = await fixture(t);
   const client = { clientId: 'named-agent', declaredActor: { kind: 'agent', name: 'Alex · Codex' } };

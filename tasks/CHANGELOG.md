@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-18 — Guarded CLI appends in live editors
+
+- Shared publication evidence lets open editors adopt guarded appends with routine metadata changes while retaining recovery for real source loss. Verified with a real remote CLI against two local Chromium viewers. [Reproduction and verification](done/2026-11-18_tasks-cli-live-note-updates.md).
+
 ## 2026-11-18 — Steady hover in large graphs
 
 - Hover keeps graph labels in place and follows nodes beneath overlapping labels. Verified on a 420-note Chromium fixture in both themes at desktop and narrow widths. [Reproduction and verification](done/2026-11-18_tasks-graph-hover-flicker.md).

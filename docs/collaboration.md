@@ -94,9 +94,13 @@ and native credential storage.
 
 Authorized human/agent concurrent editing is normal. An open or actively edited
 note needs no extra permission or request to stop typing. Reuse the existing
-destination/note authorization and prefer source edits or streams. For
-intentional whole-note replacement, `show` then hash-guarded `update` remains
-appropriate; it rejects intervening canonical changes.
+destination/note authorization and prefer source edits or streams. To append a
+short result, pipe it to `collaborate stream` without `--start`: the stream
+inserts at the end of the latest saved body. For intentional whole-note
+replacement, `show` then hash-guarded `update` remains appropriate; it rejects
+intervening canonical changes. Connected viewers receive a guarded update through live collaboration. A
+canonical save confirms publication of the bytes. It does not confirm that
+anyone has viewed them.
 
 ```sh
 # Use a stable ID for this agent's undo history across invocations.
@@ -181,6 +185,15 @@ stop unsafe publication. Rename lookup follows a unique ID. No portable watcher
 or filesystem rename provides compare-and-swap against an arbitrary external
 writer: unobserved overwrite windows cannot be reconstructed. Keep normal
 backups/Git history and prefer collaborative writes for active notes.
+
+A hash-guarded CLI `update` publishes through the same seam with explicit
+before/after evidence of the acknowledged write. Its managed bookkeeping —
+timestamps, attribution, attention fields and title spelling — hydrates
+connected viewers like an ordinary peer edit, without a destructive-recovery
+transition. The evidence only exempts that one acknowledged publication:
+genuine body removal or replacement, loss or replacement of other metadata, failed or
+racing publications and every unevidenced raw-file change keep the conservative
+recovery policy below.
 
 An observed replacement that removes saved source retains the previous and
 observed canonical versions under `.jumpybrain/recovery/`; a live snapshot names

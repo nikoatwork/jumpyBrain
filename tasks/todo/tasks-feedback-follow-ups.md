@@ -14,7 +14,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [x] **P2 — Nested checkboxes after Obsidian import.** [Completed in source](../done/2026-11-13_tasks-checkbox-rendering.md): import already preserved bytes; the editor now renders tab/four-space nested task lists with exact toggles. One indentation unit per note; ordered `1. [ ]` stays literal. Pending release.
 
-- **P1 — CLI whole-note updates around an open live editor (Nov 10).** [Focused investigation and implementation plan](tasks-cli-live-note-updates.md) owns the remaining work; its checklist is canonical. Preserve canonical bytes, drafts and revision/hash safeguards; do not auto-retry a potentially committed write.
+- [x] **P1 — CLI whole-note updates around an open live editor (Nov 10).** [Verified in source](../done/2026-11-18_tasks-cli-live-note-updates.md): guarded appends with routine metadata changes reach both open viewers without false destructive recovery. Deliberate replacement retains the prior version. The historical stale-view report remains unconfirmed. Pending release.
 
 - [x] **P2 — Repeated stale-index warnings in Mac search.** [Quiet maintenance presentation completed](../done/2026-11-10_tasks-quiet-search-freshness.md): repeated Search use no longer dispatches maintenance toasts; scoped recovery controls and real query/reindex errors remain. Desktop/narrow Chromium and existing automatic-publication checks pass. The November 8 attachment was inspected; historical HTTP 503 causes remain unproven. This source fix was completed after v0.3.21 and is pending release.
 
