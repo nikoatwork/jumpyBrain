@@ -11,14 +11,26 @@ import { createHash, randomBytes } from 'node:crypto';
 
 const execute = promisify(execFile);
 const repository = fileURLToPath(new URL('..', import.meta.url));
+// Strict argv validation before any temp or volume setup happens.
+const scriptArgs = process.argv.slice(2);
+const unexpected = scriptArgs.filter(arg => arg !== '--separate-index');
+if (unexpected.length > 0 || scriptArgs.length > 1) {
+  console.error('usage: node scripts/hosted-container-smoke.mjs [--separate-index]');
+  process.exit(2);
+}
+const separateIndex = scriptArgs.includes('--separate-index');
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-hosted-'));
 const context = path.join(temporary, 'context');
 const suffix = randomBytes(8).toString('hex');
 const image = `jumpybrain-hosted-smoke:${suffix}`;
 const container = `jumpybrain-hosted-${suffix}`;
 const volume = `${container}-data`;
+const indexVolume = `${container}-index`;
+const indexMount = '/index-state';
+const indexRunArgs = separateIndex ? ['--env', `JUMPYBRAIN_INDEX_DIR=${indexMount}`,
+  '--mount', `type=volume,src=${indexVolume},dst=${indexMount}`] : [];
 const oldKey = randomBytes(32).toString('hex'), newKey = randomBytes(32).toString('hex');
-let imageCreated = false, volumeCreated = false, containerCreated = false;
+let imageCreated = false, volumeCreated = false, containerCreated = false, indexCreated = false;
 const clean = text => text.replaceAll(oldKey, '[redacted]').replaceAll(newKey, '[redacted]');
 async function docker(args, options = {}) {
   try { return (await execute('docker', args, { timeout: 120_000, maxBuffer: 16 * 1024 * 1024, ...options })).stdout.trim(); }
@@ -29,7 +41,7 @@ async function start(keys) {
   await writeFile(envFile, `JUMPYBRAIN_SERVER_API_KEYS=${keys}\n`, { mode: 0o600 });
   await docker(['run', '-d', '--init', '--name', container, '--env-file', envFile,
     '--mount', `type=volume,src=${volume},dst=/data/jumpybrain`,
-    '--memory', '2g', '--cpus', '2', '--pids-limit', '256', image]);
+    '--memory', '2g', '--cpus', '2', '--pids-limit', '256', ...indexRunArgs, image]);
   containerCreated = true;
   await docker(['cp', path.join(repository, 'scripts/hosted-runtime-checks.mjs'), `${container}:/tmp/hosted-runtime-checks.mjs`]);
   await docker(['exec', container, 'node', '/tmp/hosted-runtime-checks.mjs', 'ready']);
@@ -41,6 +53,14 @@ async function stop() {
   assert.equal(state.OOMKilled, false);
   await docker(['rm', container]);
   containerCreated = false;
+}
+// Container runs as UID 1000 (user "node"); a fresh named volume mount point is
+// root-owned, so hand it to the container user before the server writes anything.
+async function prepareIndexVolume() {
+  await docker(['volume', 'create', indexVolume]);
+  indexCreated = true;
+  await docker(['run', '--rm', '--user', '0', '--mount',
+    `type=volume,src=${indexVolume},dst=${indexMount}`, image, 'chown', '1000:1000', indexMount]);
 }
 const check = mode => docker(['exec', '-e', 'JUMPYBRAIN_API_KEY', container, 'node', '/tmp/hosted-runtime-checks.mjs', mode],
   { env: { ...process.env, JUMPYBRAIN_API_KEY: oldKey } });
@@ -81,6 +101,7 @@ try {
   assert.equal(metadata.Config.User, 'node');
   await docker(['volume', 'create', volume]);
   volumeCreated = true;
+  if (separateIndex) await prepareIndexVolume();
   await start(oldKey);
   console.log(await check('initial'));
   await stop();
@@ -97,17 +118,22 @@ try {
   // No service is running while backup/restore manipulates fixture files.
   console.log(await docker(['run', '--rm', '--init', '--mount', `type=volume,src=${volume},dst=/data/jumpybrain`,
     '--mount', `type=bind,src=${path.join(repository, 'scripts/hosted-runtime-checks.mjs')},dst=/tmp/hosted-runtime-checks.mjs,readonly`,
-    image, 'node', '/tmp/hosted-runtime-checks.mjs', 'restore']));
+    ...indexRunArgs, image, 'node', '/tmp/hosted-runtime-checks.mjs', 'restore']));
+  if (separateIndex) {
+    await docker(['volume', 'rm', indexVolume]);
+    await prepareIndexVolume();
+    console.log('Wiped and recreated the derived index volume while stopped.');
+  }
   await start(newKey);
   console.log(await check('persistent'));
   await stop();
   console.log(JSON.stringify({ ok: true, source: (await execute('git', ['rev-parse', 'HEAD'], { cwd: repository })).stdout.trim(),
-    workingTree: true, inputDigest, image: metadata.Id, platform, nodeBase: 'node:22-slim', qmd: '2.8.3', semantic: 'untested; lexical only' }));
+    workingTree: true, inputDigest, image: metadata.Id, platform, nodeBase: 'node:22-slim', qmd: '2.8.3', ...(separateIndex ? { separateIndex: true } : {}), semantic: 'untested; lexical only' }));
 } catch (error) {
   console.error(clean(error.message)); process.exitCode = 1;
 } finally {
   for (const [created, args] of [[containerCreated, ['rm', '-f', container]],
-    [volumeCreated, ['volume', 'rm', volume]], [imageCreated, ['image', 'rm', image]]]) {
+    [volumeCreated, ['volume', 'rm', volume]], [indexCreated, ['volume', 'rm', indexVolume]], [imageCreated, ['image', 'rm', image]]]) {
     if (created) await docker(args).catch(error => { console.error(`Fixture cleanup failed: ${error.message}`); process.exitCode = 1; });
   }
   await rm(temporary, { recursive: true, force: true });
