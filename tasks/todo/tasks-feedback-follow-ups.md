@@ -30,6 +30,20 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 - [x] **P2 — Remove the insert-page-reference control.** [Implemented in source](../done/2026-11-10_tasks-four-ui-requests.md): toolbar Link button removed; inline `[[` completion and companion `@` insertion remain. Source change pending release.
 - [x] **P2 — Further simplify deletion confirmation.** [Implemented in source](../done/2026-11-10_tasks-four-ui-requests.md): Delete note?, note title, one irreversible-removal warning and Cancel/Delete actions. Guarded preview/hash/save checks remain. Source change pending release.
 
+## Local-to-shared-server migration (Nov 19)
+
+One agent-authored email from a team moving a git-tracked local root to a shared server on 0.3.26. Reviewed 2026-11-19; nothing reproduced yet. Priorities are proposed.
+
+- [ ] **P2 — Add remote app profiles from the CLI.** `connections add` is local-only, so the agent called the gateway's profile route with the control token. Requested `connections add --name --url --key-stdin|--key-env [--allow-writes]` and `connections test --id`.
+- [ ] **P1 — Stale local profile writes into a deleted root.** A profile pointing at a removed root kept recreating `<root>/.jumpybrain/logs/diagnostics`. Expected: mark the root unavailable, never write into it, warn in `connections list`. Reproduce first.
+- [ ] **P2 — Local/remote drift check and migration.** Requested `jumpybrain diff --root --target-url` (same / local newer / remote newer / missing, drawings included) and `migrate --dry-run`. Needs a scope decision before implementation.
+- [ ] **P2 — `show --json` content includes frontmatter.** Naive diffs against file bodies flag every note. Add a `body` field or document the shape.
+- [ ] **P3 — Agent-facing HTTP auth note.** `x-api-key` gets 401 and Bearer works. [Shared memory protocol](../../docs/shared-memory-protocol.md) already documents Bearer and the [drawings CLI](../done/2026-11-19_tasks-drawings-cli.md) points agents at the CLI; check whether a short pointer is still needed.
+- [ ] **P2 — Duplicate key in `.env`.** Saving the remote in the app wrote the same secret again as `JUMPYBRAIN_KEY_<uuid>`, which the CLI then prefers. Reuse an identical existing key or allow referencing one.
+- [ ] **P3 — One overview for agents.** Requested `status --all`: CLI target, app profiles (local/remote, health, write permission) and stale local roots.
+
+Reported as working well: `connections remove` revision guard, `update --dry-run`, `status --target-url` naming the key source without printing it.
+
 ## Existing owners, without duplicate checklists
 
 - [x] [New-note false conflict](../done/2026-11-17_tasks-new-note-false-conflict.md): Nov 17, P1. Cutting the starter heading now saves in the shared editor. Genuine external changes still trigger recovery. Chromium verified the fix. Pending release.
