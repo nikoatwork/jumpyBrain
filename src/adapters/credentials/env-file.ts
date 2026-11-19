@@ -44,6 +44,25 @@ export function referenceSuffix(reference: string): string {
 }
 export const keyVariable = (reference: string) => "JUMPYBRAIN_KEY_" + referenceSuffix(reference);
 export const urlVariable = (reference: string) => "JUMPYBRAIN_URL_" + referenceSuffix(reference);
+/** Names another variable in the same file that holds the key, instead of a second copy. */
+export const keyReferenceVariable = (reference: string) => "JUMPYBRAIN_KEYREF_" + referenceSuffix(reference);
+const MANAGED = /^JUMPYBRAIN_(?:KEY|URL|KEYREF)_/;
+
+/** A connection's key by suffix: its own copy, else the variable its reference names. */
+function connectionKey(values: Map<string, string>, suffix: string): { key: string; variable: string } | undefined {
+  const own = values.get("JUMPYBRAIN_KEY_" + suffix)?.trim();
+  if (own) return { key: own, variable: "JUMPYBRAIN_KEY_" + suffix };
+  const target = values.get("JUMPYBRAIN_KEYREF_" + suffix)?.trim();
+  const referenced = target && NAME.test(target) && !MANAGED.test(target) ? values.get(target)?.trim() : undefined;
+  return referenced ? { key: referenced, variable: target! } : undefined;
+}
+
+/** An unmanaged variable already holding exactly this key; JUMPYBRAIN_API_KEY first. */
+function existingKeyVariable(values: Map<string, string>, key: string): string | undefined {
+  if (values.get("JUMPYBRAIN_API_KEY") === key) return "JUMPYBRAIN_API_KEY";
+  for (const [name, value] of values) if (!MANAGED.test(name) && value === key) return name;
+  return undefined;
+}
 
 type Line = { raw: string; name?: string; value?: string };
 
@@ -151,17 +170,31 @@ export function createEnvFileCredentials(options: EnvFileOptions = {}) {
     file,
     async get(reference: string): Promise<string | null> {
       const values = await readCredentialsFile(file);
-      return values?.get(keyVariable(reference)) || null;
+      return values ? connectionKey(values, referenceSuffix(reference))?.key ?? null : null;
     },
+    /**
+     * Saves a connection's key. When an unmanaged variable in the file (such as
+     * JUMPYBRAIN_API_KEY) already holds exactly this key, the connection stores
+     * a reference to that variable instead of a second copy of the secret.
+     */
     set(reference: string, key: string, meta: { url?: string } = {}): Promise<void> {
       if (!validValue(key, 8192)) return Promise.reject(new CredentialFileError("credential_file_invalid", "Invalid access key."));
       if (meta.url !== undefined && !validValue(meta.url, 2048)) return Promise.reject(new CredentialFileError("credential_file_invalid", "Invalid connection URL."));
-      return serial(() => update(new Map([[keyVariable(reference), key], ...(meta.url ? [[urlVariable(reference), meta.url] as [string, string]] : [])])));
+      return serial(async () => {
+        let values: Map<string, string> | null = null;
+        try { values = await readCredentialsFile(file, { lenient: true }); } catch { /* update() reports the file problem */ }
+        const existing = values ? existingKeyVariable(values, key) : undefined;
+        await update(new Map<string, string | null>([
+          [keyVariable(reference), existing ? null : key],
+          [keyReferenceVariable(reference), existing ?? null],
+          ...(meta.url ? [[urlVariable(reference), meta.url] as [string, string]] : []),
+        ]));
+      });
     },
     delete(reference: string): Promise<void> {
       return serial(async () => {
         if (await readCredentialsFile(file, { lenient: true }) === null) return;
-        await update(new Map([[keyVariable(reference), null], [urlVariable(reference), null]]));
+        await update(new Map([[keyVariable(reference), null], [keyReferenceVariable(reference), null], [urlVariable(reference), null]]));
       });
     },
   };
@@ -190,12 +223,12 @@ function fileKeys(values: Map<string, string>, url: string, file: string): Remot
   const keys: RemoteKey[] = [];
   for (const [name, value] of values) {
     if (!name.startsWith("JUMPYBRAIN_URL_") || !sameDestination(value, url)) continue;
-    const variable = "JUMPYBRAIN_KEY_" + name.slice("JUMPYBRAIN_URL_".length);
-    const key = values.get(variable)?.trim();
-    if (key) { keys.push({ source: "app-connection", key, variable, file: displayPath(file) }); break; }
+    const found = connectionKey(values, name.slice("JUMPYBRAIN_URL_".length));
+    if (found) { keys.push({ source: "app-connection", ...found, file: displayPath(file) }); break; }
   }
   const fallback = values.get("JUMPYBRAIN_API_KEY")?.trim();
-  if (fallback) keys.push({ source: "env-file", key: fallback, variable: "JUMPYBRAIN_API_KEY", file: displayPath(file) });
+  // A connection that references JUMPYBRAIN_API_KEY already lists that key.
+  if (fallback && !keys.some(entry => entry.variable === "JUMPYBRAIN_API_KEY")) keys.push({ source: "env-file", key: fallback, variable: "JUMPYBRAIN_API_KEY", file: displayPath(file) });
   return keys;
 }
 

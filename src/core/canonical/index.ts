@@ -29,6 +29,7 @@ export {
   patchCanonicalMemoryDocumentAttention,
   deleteCanonicalMemoryDocumentById,
   moveCanonicalMemoryDocumentById,
+  createCanonicalMemoryDocumentCopy,
   resolveMemoryRoot,
   resolveCanonicalMemoryDocumentByTitle,
   type CanonicalMemoryTitleResolution,

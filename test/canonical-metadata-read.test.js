@@ -48,3 +48,17 @@ test('ordinary metadata reads do not consume a large body and observe external m
   await fs.writeFile(file,'---\ntitle: External change\n---\nnew body');
   assert.equal((await readMarkdownDocument(root,file)).frontmatter.title,'External change');
 });
+
+test("exactMarkdownBody keeps the body's exact bytes after the frontmatter block", async () => {
+  const { exactMarkdownBody } = await import("../dist/core/frontmatter.js");
+  const cases = [
+    ["---\nid: x\n---\n# Hi\nbody\n", "# Hi\nbody\n"],
+    ["---\r\nid: x\r\n---\r\nA\r\n", "A\r\n"],
+    ["no frontmatter\n", "no frontmatter\n"],
+    ["---\nid: unterminated\n", "---\nid: unterminated\n"],
+    ["---\na: ---x\n---\nB", "B"],
+    ["---\n---\nC", "C"],
+    ["---\nid: 1\n---", ""],
+  ];
+  for (const [input, expected] of cases) assert.equal(exactMarkdownBody(input), expected, JSON.stringify(input));
+});

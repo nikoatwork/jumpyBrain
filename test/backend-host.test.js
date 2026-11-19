@@ -86,4 +86,7 @@ test("removed disposable brain stops its detached backend while windowless owner
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   const until = Date.now() + 5000; while (processAlive(owner.pid) && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 25));
   assert.equal(processAlive(owner.pid), false);
+  // Shutdown diagnostics and logs must not bring the deleted folder back.
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await assert.rejects(stat(root), { code: "ENOENT" });
 });

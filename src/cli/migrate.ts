@@ -1,6 +1,8 @@
 import path from "node:path";
-import { stringArg, type ParsedCliArgs } from "./args.js";
-import type { LocalMemoryTransport } from "./local-transport.js";
+import { stringArg, withoutRoot, type ParsedCliArgs } from "./args.js";
+import { createLocalMemoryTransport, type LocalMemoryTransport } from "./local-transport.js";
+import { commandMemoryTarget } from "./memory-target.js";
+import { applyRemoteMigration, compareMemorySources, localInventorySource, planRemoteMigration, SYNC_STATUSES, type SyncComparison, type SyncReport, type SyncStatus } from "../runtime/index.js";
 
 /** Local-only, body-free presentation over the migration app seam. */
 export async function migrateCli(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<void> {
@@ -43,4 +45,66 @@ export async function migrateCli(args: ParsedCliArgs, localMemory: LocalMemoryTr
 // POSIX-shell quoting, including embedded apostrophes; never execute the hint.
 function shellQuote(value: string): string {
   return "'" + value.replace(/'/g, "'\"'\"'") + "'";
+}
+
+const STATUS_TEXT: Record<SyncStatus, string> = {
+  same: "same", metadata: "same body, metadata differs", "local-newer": "local newer", "remote-newer": "remote newer",
+  differs: "both changed, order unknown", "local-only": "local only", "remote-only": "remote only",
+};
+const oneLine = (value: unknown) => String(value).replace(/[\x00-\x1f\x7f-\x9f]/g, " ");
+const label = (item: SyncComparison) => item.kind === "drawing" ? `drawings/${item.name}.excalidraw`
+  : item.moved ? `${item.local!.file} → ${item.remote!.file}` : (item.local ?? item.remote)!.file;
+
+/** `diff` and `migrate remote`: a local root (--root) against a server (--target-url). Local side is read only. */
+export async function syncCli(args: ParsedCliArgs): Promise<void> {
+  const root = path.resolve(String(args.root));
+  const target = await commandMemoryTarget(withoutRoot(args), createLocalMemoryTransport());
+  if (target.kind !== "remote") throw new Error("--target-url is required.");
+  const report = await compareMemorySources(localInventorySource(root), {
+    listFiles: () => target.memory.listMemoryFiles({ hashes: true }),
+    listDrawings: () => target.memory.listDrawings(),
+    readDrawing: name => target.memory.readDrawing(name),
+  });
+  const brains = { local: root, remote: target.url };
+
+  if (args._[0] === "diff") {
+    if (args.json) { console.log(JSON.stringify({ ...brains, ...report }, null, 2)); return; }
+    console.log(`Local: ${oneLine(root)}\nRemote: ${oneLine(target.url)}`);
+    console.log(summary(report));
+    const shown = report.items.filter(item => args.all === true || !["same", "metadata"].includes(item.status));
+    for (const item of shown) console.log(`  ${STATUS_TEXT[item.status].padEnd(28)} ${oneLine(label(item))}${item.kind === "note" && item.title ? `  (${oneLine(item.title)})` : ""}`);
+    if (!shown.length) console.log("No differences in note bodies or drawings.");
+    else if (args.all !== true && report.counts.same + report.counts.metadata) console.log(`(${report.counts.same + report.counts.metadata} matching items hidden; --all lists them.)`);
+    return;
+  }
+
+  const plan = planRemoteMigration(report);
+  const apply = args.apply === true;
+  const outcomes = apply ? await applyRemoteMigration(root, plan, report, {
+    copyMemoryDocument: (file, content) => target.memory.copyMemoryDocument(file, content),
+    updateMemoryDocument: (id, content, options) => target.memory.updateMemoryDocument(id, content, options),
+    createDrawing: (name, scene) => target.memory.createDrawing(name, scene),
+    saveDrawing: (name, scene, ifMatch) => target.memory.saveDrawing(name, scene, ifMatch),
+  }) : undefined;
+  const failed = outcomes?.some(outcome => outcome.outcome === "failed") ?? false;
+  if (failed) process.exitCode = 1;
+  if (args.json) { console.log(JSON.stringify({ ...brains, dryRun: !apply, ...plan, ...(outcomes ? { outcomes } : {}), counts: report.counts }, null, 2)); return; }
+  console.log(`Migration ${apply ? "applied" : "dry run"}: ${oneLine(root)} → ${oneLine(target.url)}`);
+  console.log(summary(report));
+  const describe = (action: (typeof plan.actions)[number]) => action.action === "create-note" ? `copy note ${action.file}`
+    : action.action === "update-note" ? `update note ${action.file} (local is newer)`
+    : action.action === "create-drawing" ? `copy drawing ${action.name}` : `update drawing ${action.name} (local is newer)`;
+  if (!plan.actions.length) console.log("Nothing to copy.");
+  for (const [index, action] of plan.actions.entries()) {
+    const outcome = outcomes?.[index];
+    console.log(`  ${outcome ? outcome.outcome.padEnd(8) : "would".padEnd(8)} ${oneLine(describe(action))}${outcome?.reason ? `: ${oneLine(outcome.reason)}` : ""}`);
+  }
+  for (const skip of plan.skipped) console.log(`  ${"skip".padEnd(8)} ${oneLine(skip.item)}: ${skip.reason}`);
+  console.log(apply
+    ? "Never deleted or overwrote newer server work. Run jumpybrain diff again to check the result; the server indexes copied notes on its next refresh."
+    : `Copies only what is missing or newer locally; never deletes. Apply: jumpybrain migrate remote --root ${shellQuote(root)} --target-url ${shellQuote(target.url)} --apply`);
+}
+
+function summary(report: SyncReport): string {
+  return "Summary: " + SYNC_STATUSES.filter(status => report.counts[status]).map(status => `${report.counts[status]} ${STATUS_TEXT[status]}`).join(", ") + (report.items.length ? "" : "both brains are empty");
 }

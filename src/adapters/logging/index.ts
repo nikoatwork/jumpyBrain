@@ -87,7 +87,9 @@ function safeName(name: string): string {
 
 async function appendLine(file: string, line: string): Promise<void> {
   const dir = path.dirname(file), parent = path.dirname(dir);
-  await mkdir(parent, { recursive: true, mode: 0o700 });
+  // Never recreate a deleted memory root (`<root>/.jumpybrain/logs/x.log`).
+  if (!(await lstat(path.dirname(parent))).isDirectory()) throw new Error("memory root unavailable");
+  await mkdir(parent, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => { if (error.code !== "EEXIST") throw error; });
   if (!(await lstat(parent)).isDirectory()) throw new Error("unsafe log directory");
   await mkdir(dir, { recursive: true, mode: 0o700 });
   if (!(await lstat(dir)).isDirectory()) throw new Error("unsafe log directory");

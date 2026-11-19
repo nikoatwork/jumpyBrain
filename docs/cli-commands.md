@@ -53,7 +53,7 @@ Capture policy decides whether agents may save **durable project decisions and f
 For a remote target the CLI uses the first key it finds:
 
 1. `JUMPYBRAIN_API_KEY` in the environment (including one exported from a shell profile such as `~/.zshenv`).
-2. The key the Mac app saved for the same URL (`JUMPYBRAIN_KEY_<ref>` in `~/.config/jumpybrain/.env`). The origin and path must match, so `localhost` and `127.0.0.1` are different URLs.
+2. The key the Mac app saved for the same URL (`JUMPYBRAIN_KEY_<ref>` in `~/.config/jumpybrain/.env`, or the variable that `JUMPYBRAIN_KEYREF_<ref>` names when the key was already in the file). The origin and path must match, so `localhost` and `127.0.0.1` are different URLs.
 3. `JUMPYBRAIN_API_KEY` written in `~/.config/jumpybrain/.env`.
 
 There is no per-target CLI configuration. `jumpybrain status --target-url <url>` is the read-only check: it prints `Access key: <source> (<length> chars, ends …<last 4>), accepted`, and `--json` adds `target.credential: {source, variable, file?, length, last4?}`. The last four characters are shown only for keys of 16+ characters, and the key itself is never printed.
@@ -133,6 +133,7 @@ Extension management is desktop-local and accepts `--directory <extensions-direc
 | `jumpybrain init --root <memory-root> [--force] [--json]` | Create or refresh a local memory root with `jumpybrain.json`, standard memory folders, and ignored derived state. |
 | `jumpybrain status --root <memory-root> [--json]` | Check whether a local memory root is initialized, compatible, and ready to use. |
 | `jumpybrain status --target-url <url> [--json]` | Check whether a remote jumpyBrain server memory target is ready to use, and which [access key](#remote-access-keys) it accepted (source and fingerprint, never the key). |
+| `jumpybrain status --all [--directory <support-directory>] [--json]` | One overview for agents: the CLI's target with its key source and health, every Mac app connection (local or remote, health, writes allowed or read only, active) and `staleLocalRoots`, local connections whose folder is missing. Reports `app.running: false` when the app is closed. Never prints a key; changes no notes or connections. Health checks may start the active local brain's engine, as opening the app does. |
 | `jumpybrain index --root <memory-root> [--rebuild] [--semantic-model <absolute-local-gguf> \| --lexical] [--json]` | Update derived search state incrementally; persist explicit policy or request a rebuild. |
 | `jumpybrain index --target-url <url> [--rebuild] [--json]` | Update server-derived search state using its persisted policy. Requires `JUMPYBRAIN_API_KEY`; model/policy flags are server-local only. |
 | `jumpybrain tree --root <memory-root> [--connections] [--show-files] [--limit <n>] [--json]` | Show a map of a local memory root: buckets, document counts, tags, index freshness, and optionally file lists and Markdown/wiki-link connections. It does not print full memory bodies. |
@@ -170,11 +171,29 @@ Requires the running Mac companion; otherwise fails without file edits. `--direc
 ```sh
 jumpybrain connections list --json
 jumpybrain connections add --name "Work" --root /existing/brain --revision 0
-jumpybrain connections select --id <local-profile-id> --revision 1
-jumpybrain connections remove --id <inactive-local-profile-id> --revision 2
+jumpybrain connections add --name "Team" --url https://memory.example.com --key-env JUMPYBRAIN_API_KEY --revision 1
+printf '%s' "$KEY" | jumpybrain connections add --name "Team" --url https://memory.example.com --key-stdin --allow-writes --revision 1
+jumpybrain connections test --id <profile-id>
+jumpybrain connections select --id <local-profile-id> --revision 2
+jumpybrain connections remove --id <inactive-profile-id> --revision 3
 ```
 
-Use listed revisions; refresh and retry deliberately after conflicts. Selection requires saved drafts; active removal is refused. Add canonicalizes an existing root without initialization/indexing; removal preserves notes. First registration becomes app-active through the barrier. Selection affects only the app; CLI operations use their own selectors. Remote profiles stay in Settings; their keys are shared with the CLI through `~/.config/jumpybrain/.env`, matched by `--target-url`.
+Use listed revisions; refresh and retry deliberately after conflicts. Selection requires saved drafts; active removal is refused. Add canonicalizes an existing root without initialization/indexing; removal preserves notes. First registration becomes app-active through the barrier. Selection affects only the app; CLI operations use their own selectors.
+
+A remote connection takes an HTTPS origin (or an HTTP loopback origin) and its key from stdin (`--key-stdin`, one trailing newline removed) or from a named variable (`--key-env VAR`: the CLI's environment, else that variable in `~/.config/jumpybrain/.env`). Keys are never command arguments and never printed. The app stores the key in `~/.config/jumpybrain/.env`, where the CLI also finds it for the same `--target-url`; if that file already holds the identical key under another variable (such as `JUMPYBRAIN_API_KEY`), the connection refers to that variable instead of writing a second copy. Remote connections are read only in the app unless `--allow-writes`. Removing a remote connection also removes its saved key line (a referenced variable stays). Selecting a remote connection stays in Settings.
+
+`connections test --id` checks one connection without selecting it: `connected`, `authentication_failed` (the server rejected the saved key), `credential_unavailable`, `offline`, or `available` for an inactive local folder. `connections list` marks each local connection `available: false` when its folder or `jumpybrain.json` is gone, and prints a removal hint; the app never opens or writes such a folder.
+
+## Comparing and migrating to a shared server
+
+```sh
+jumpybrain diff --root <local-brain> --target-url <server> [--all] [--json]
+jumpybrain migrate remote --root <local-brain> --target-url <server> [--dry-run | --apply] [--json]
+```
+
+`diff` reads both brains and reports each note (matched by memory ID, else by path) and drawing (by name): `same`, `metadata` (same body, different frontmatter), `local-newer`, `remote-newer`, `differs` (both changed and the declared `updated_at` dates cannot order them), `local-only`, `remote-only`. Only declared dates order notes; file times are ignored because copies and checkouts reset them. Differing drawings are always `differs`. A note found at different paths is marked `moved`. Text output hides matching items unless `--all`; `--json` lists every item with hashes and dates, never bodies.
+
+`migrate remote` plans by default (`--dry-run` says so explicitly). `--apply` copies notes missing on the server byte for byte to the same path with the same ID, copies missing drawings, and replaces server notes whose local version is newer, each guarded by the hash `diff` saw. It never deletes, never moves, never overwrites remote-newer or unordered work, and refuses paths the server already uses for another note; each skipped item is listed with its reason. Local notes without an ID are skipped: stamp IDs locally first with `jumpybrain process --root <local> --mode ensure-ids --apply`. A note or drawing that changed after planning is skipped, not overwritten. Updated notes get the server's own edit metadata, so a later `diff` shows them as `metadata`. The server marks its index stale and refreshes it as usual. A device-local read-only origin allows `diff` and the dry run and refuses `--apply`. Requires a server with the hashed file listing (this version or later).
 
 ## Obsidian import (local only)
 
@@ -214,6 +233,8 @@ Use `--no-refresh` to skip repair and pending-publication recovery (`refresh: fa
 | `jumpybrain expand --target-url <url> --id <mem_id> --if-match sha256:<hash> [--start-line <n> --end-line <n> \| --section-line <n>] [--max-bytes <n>] [--json]` | The same bounded read on a hosted server; requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain show --root <memory-root> --id <mem_id> [--json]` | Read the full Markdown document for a specific memory ID, including its content hash for safe edits. |
 | `jumpybrain show --target-url <url> --id <mem_id> [--json]` | Read a full memory document from a remote server by ID. Requires `JUMPYBRAIN_API_KEY`. |
+
+In `show --json`, `content` is the whole file, frontmatter included, exactly as stored; `contentHash` covers those bytes and is the `--if-match` value for `update`. `body` is the exact text after the frontmatter block (line endings preserved), for comparing note text without metadata. To compare a local brain with a server, use `jumpybrain diff`.
 
 Retrieval depth changes what kind of memory is favored:
 

@@ -145,3 +145,39 @@ test("connection store saves, rotates and removes remote keys in the real .env f
   assert.doesNotMatch(await readFile(file, "utf8"), /JUMPYBRAIN_(KEY|URL)_/);
   assert.equal((await readCredentialsFile(file)).size, 0);
 });
+
+test("a connection key already in the file is referenced, not copied; app and CLI resolve it; delete keeps the shared variable", async (t) => {
+  const { file } = await scratch(t);
+  const url = "https://memory.example.test";
+  await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
+  await writeFile(file, "JUMPYBRAIN_API_KEY=shared-team-key-0123456789\nOTHER=unrelated\n", { mode: 0o600 });
+  const credentials = createEnvFileCredentials({ file });
+  await credentials.set(ref(1), "shared-team-key-0123456789", { url });
+  let text = await readFile(file, "utf8");
+  assert.equal(text.match(/shared-team-key-0123456789/g).length, 1, "one copy of the secret");
+  assert.match(text, /^JUMPYBRAIN_KEYREF_00000001_0000_4000_8000_000000000000=JUMPYBRAIN_API_KEY$/m);
+  assert.doesNotMatch(text, /^JUMPYBRAIN_KEY_/m);
+  assert.equal(await credentials.get(ref(1)), "shared-team-key-0123456789");
+  const resolved = await resolveRemoteKey(url, { file, env: {} });
+  assert.deepEqual([resolved.source, resolved.variable], ["app-connection", "JUMPYBRAIN_API_KEY"]);
+  assert.equal((await remoteKeyCandidates(url, { file, env: {} })).keys.length, 1, "the shared variable is listed once");
+  // A different key is stored as its own copy and replaces the reference.
+  await credentials.set(ref(1), "a-different-key-abcdefghij", { url });
+  text = await readFile(file, "utf8");
+  assert.doesNotMatch(text, /KEYREF/);
+  assert.equal(await credentials.get(ref(1)), "a-different-key-abcdefghij");
+  // Back to the shared key: the copy is removed again.
+  await credentials.set(ref(1), "shared-team-key-0123456789", { url });
+  await credentials.delete(ref(1));
+  text = await readFile(file, "utf8");
+  assert.match(text, /^JUMPYBRAIN_API_KEY=shared-team-key-0123456789$/m);
+  assert.doesNotMatch(text, /JUMPYBRAIN_(KEY|KEYREF|URL)_/);
+  assert.match(text, /^OTHER=unrelated$/m);
+  // Managed keys of other connections are never referenced (removing one must not break another).
+  await credentials.set(ref(2), "only-in-connection-two-xyz", { url: "https://two.example.test" });
+  await credentials.set(ref(3), "only-in-connection-two-xyz", { url: "https://three.example.test" });
+  text = await readFile(file, "utf8");
+  assert.equal(text.match(/only-in-connection-two-xyz/g).length, 2);
+  await credentials.delete(ref(2));
+  assert.equal(await credentials.get(ref(3)), "only-in-connection-two-xyz");
+});

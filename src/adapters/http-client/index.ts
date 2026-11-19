@@ -63,6 +63,8 @@ export type RemoteMemoryAttentionResult = MemoryDocumentReadResult & {
   indexing: { status: "pending" };
 };
 
+export interface RemoteMemoryFile { id: string | null; file: string; title?: string; updatedAt?: string; createdAt?: string; contentHash?: string; bodyHash?: string; editedAt?: string }
+
 export interface RemoteMemoryTransport {
   readonly url: string;
   listMemoryAttention(): Promise<import("../../types.js").MemoryAttentionPacket>;
@@ -75,6 +77,11 @@ export interface RemoteMemoryTransport {
   listDrawings(): Promise<DrawingList>;
   readDrawing(name: string): Promise<DrawingRecord>;
   saveDrawing(name: string, scene: unknown, ifMatch: string): Promise<DrawingRecord>;
+  createDrawing(name: string, scene: unknown): Promise<DrawingRecord>;
+  /** Every canonical note's ID, path and dates; with `hashes`, its content and body hashes. */
+  listMemoryFiles(options?: { hashes?: boolean }): Promise<{ files: RemoteMemoryFile[] }>;
+  /** Exact copy of a note into a new path (migration); never replaces an existing file. */
+  copyMemoryDocument(file: string, content: string): Promise<{ id: string; file: string; contentHash: string; created: true }>;
   memoryRootStatus(): Promise<MemoryRootStatus & Record<string, unknown>>;
   indexMemory(options?: Pick<IndexMemoryOptions, "rebuild" | "signal" | "timeoutMs">): Promise<IndexMemoryResult & Record<string, unknown>>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult & Record<string, unknown>>;
@@ -228,6 +235,21 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     saveDrawing: (name, scene, ifMatch) => request(memoryDrawingPath(name), {
       method: "PUT", headers: { "If-Match": ifMatch }, body: JSON.stringify({ scene }),
     }).then(packet => receipt(packet, validDrawingRecord(packet, name))) as unknown as Promise<DrawingRecord>,
+    createDrawing: (name, scene) => request(HTTP_MEMORY_ROUTES.drawings, {
+      method: "POST", body: JSON.stringify({ name, scene }),
+    }).then(packet => receipt(packet, validDrawingRecord(packet, name))) as unknown as Promise<DrawingRecord>,
+    listMemoryFiles: (fileOptions = {}) => request(HTTP_MEMORY_ROUTES.files + (fileOptions.hashes ? "?hashes=1" : "")).then(packet => {
+      const files = (packet as Record<string, unknown>).files;
+      const valid = Array.isArray(files) && files.every(file => record(file) && typeof file.file === "string" && (file.id === null || typeof file.id === "string")
+        && (!fileOptions.hashes || (typeof file.contentHash === "string" && typeof file.bodyHash === "string")));
+      if (!valid) throw new RemoteMemoryError(502, "unsupported_response", fileOptions.hashes
+        ? "The server's file listing has no content hashes. Upgrade the server to compare or migrate notes."
+        : "The server returned an unsupported file listing.");
+      return packet;
+    }) as unknown as Promise<{ files: RemoteMemoryFile[] }>,
+    copyMemoryDocument: (file, content) => request(HTTP_MEMORY_ROUTES.fileOperations, {
+      method: "POST", body: JSON.stringify({ action: "copy-in", path: file, content }),
+    }).then(packet => receipt(packet, packet.created === true && packet.file === file && typeof packet.id === "string" && typeof packet.contentHash === "string")) as unknown as Promise<{ id: string; file: string; contentHash: string; created: true }>,
     url: baseUrl,
     memoryRootStatus: () => request(HTTP_MEMORY_ROUTES.status) as Promise<MemoryRootStatus & Record<string, unknown>>,
     indexMemory: (indexOptions = {}) => {

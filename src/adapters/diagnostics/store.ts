@@ -6,7 +6,7 @@ import { createDiagnosticBuffer, diagnosticId, normalizeDiagnosticSnapshot, unav
 
 const SEGMENT = /^events-(\d{13})-[a-f0-9]{8}\.jsonl$/;
 export function newDiagnosticId() { return "d_" + randomBytes(16).toString("hex"); }
-export function createDiagnosticStore(options: { directory: string; component: DiagnosticComponent; now?: () => number; segmentBytes?: number; maxSegments?: number; retentionMs?: number; metadata?: { version?: string; build?: string; runtimeVersion?: string }; append?: (line: string) => Promise<void>; persist?: boolean }) {
+export function createDiagnosticStore(options: { directory: string; component: DiagnosticComponent; now?: () => number; segmentBytes?: number; maxSegments?: number; retentionMs?: number; metadata?: { version?: string; build?: string; runtimeVersion?: string }; append?: (line: string) => Promise<void>; persist?: boolean; createBelow?: string }) {
   const now = options.now ?? Date.now;
   const segmentBytes = Math.max(2048, Math.min(1024 * 1024, options.segmentBytes ?? 1024 * 1024));
   const maximum = Math.max(1, Math.min(10, options.maxSegments ?? 10));
@@ -21,10 +21,17 @@ export function createDiagnosticStore(options: { directory: string; component: D
   async function directory() {
     const absolute = path.resolve(options.directory);
     const segments = absolute.split(path.sep).filter(Boolean);
+    // A memory root's log directory must never recreate a deleted root: only
+    // descendants of `createBelow` are created, and it must already exist.
+    const anchor = options.createBelow === undefined ? undefined : path.resolve(options.createBelow);
+    if (anchor !== undefined && !absolute.startsWith(anchor + path.sep)) throw new Error("diagnostic directory outside its anchor");
+    const anchorDepth = anchor === undefined ? 0 : anchor.split(path.sep).filter(Boolean).length;
     let current = path.parse(absolute).root;
-    for (const part of segments) {
+    for (const [index, part] of segments.entries()) {
       current = path.join(current, part);
-      try { await mkdir(current, { mode: 0o700 }); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+      if (index >= anchorDepth) {
+        try { await mkdir(current, { mode: 0o700 }); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+      }
       let stat = await lstat(current);
       if (stat.isSymbolicLink() && process.platform === "darwin" && ["/var", "/tmp"].includes(current)) { current = await realpath(current); stat = await lstat(current); }
       if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("unsafe diagnostic directory");

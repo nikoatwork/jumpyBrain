@@ -24,7 +24,7 @@ The native bootstrap's private `api-key` is now a **control** capability, not a 
 
 Remote access keys come from the shared owner-only `~/.config/jumpybrain/.env` through `appCredentials` ([credentials docs](../../src/adapters/credentials/credentials.docs.md)); a missing key or an insecure file reports `credential_unavailable` with a fix (never the key). The native folder picker travels through bounded anonymous stdin/stdout pipes: `{id,operation:"select-folder"}` requests and `{id,result}` replies. Node stdout is exclusively this protocol; diagnostics use static stderr. Unknown/malformed frames, including the removed `get`/`set`/`delete`, fail closed.
 
-`/companion/connections` is native-only: safe GET snapshot; revision-checked POST local add/remove/select through the singleton store/save barrier, including first activation. Active removal and offline CLI edits are refused; selection never retargets the CLI.
+`/companion/connections` is native-only: safe GET snapshot (local profiles carry an observational `available` flag: folder and `jumpybrain.json` present); revision-checked POST add (local, or remote with `url`, `key` and optional `allowWrites`), remove (local or remote) and local select through the singleton store/save barrier, including first activation. Active removal and offline CLI edits are refused; selection never retargets the CLI; remote selection stays in Settings. The CLI's `connections test` and `status --all` use the existing `/companion/test`.
 
 ## Switch protocol
 

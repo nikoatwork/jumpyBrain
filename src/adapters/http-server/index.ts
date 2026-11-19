@@ -49,13 +49,16 @@ export interface StartedJumpyBrainHttpServer {
   close(): Promise<void>;
 }
 
+// Agents often guess X-API-Key; name the one accepted header instead.
+const MISSING_BEARER = "Missing Authorization bearer token. Send the access key as `Authorization: Bearer <key>`; X-API-Key and query parameters are not accepted. Agents should prefer the jumpybrain CLI with --target-url.";
+
 export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions): Server {
   const root = options.root.trim();
   if (!root) throw new Error("Server memory root is required.");
   const apiKeys = options.apiKeys.map((key) => key.trim()).filter(Boolean);
   if (apiKeys.length === 0 && !options.accessStore) throw new Error("At least one server API key is required.");
 
-  const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
+  const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), createBelow: root, component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
   const logger = diagnosticServerLogger(options.logger ?? createFileLogger({ root, name: "server" }), diagnostics);
   diagnostics.record({ operation: "startup", severity: "info", outcome: "ok", code: "none" });
   const indexRunner = options.indexRunner ?? createRemoteIndexRunner({
@@ -115,7 +118,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         const usesCookie = !bearer || bearer === "browser-session";
         if (usesCookie && browserToken && !["GET","HEAD"].includes(request.method ?? "") && request.headers.origin !== "http://" + request.headers.host && request.headers.origin !== "https://" + request.headers.host) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin.")); return;}
         principal = await authenticate(usesCookie ? browserToken ?? "" : bearer);
-        if (!principal) { writeJson(response, 401, errorResponse(header?.startsWith("Bearer ") ? "invalid_api_key" : "auth_required", header?.startsWith("Bearer ") ? "Invalid API key." : "Missing Authorization bearer token.")); return; }
+        if (!principal) { writeJson(response, 401, errorResponse(header?.startsWith("Bearer ") ? "invalid_api_key" : "auth_required", header?.startsWith("Bearer ") ? "Invalid API key." : MISSING_BEARER)); return; }
         const readPosts = [HTTP_MEMORY_ROUTES.search, HTTP_MEMORY_ROUTES.recall, HTTP_MEMORY_ROUTES.compactRecall, HTTP_MEMORY_ROUTES.expand, HTTP_MEMORY_ROUTES.resolveTitle, HTTP_MEMORY_ROUTES.dreamSources];
         if (principal.role === "reader" && !["GET", "HEAD"].includes(request.method ?? "") && !(request.method === "POST" && readPosts.includes(url.pathname as any))) {
           writeJson(response, 403, errorResponse("read_only", "This credential grants reader access.")); return;
@@ -242,7 +245,7 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
   const port = options.port ?? 3787;
   const root = options.root.trim();
   const logger = options.logger ?? createFileLogger({ root, name: "server" });
-  const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
+  const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), createBelow: root, component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
   const indexLogger = diagnosticServerLogger(logger, diagnostics);
   const indexRunner = options.indexRunner ?? createRemoteIndexRunner({
     root,

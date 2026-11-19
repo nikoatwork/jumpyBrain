@@ -1,5 +1,5 @@
 import { packageVersion } from "../adapters/package-info/index.js";
-import { parseArgs, stringArg } from "./args.js";
+import { parseArgs, stringArg, withoutRoot } from "./args.js";
 import { doctorReport, formatDoctorReport } from "./doctor.js";
 import { presentCliFailure } from "./errors.js";
 import { dreamCli } from "./dream.js";
@@ -36,7 +36,7 @@ function jsonFailureRequested(argv: string[]): boolean {
   const command = args._[0];
   if (args.json !== true || !command) return false;
   if (command === "update") return looksLikeMemoryDocumentUpdate(args);
-  return command === "run" || command === "board" || command === "drawings" || isMemoryCommand(command);
+  return command === "run" || command === "board" || command === "drawings" || command === "diff" || (command === "migrate" && args._[1] === "remote") || isMemoryCommand(command);
 }
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
@@ -51,7 +51,9 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     const status = (error as { status?: unknown } | undefined)?.status;
     if (status === 401 || status === 403) {
       let url: string | undefined;
-      try { const target = resolveCliTarget(args, { allowDiscovery: true }); if (target.kind === "remote") url = target.url; } catch {}
+      // diff/migrate remote also carry a local --root; the rejection came from the server.
+      const remoteOnly = args["target-url"] !== undefined || args["remote-url"] !== undefined ? withoutRoot(args) : args;
+      try { const target = resolveCliTarget(remoteOnly, { allowDiscovery: true }); if (target.kind === "remote") url = target.url; } catch {}
       const explained = url ? await remoteAuthFailure(error, url) : undefined;
       if (explained) throw explained;
     }
@@ -106,6 +108,14 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
     if (!args.help) await enforceRemoteAccessPolicy(args);
     const { drawingsCli } = await import("./drawings.js");
     await drawingsCli(args);
+    return;
+  }
+
+  if (command === "diff" || (command === "migrate" && args._[1] === "remote")) {
+    // The local --root side is only read; the policy applies to the server target.
+    await enforceRemoteAccessPolicy(withoutRoot(args));
+    const { syncCli } = await import("./migrate.js");
+    await syncCli(args);
     return;
   }
 
@@ -184,6 +194,13 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
       console.log(`Memory dirs: ${result.memoryDirs.join(", ")}`);
       console.log(`Derived state ignored: ${result.gitignoreUpdated ? "updated .gitignore" : "already ignored"}`);
     }
+    return;
+  }
+
+  if (command === "status" && args.all === true) {
+    await enforceRemoteAccessPolicy(args);
+    const { statusAllCli } = await import("./connections.js");
+    await statusAllCli(args, localMemory);
     return;
   }
 

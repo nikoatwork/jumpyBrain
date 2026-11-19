@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-19 — Shared-server migration for agents
+
+- From one agent-written feedback email: `jumpybrain diff` and `migrate remote` compare a local brain with a server and copy missing or newer-local notes and drawings (never deleting or overwriting newer server work; only declared dates order notes); `connections add --url --key-stdin|--key-env` and `connections test`; `status --all`; `show --json` `body`; a Bearer hint on 401; app connections refer to a key already in `.env` instead of copying it; a deleted brain is no longer recreated by its backend's shutdown diagnostics, and missing folders are flagged. [Outcome, checks and limits](done/2026-11-19_tasks-shared-server-migration.md).
+
 ## 2026-11-19 — Drawings in the CLI and tree
 
 - Added `jumpybrain drawings list|show|update` (hash-checked, local or `--target-url`, read-only policy aware) and a drawings branch/packet in `tree`, so agents no longer reverse-engineer HTTP routes; drawings remain unindexed. [Implementation, checks and limits](done/2026-11-19_tasks-drawings-cli.md).

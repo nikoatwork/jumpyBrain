@@ -12,7 +12,9 @@ export function remoteKeySummary(key: RemoteKey) {
 export function describeRemoteKey(key: RemoteKey): string {
   const print = keyFingerprint(key.key);
   const where = key.source === "environment" ? "JUMPYBRAIN_API_KEY from the environment"
-    : key.source === "app-connection" ? `the key the jumpyBrain app saved for this URL, ${key.variable} in ${key.file}`
+    : key.source === "app-connection" ? key.variable.startsWith("JUMPYBRAIN_KEY_")
+      ? `the key the jumpyBrain app saved for this URL, ${key.variable} in ${key.file}`
+      : `the key the jumpyBrain app uses for this URL, which refers to ${key.variable} in ${key.file}`
     : `JUMPYBRAIN_API_KEY in ${key.file}`;
   return `${where} (${print.length} chars${print.last4 ? `, ends …${print.last4}` : ""})`;
 }

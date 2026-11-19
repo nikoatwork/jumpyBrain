@@ -61,6 +61,16 @@ Authorization: Bearer <api-key>
 
 `GET /health` is unauthenticated and must not expose memory content or server filesystem paths. All `/memories/all/...` endpoints require auth.
 
+### For agents calling HTTP directly
+
+Prefer the CLI: `jumpybrain <command> --target-url <origin>` sends the right header, resolves the key (`JUMPYBRAIN_API_KEY`, then `~/.config/jumpybrain/.env`) and explains rejections. `jumpybrain status --target-url <origin>` shows which key it uses without printing it. Notes, drawings and boards each have CLI commands (`show`/`update`, `drawings`, `board`), and `jumpybrain diff` compares a local brain with a server.
+
+If you must call a route yourself:
+
+- Send the key only as `Authorization: Bearer <key>`. `X-API-Key`, `Api-Key` and query parameters are not accepted and return `401 auth_required`, whose message names the header. A wrong key returns `401 invalid_api_key`; a reader key on a write route returns `403 read_only`.
+- The Mac app's local address (`http://127.0.0.1:<port>`) is a private control surface for the app, not this API. Use the server's own origin.
+- Main routes: `GET /memories/all/status`; `GET /memories/all/files?hashes=true` (every note with its ID, path, content hash and dates); `GET|PUT /memories/all/documents/<mem_id>` (whole-file read; `PUT` needs `If-Match: <contentHash>`); `GET /memories/all/drawings` and `GET|PUT /memories/all/drawings/<name>` (`PUT` needs `If-Match`). Response shapes are documented below.
+
 ## Canonical disk layout
 
 ```text
@@ -376,11 +386,13 @@ Authenticated, read-only canonical metadata for the folder explorer:
 
 Every eligible Markdown file under the editor's canonical memory buckets is listed, including settled and snoozed notes. Paths are root-relative; optional titles come from frontmatter. Optional presentation-only dates support folder sorting: `createdAt` is valid declared `created_at`/legacy `createdAt` and is never inferred; `updatedAt` is valid declared `updated_at`/`updatedAt`, or file mtime only when the note declares neither date. Neither is evidence time. Older servers omit both; clients then keep name order. Missing, invalid or duplicated IDs return `id: null`, preserving the file's presence without suggesting it can be opened. Hidden paths are omitted; hidden duplicate IDs still make visible occurrences unopenable. Indexes and retrieval-only `indexRoot` do not affect the listing. No server root, body, canonical write or index update is included.
 
+Optional `?hashes=1` adds per file `contentHash` (sha256 over the exact file bytes, as document reads report it), `bodyHash` (sha256 over the exact text after the frontmatter) and `editedAt` (declared `updated_at`, else declared creation date; never mtime). The CLI's `diff` and `migrate remote` use it; older servers omit the fields and those commands ask for an upgrade. Hashing reads every listed file.
+
 By default directories are inferred from listed Markdown paths. Optional `?includeFolders=1` adds a `folders` array of visible canonical relative directories, including empty and attachment-only directories; hidden/technical directories and symlinks remain excluded. This endpoint has no limit or pagination: scan work and packet count grow with the corpus; the companion gateway retains its existing 16 MiB response cap. Cancellation stops request work. Fresh reads reflect external changes; discovery and subsequent document opening are not atomic. Other methods return 405; failures return a generic `files_failed` error. Responses use `Cache-Control: no-store`.
 
 ### `POST /memories/all/files/operations`
 
-Authenticated explorer writes run through the same server write queue and companion permission/generation gates as document editing. The body accepts exactly one of:
+Authenticated explorer writes run through the same server write queue and companion permission/generation gates as document editing. The body accepts exactly one of the following operations:
 
 ```json
 {"action":"create-folder","path":"notes/projects/New folder"}
@@ -389,6 +401,12 @@ Authenticated explorer writes run through the same server write queue and compan
 ```json
 {"action":"move-file","id":"mem_12345678-1234-4234-8234-123456789abc","file":"notes/projects/architecture.md","destination":"notes/archive/architecture.md"}
 ```
+
+```json
+{"action":"copy-in","path":"notes/projects/architecture.md","content":"---\nid: \"mem_…\"\n---\n# Architecture\n"}
+```
+
+`copy-in` (used by `jumpybrain migrate remote`) writes an exact copy of a note from another brain: a new visible canonical Markdown path, content whose frontmatter has a valid memory ID that no note in this brain uses, and at most the 1 MiB request limit. Missing folders inside the bucket are created. The file is published by no-clobber link, never replacing an existing path; bytes are not stamped or merged. It returns `{created:true,id,file,contentHash,indexing}` and dirties derived indexing. Existing paths and unsafe paths return 422 `validation_failed`, a missing/invalid ID 400 `invalid_id`, a used ID 409 `duplicate_id`.
 
 Folder creation requires an existing canonical parent and returns `{created:true,folder}` without indexing. Move/rename requires `If-Match: sha256:<64 hex>` from a current document read and the exact prior `file` path. It returns `{moved,id,file,previousFile,contentHash,indexing?}`; identical source/destination is an explicit `moved:false` no-op. Successful moves preserve bytes/identity and dirty derived indexing. Index bookkeeping failure retains `moved:true,indexing.status:failed`. Destination collisions, unsafe/hidden/non-Markdown paths and extra fields fail closed. No server roots are returned. Existing document error statuses apply (428 missing hash, 412 changed source/hash, 422 validation; unexpected I/O failures use generic 500 errors).
 

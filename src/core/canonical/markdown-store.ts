@@ -2,7 +2,7 @@ import { attributionHash, currentMemoryEditor } from "../contribution.js";
 import { metadataDate } from "./metadata-date.js";
 import { createHash, randomUUID } from "node:crypto";
 import { constants, type Stats } from "node:fs";
-import { link, lstat, open, readdir, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
+import { link, lstat, mkdir, open, readdir, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { normalizedDocumentTitle } from "../document-title.js";
 export { normalizedDocumentTitle } from "../document-title.js";
@@ -407,6 +407,58 @@ export async function moveCanonicalMemoryDocumentById(rootArg: string, id: strin
       await fsyncDirectoryBestEffort(path.dirname(destination.absolutePath));
     }));
     return { id, file: destination.file, previousFile: location.file, contentHash: hash, moved: true };
+  });
+}
+
+/**
+ * Copies one Markdown note into the brain byte for byte (migration from another
+ * brain). The path must be a visible canonical Markdown path that does not
+ * exist; the frontmatter must carry a valid memory ID used by no other note.
+ * Missing folders inside the bucket are created one level at a time. Never
+ * overwrites, stamps metadata, rewrites links or retries.
+ */
+export async function createCanonicalMemoryDocumentCopy(rootArg: string, relative: string, content: string): Promise<{ id: string; file: string; contentHash: MemoryDocumentContentHash; created: true }> {
+  try { validateCanonicalExplorerPath(relative, true); }
+  catch { throw new MemoryDocumentLookupError("validation_failed", "Choose a visible Markdown path within the memory folders."); }
+  if (typeof content !== "string" || Buffer.byteLength(content) > 8 * 1024 * 1024) throw new MemoryDocumentLookupError("validation_failed", "Note content must be text of at most 8 MiB.");
+  const id = parseFrontmatter(content).frontmatter.id;
+  if (!isValidMemoryDocumentId(id)) throw new MemoryDocumentLookupError("invalid_id", "The copied note needs a valid memory ID (id: mem_<uuid>) in its frontmatter.");
+  const root = await resolveMemoryRoot(rootArg);
+  return withCanonicalMutation(root, async () => {
+    try {
+      const existing = await findCanonicalMemoryDocumentById(root, id);
+      throw new MemoryDocumentLookupError("duplicate_id", `This brain already has a note with id '${id}' (${existing.file}).`, { id, files: [existing.file] });
+    } catch (error) {
+      if (!(error instanceof MemoryDocumentLookupError) || error.code !== "missing_id") throw error;
+    }
+    const parts = relative.split("/");
+    for (let depth = 1; depth < parts.length; depth++) {
+      const folder = parts.slice(0, depth).join("/"), absolute = path.join(root, folder);
+      const entry = await lstat(absolute).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return null; throw error; });
+      if (entry && (!entry.isDirectory() || entry.isSymbolicLink())) throw new MemoryDocumentLookupError("validation_failed", "A file already exists where a folder is needed.");
+      if (!entry) {
+        if (depth > 1) await canonicalDirectoryIdentity(root, parts.slice(0, depth - 1).join("/"));
+        await mkdir(absolute).catch((error: NodeJS.ErrnoException) => { if (error.code !== "EEXIST") throw error; });
+      }
+    }
+    const parent = path.posix.dirname(relative);
+    const identity = await canonicalDirectoryIdentity(root, parent);
+    const absolutePath = path.join(root, relative), temporary = path.join(path.dirname(absolutePath), `.${path.basename(relative)}.${randomUUID()}.copy`);
+    const handle = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644);
+    try {
+      await handle.writeFile(content, "utf8"); await handle.sync();
+    } finally { await handle.close(); }
+    try {
+      if (await canonicalDirectoryIdentity(root, parent) !== identity) throw new MemoryDocumentLookupError("validation_failed", "The destination folder changed; retry.");
+      // link is no-clobber: an existing file at the path is never replaced.
+      try { await link(temporary, absolutePath); }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new MemoryDocumentLookupError("validation_failed", "A file already exists at this path.");
+        throw error;
+      }
+    } finally { await unlink(temporary).catch(() => undefined); }
+    await fsyncDirectoryBestEffort(path.dirname(absolutePath));
+    return { id, file: relative, contentHash: hashMemoryDocumentContent(content), created: true as const };
   });
 }
 

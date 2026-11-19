@@ -87,7 +87,8 @@ try {
   const status = JSON.parse(stdout);
   assert.equal(status.memory, "all"); assert.equal(status.initialized, true, "CLI status authenticated to the remote brain");
   await assert.rejects(promisify(execFile)(process.execPath, [cli, "status", "--target-url", "http://127.0.0.1:9", "--json"], { env, timeout: 20000 }),
-    (error) => /No access key for/.test(error.stderr) && !error.stderr.includes(remoteKey));
+    // --json failures print one JSON error object on stdout.
+    (error) => /No access key for/.test(error.stdout + error.stderr) && !(error.stdout + error.stderr).includes(remoteKey));
   // Upgrade from a Keychain build: the profile keeps its reference but the file has no key.
   // The connection reports the missing key, and re-entering it in Settings repairs it.
   await writeFile(file, (await readFile(file, "utf8")).replace(/^JUMPYBRAIN_(KEY|URL)_.*\n/gm, ""), { mode: 0o600 });

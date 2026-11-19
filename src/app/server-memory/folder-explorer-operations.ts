@@ -1,4 +1,4 @@
-import { createCanonicalMemoryFolder, moveCanonicalMemoryDocumentById, resolveMemoryRoot, MemoryDocumentLookupError } from "../../core/canonical/index.js";
+import { createCanonicalMemoryDocumentCopy, createCanonicalMemoryFolder, moveCanonicalMemoryDocumentById, resolveMemoryRoot, MemoryDocumentLookupError } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import { markRemoteIndexStale } from "./state.js";
 
@@ -18,6 +18,12 @@ export async function applyServerMemoryFileOperation(options: { root: string; op
   if (op.action === "move-file" && typeof op.id === "string" && typeof op.file === "string" && typeof op.destination === "string" && Object.keys(op).every(key => ["action", "id", "file", "destination"].includes(key))) {
     const result = await moveCanonicalMemoryDocumentById(root, op.id, { file: op.file, destination: op.destination, ifMatch: options.ifMatch ?? "" });
     if (!result.moved) return result;
+    try { await markRemoteIndexStale(root); return { ...result, indexing: { status: "pending" } }; }
+    catch { return { ...result, indexing: { status: "failed" } }; }
+  }
+  // Migration from another brain: an exact copy at a new path, never a replacement.
+  if (op.action === "copy-in" && typeof op.path === "string" && typeof op.content === "string" && Object.keys(op).every(key => ["action", "path", "content"].includes(key))) {
+    const result = await createCanonicalMemoryDocumentCopy(root, op.path, op.content);
     try { await markRemoteIndexStale(root); return { ...result, indexing: { status: "pending" } }; }
     catch { return { ...result, indexing: { status: "failed" } }; }
   }

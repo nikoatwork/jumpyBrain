@@ -192,3 +192,19 @@ test('legacy formatter handles nested/circular objects, errors and poisoned gett
   const logger = createFileLogger({ root: '/unused', name: 'fixture', append: async () => {} });
   assert.doesNotThrow(() => logger.info('test', { get nested() { throw new Error('private'); } }));
 });
+
+test('root-anchored diagnostics and text logs never recreate a deleted memory root', async t => {
+  const base = await fixture(t), root = path.join(base, 'brain');
+  await mkdir(root);
+  const store = createDiagnosticStore({ directory: path.join(root, '.jumpybrain', 'logs', 'diagnostics'), createBelow: root, component: 'server' });
+  store.record(event({ component: 'server' })); await store.flush();
+  assert.equal((await readdir(path.join(root, '.jumpybrain', 'logs', 'diagnostics'))).length, 1);
+  await rm(root, { recursive: true, force: true });
+  store.record(event({ component: 'server', code: 'offline' })); await store.flush();
+  const snapshot = await store.snapshot();
+  assert.equal(snapshot.availability, 'degraded');
+  const logger = createFileLogger({ root, name: 'server' });
+  logger.info('after_delete'); await logger.flush?.();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await assert.rejects(stat(root), { code: 'ENOENT' });
+});

@@ -614,7 +614,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
     if (isJsonError(operation)) { writeJson(response, operation.statusCode, operation.body); return; }
     try {
       const packet = await enqueueWrite(() => applyServerMemoryFileOperation({ root, operation, ifMatch: ifMatchHeader(request) }));
-      if ("moved" in packet && packet.moved) context.onMemoryWrite?.();
+      if (("moved" in packet && packet.moved) || ("contentHash" in packet && "created" in packet)) context.onMemoryWrite?.();
       writeJson(response, 200, packet);
     } catch (error) {
       const mapped = documentUpdateErrorResponse(error);
@@ -630,7 +630,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
       return;
     }
     try {
-      writeJson(response, 200, await listServerMemoryFiles({ root, signal, includeFolders: booleanSearchParam(url, "includeFolders") }));
+      writeJson(response, 200, await listServerMemoryFiles({ root, signal, includeFolders: booleanSearchParam(url, "includeFolders"), hashes: booleanSearchParam(url, "hashes") }));
     } catch {
       if (signal?.aborted) return;
       writeJson(response, 500, errorResponse("files_failed", "Remote file listing failed."));
@@ -832,7 +832,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
 function authenticate(request: IncomingMessage, apiKeys: string[]): JsonError | undefined {
   const header = request.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
-    return errorResponse("auth_required", "Missing Authorization bearer token.");
+    return errorResponse("auth_required", "Missing Authorization bearer token. Send the access key as `Authorization: Bearer <key>`; X-API-Key and query parameters are not accepted.");
   }
 
   const token = header.slice("Bearer ".length).trim();

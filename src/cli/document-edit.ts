@@ -4,6 +4,7 @@ import { stringArg, type ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
 import type { CommandMemoryTarget } from "./memory-target.js";
 import { readStdin } from "./stdin.js";
+import { exactMarkdownBody } from "../core/frontmatter.js";
 
 export async function showMemoryDocumentFromArgs(
   target: CommandMemoryTarget,
@@ -15,7 +16,9 @@ export async function showMemoryDocumentFromArgs(
     ? await target.memory.readMemoryDocument(id)
     : await localMemory.readMemoryDocument(target.root, id);
   if (args.json) {
-    console.log(JSON.stringify(result, null, 2));
+    // `content` is the whole file (frontmatter included; contentHash covers it).
+    // `body` is the exact text after the frontmatter, for body-only comparisons.
+    console.log(JSON.stringify({ ...result, body: exactMarkdownBody(result.content) }, null, 2));
     return;
   }
   writeHumanDocumentRead(result);

@@ -65,6 +65,8 @@ export type { SourceCheckRequest, SourceCheckResult } from "../core/dream/source
 export * from "./boards.js";
 export * from "./drawings.js";
 
+export { applyRemoteMigration, compareMemorySources, localInventorySource, memoryInventory, planRemoteMigration, SYNC_STATUSES, type InventorySource, type MigrationTarget, type MigrationOutcome, type MigrationPlan, type SyncComparison, type SyncReport, type SyncStatus } from "../app/sync/index.js";
+
 export { inspectLocalSearchEngine, resolveLocalSearchEngineBinary } from "../app/local-memory/index.js";
 
 export { listMemoryAttention, patchMemoryDocumentAttention } from "../app/attention.js";

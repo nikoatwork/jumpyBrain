@@ -125,6 +125,8 @@ export function isReadInvocation(args: ParsedCliArgs): boolean {
   if (command === "access") return args._[1] === "list";
   if (command === "board") return ["list", "show", "status"].includes(args._[1] ?? "");
   if (command === "drawings") return ["list", "show"].includes(args._[1] ?? "");
+  if (command === "diff") return true;
+  if (command === "migrate") return args._[1] === "remote" && args.apply !== true;
   if (command === "dream") {
     // Deprecated mutations remain blocked before input/credentials; normal windows are read-only.
     if (args["apply-manifest"] || args.complete || args.abandon || args.force) return false;

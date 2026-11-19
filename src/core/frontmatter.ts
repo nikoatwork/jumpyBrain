@@ -7,6 +7,26 @@ export interface ParsedFrontmatter {
   lineEnding: string;
 }
 
+/**
+ * The exact Markdown body after a leading frontmatter block: every byte after
+ * the closing `---` line and its line ending. Without frontmatter, the whole
+ * content. Unlike `parseFrontmatter().body`, line endings are preserved.
+ */
+export function exactMarkdownBody(content: string): string {
+  const opening = /^[ \t]*---[ \t]*\r?\n/.exec(content);
+  if (!opening) return content;
+  const closing = /^[ \t]*---[ \t]*(?:\r?\n|$)/m; // same delimiter rule as parseFrontmatter
+  let offset = opening[0].length;
+  while (offset <= content.length) {
+    const match = closing.exec(content.slice(offset));
+    if (!match) return content;
+    const at = offset + match.index;
+    if (at === offset || content[at - 1] === "\n") return content.slice(at + match[0].length);
+    offset = at + 1;
+  }
+  return content;
+}
+
 export function parseFrontmatter(content: string): ParsedFrontmatter {
   const lineEnding = content.includes("\r\n") ? "\r\n" : "\n";
   const lines = content.split(/\r?\n/);

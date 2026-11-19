@@ -115,6 +115,11 @@ test("local CLI document edit smoke initializes, remembers, indexes, recalls, sh
     assert.match(shown.contentHash, /^sha256:[0-9a-f]{64}$/);
     assert.match(shown.content, new RegExp(`id: "${remembered.id}"`));
     assert.match(shown.content, new RegExp(originalToken));
+    // `body` is the exact text after the frontmatter; content = frontmatter block + body.
+    assert.ok(shown.content.endsWith(shown.body));
+    assert.match(shown.body, new RegExp(originalToken));
+    assert.doesNotMatch(shown.body, /^---/);
+    assert.match(shown.content.slice(0, shown.content.length - shown.body.length), /^---\n[\s\S]*\n---\n$/);
 
     const revisedContent = shown.content.replace(originalToken, revisedToken);
     assert.notEqual(revisedContent, shown.content);

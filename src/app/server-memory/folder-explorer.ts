@@ -1,8 +1,9 @@
-import { listCanonicalMemoryFolders, listCanonicalMemoryMarkdownFiles, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
+import { hashMemoryDocumentContent, listCanonicalMemoryFolders, listCanonicalMemoryMarkdownFiles, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { isValidMemoryDocumentId } from "../../core/document-id.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import { firstAttentionDate } from "../../core/attention.js";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
+import { exactMarkdownBody } from "../../core/frontmatter.js";
 
 export interface MemoryExplorerFile {
   /** Null when an absent, invalid or duplicated canonical ID prevents opening. */
@@ -13,12 +14,18 @@ export interface MemoryExplorerFile {
   updatedAt?: string;
   /** Declared `created_at`/legacy `createdAt`; never inferred from the filesystem. */
   createdAt?: string;
+  /** With `hashes`: sha256 over the exact file bytes, as `show` reports it. */
+  contentHash?: string;
+  /** With `hashes`: sha256 over the exact body after the frontmatter. */
+  bodyHash?: string;
+  /** With `hashes`: declared `updated_at`, else declared creation date; never file mtime (unreliable across machines and checkouts). */
+  editedAt?: string;
 }
 
 export interface MemoryExplorerPacket { files: MemoryExplorerFile[]; folders?: string[] }
 
 /** Complete canonical metadata listing, independent of retrieval indexes and attention. */
-export async function listServerMemoryFiles(options: { root: string; signal?: AbortSignal; includeFolders?: boolean }): Promise<MemoryExplorerPacket> {
+export async function listServerMemoryFiles(options: { root: string; signal?: AbortSignal; includeFolders?: boolean; hashes?: boolean }): Promise<MemoryExplorerPacket> {
   const { signal } = options;
   signal?.throwIfAborted();
   const root = await resolveMemoryRoot(options.root);
@@ -41,9 +48,19 @@ export async function listServerMemoryFiles(options: { root: string; signal?: Ab
     let updatedAt = firstAttentionDate(metadata.updated_at, metadata.updatedAt);
     // Plain Markdown dropped into the brain has no declared dates; mtime is its only edit signal.
     if (!updatedAt && !createdAt) updatedAt = await stat(absolutePath).then(info => info.mtime.toISOString(), () => undefined);
+    let hashes: { contentHash: string; bodyHash: string; editedAt?: string } | undefined;
+    const declaredEdit = firstAttentionDate(metadata.updated_at, metadata.updatedAt) ?? createdAt;
+    if (options.hashes) {
+      const bytes = await readFile(absolutePath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") return null;
+        throw error;
+      });
+      if (!bytes) continue;
+      hashes = { contentHash: hashMemoryDocumentContent(bytes), bodyHash: hashMemoryDocumentContent(exactMarkdownBody(bytes.toString("utf8"))), ...(declaredEdit ? { editedAt: declaredEdit } : {}) };
+    }
     files.push({ id, file: document.relativePath,
       ...(typeof metadata.title === "string" ? { title: metadata.title } : {}),
-      ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}) });
+      ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}), ...hashes });
   }
   for (const file of files) if (file.id && counts.get(file.id) !== 1) file.id = null;
   files.sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : 0);

@@ -11,13 +11,20 @@ export interface ParsedCliArgs {
   [key: string]: string | boolean | string[];
 }
 
+/** The same arguments without the local --root (for commands that also name a server). */
+export function withoutRoot(args: ParsedCliArgs): ParsedCliArgs {
+  const { root: _root, ...rest } = args;
+  return rest as ParsedCliArgs;
+}
+
 export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "identity") return parseIdentityArgs(argv);
   if (argv[0] === "board") return parseBoardArgs(argv);
   if (argv[0] === "drawings") return parseDrawingArgs(argv);
   if (argv[0] === "feedback") return parseFeedbackArgs(argv);
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);
-  if (argv[0] === "migrate") return parseMigrationArgs(argv);
+  if (argv[0] === "migrate") return argv[1] === "remote" ? parseSyncArgs(argv) : parseMigrationArgs(argv);
+  if (argv[0] === "diff") return parseSyncArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
   if (operation === "dream" && argv.some(token => /^--(?:check-sources|draft|page-file|id)(?:=|$)/u.test(token))) return parseDreamSourceArgs(argv);
   if (operation === "remember") return parseRememberArgs(argv);
@@ -71,9 +78,9 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     instructions: { values: ["topic"] },
     "agent-hint": { values: ["topic"] },
     doctor: { values: ["root", "probe-query"], booleans: ["check"] },
-    connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "revision"], remove: ["id", "revision"], select: ["id", "revision"] }[argv[1] ?? ""] ?? [])] },
+    connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "url", "key-env", "revision"], remove: ["id", "revision"], select: ["id", "revision"], test: ["id"] }[argv[1] ?? ""] ?? [])], booleans: argv[1] === "add" ? ["key-stdin", "allow-writes"] : [] },
     attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
-    status: { values: targets },
+    status: { values: [...targets, "directory"], booleans: ["all"] },
     index: { values: [...targets, "semantic-model", "model-file"], booleans: ["rebuild", "lexical", "setup-semantic", "download-model"] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     overview: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
@@ -123,12 +130,21 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
       if (action === "snooze" && !validateMemoryAttentionAction({ action, until: stringArg(args, "until") }, Date.now())) throw new Error("--until requires a future timezone-explicit timestamp.");
     }
   }
+  if (operation === "status" && argv[0] === "run" && (args.all || args.directory !== undefined)) throw new Error("--all is not a recipe flag; use jumpybrain status --all.");
+  if (operation === "status" && args.directory !== undefined && !args.all) throw new Error("--directory applies only to status --all.");
   if (operation === "process" && args.preview && (args.mode !== "lint" || args.apply !== undefined)) throw new Error("--preview requires --mode lint and cannot combine with --apply.");
   if (operation === "connections") {
     const action = argv[1];
-    if (!["list", "add", "remove", "select"].includes(action ?? "")) throw new Error("Use jumpybrain connections list|add|remove|select --help.");
-    for (const key of action === "list" ? [] : action === "add" ? ["name", "root", "revision"] : ["id", "revision"]) stringArg(args, key);
-    if (action !== "list" && (!/^(?:0|[1-9][0-9]*)$/.test(String(args.revision)) || !Number.isSafeInteger(Number(args.revision)))) throw new Error("--revision must be a nonnegative safe integer from connections list.");
+    if (!["list", "add", "remove", "select", "test"].includes(action ?? "")) throw new Error("Use jumpybrain connections list|add|remove|select|test --help.");
+    if (action === "add") {
+      const remote = args.url !== undefined;
+      if (remote === (args.root !== undefined)) throw new Error("connections add needs exactly one of --root <existing-brain> or --url <origin>.");
+      if (remote && (args["key-stdin"] === true) === (args["key-env"] !== undefined)) throw new Error("A remote connection needs exactly one of --key-stdin or --key-env <VARIABLE>; keys are never accepted as arguments.");
+      if (!remote && (args["key-stdin"] || args["key-env"] !== undefined || args["allow-writes"])) throw new Error("--key-stdin, --key-env and --allow-writes apply only to a remote --url connection.");
+      if (args["key-env"] !== undefined && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(args["key-env"]))) throw new Error("--key-env needs an environment variable name such as JUMPYBRAIN_API_KEY.");
+    }
+    for (const key of action === "list" ? [] : action === "add" ? ["name", "revision"] : action === "test" ? ["id"] : ["id", "revision"]) stringArg(args, key);
+    if (!["list", "test"].includes(action!) && (!/^(?:0|[1-9][0-9]*)$/.test(String(args.revision)) || !Number.isSafeInteger(Number(args.revision)))) throw new Error("--revision must be a nonnegative safe integer from connections list.");
   }
   if (operation === "index") {
     if ((args["download-model"] || args["model-file"]) && !args["setup-semantic"]) throw new Error("Model provisioning requires explicit --setup-semantic.");
@@ -263,6 +279,33 @@ function parseBoundedReadArgs(argv: string[], operation: string): ParsedCliArgs 
 }
 
 // Keep migration strict without changing legacy argument behavior for other commands.
+/** `diff` and `migrate remote`: exactly one local --root and one --target-url (or --remote-url). */
+function parseSyncArgs(argv: string[]): ParsedCliArgs {
+  const diff = argv[0] === "diff", positional = diff ? 1 : 2;
+  const args: ParsedCliArgs = { _: argv.slice(0, positional) };
+  const values = new Set(["root", "target-url", "remote-url"]);
+  const booleans = new Set(["json", ...(diff ? ["all"] : ["dry-run", "apply"])]);
+  for (let index = positional; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error(`Unexpected ${argv[0]} argument: ${token}. See jumpybrain ${argv[0]} --help.`);
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!values.has(key) && !booleans.has(key)) throw new Error(`Unknown ${argv[0]} flag --${key}. See jumpybrain ${argv[0]} --help.`);
+    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    if (booleans.has(key)) {
+      if (equal >= 0) throw new Error(`--${key} is a boolean flag and takes no value.`);
+      args[key] = true;
+      continue;
+    }
+    const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+    if (!value || value.startsWith("--") || !value.trim()) throw new Error(`--${key} requires a value.`);
+    args[key] = value;
+  }
+  if (args["target-url"] !== undefined && args["remote-url"] !== undefined) throw new Error("Use only one of --target-url or --remote-url.");
+  if (args.root === undefined || (args["target-url"] ?? args["remote-url"]) === undefined) throw new Error(`jumpybrain ${diff ? "diff" : "migrate remote"} needs --root <local-brain> and --target-url <server>.`);
+  if (args.apply && args["dry-run"]) throw new Error("Choose --dry-run (the default) or --apply.");
+  return args;
+}
+
 function parseMigrationArgs(argv: string[]): ParsedCliArgs {
   if (argv.some((token) => /^--(?:target-url|remote-url)(?:=|$)/.test(token))) {
     throw new Error("Migration is local-only; --target-url and --remote-url are not supported. Use --source and --root.");

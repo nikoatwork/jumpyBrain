@@ -334,10 +334,21 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     mutation = true;
     try { return await operation(); } finally { mutation = false; }
   };
-  const connectionState = () => {
-    const { version, revision, activeId, profiles } = store.snapshot();
-    return { version, revision, activeId, profiles: profiles.map(safeProfile) };
+  // Observational only: a local profile whose folder or marker is gone is listed
+  // as unavailable. Nothing here creates, repairs or writes into that folder.
+  const localAvailable = async (root) => {
+    try { const folder = await lstat(root), marker = await lstat(path.join(root, 'jumpybrain.json')); return folder.isDirectory() && !folder.isSymbolicLink() && marker.isFile(); }
+    catch { return false; }
   };
+  const connectionState = async () => {
+    const { version, revision, activeId, profiles } = store.snapshot();
+    return { version, revision, activeId, profiles: await Promise.all(profiles.map(async (profile) => profile.kind === 'local'
+      ? { ...safeProfile(profile), available: await localAvailable(profile.root) } : safeProfile(profile))) };
+  };
+  const remoteAddition = (profile) => object(profile) && profile.kind === 'remote'
+    && Object.keys(profile).every((key) => ['name','kind','url','key','allowWrites'].includes(key))
+    && typeof profile.name === 'string' && typeof profile.url === 'string' && typeof profile.key === 'string'
+    && (profile.allowWrites === undefined || typeof profile.allowWrites === 'boolean');
   const checkRevision = (revision) => {
     if (!Number.isSafeInteger(revision) || revision < 0 || revision !== store.snapshot().revision) failure('REVISION_CONFLICT', 'Connections changed. List connections and retry deliberately.', 409);
   };
@@ -424,7 +435,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         displayIdentity = await readIdentity(identityFile).catch(() => ({ name: "", unavailable: true }));
         if (url.pathname === '/companion/connections') {
           if (!auth.native) failure('unauthorized', 'Native connection control required.', 403);
-          if (request.method === 'GET') { json(response, 200, connectionState()); return; }
+          if (request.method === 'GET') { json(response, 200, await connectionState()); return; }
           if (request.method !== 'POST') failure('method_not_allowed', 'Use GET or POST.', 405);
           const body = await jsonBody(request);
           checkRevision(body.revision);
@@ -433,13 +444,13 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
             await switchTo(body.id, body.revision);
           } else await change(async () => {
             checkRevision(body.revision);
-            if (body.action === 'add' && exact(body, ['action','profile','revision']) && exact(body.profile, ['name','kind','root']) && body.profile.kind === 'local') {
+            if (body.action === 'add' && exact(body, ['action','profile','revision']) && ((exact(body.profile, ['name','kind','root']) && body.profile.kind === 'local') || remoteAddition(body.profile))) {
               if (store.snapshot().activeId === null) { await coordinator.switch(null, () => store.save(body.profile, body.revision)); void extensions.scopeChanged(); }
               else await store.save(body.profile, body.revision);
-            } else if (body.action === 'remove' && exact(body, ['action','id','revision']) && store.get(body.id)?.kind === 'local') await store.remove(body.id, body.revision);
-            else failure('invalid_request', 'Use local add, remove or select with a current revision.');
+            } else if (body.action === 'remove' && exact(body, ['action','id','revision']) && store.get(body.id)) await store.remove(body.id, body.revision);
+            else failure('invalid_request', 'Use add (local or remote), remove or local select with a current revision.');
           });
-          json(response, 200, connectionState()); return;
+          json(response, 200, await connectionState()); return;
         }
         if (url.pathname === '/companion/state' && request.method === 'GET') { await refreshHealth(); json(response, 200, state()); return; }
         if (request.method !== 'POST') failure('method_not_allowed', 'Use POST for companion actions.', 405);
