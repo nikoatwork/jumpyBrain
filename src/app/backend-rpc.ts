@@ -5,6 +5,7 @@ import * as dream from "./dream/index.js";
 import * as writing from "./writing/index.js";
 import * as migration from "./migration/index.js";
 import * as boards from "./boards/index.js";
+import * as drawings from "./drawings/index.js";
 import { initializeMemoryRoot } from "../core/index.js";
 import { processMemory } from "./processing/index.js";
 import { ensureSavedMemoryIndexed } from "./creation.js";
@@ -34,6 +35,7 @@ const handlers: BackendHandlers = {
   checkDreamSources: owned(checkDreamSources), rememberMemory: owned(writing.rememberMemory), writeSessionWrapup: owned(writing.writeSessionWrapup),
   listBoards: owned(boards.listBoards), readBoard: owned(boards.readBoard), saveBoard: owned(boards.saveBoard),
   deleteBoard: owned(boards.deleteBoard), getBoardStatus: owned(boards.getBoardStatus),
+  saveDrawing: owned(drawings.saveDrawing),
   initializeMemoryRoot: (context, options) => initializeMemoryRoot(context.root, { ...options, packageVersion: context.version }),
   migrateLogseq: (context, source, options) => migration.migrateLogseq(source, context.root, options),
   migrateObsidian: (context, source, options) => migration.migrateObsidian(source, context.root, options),

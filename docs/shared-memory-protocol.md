@@ -311,11 +311,12 @@ Response:
     "topHubs": [{ "file": "pages/remote-memory.md", "degree": 5 }],
     "edges": [{ "source": "pages/remote-memory.md", "target": "decisions/api.md", "kind": "wiki-link", "count": 1 }]
   },
+  "drawings": { "count": 2, "skipped": 0, "names": ["Auth flow", "Roadmap"] },
   "warnings": []
 }
 ```
 
-Remote overview output must never expose the server's absolute filesystem root or memory body content. Connection stats are an explicit-link graph only; they are not marketed as an embedding mesh.
+`drawings` lists Excalidraw file names in `drawings/`, newest first and bounded by `limit` (default 10); it is omitted for an incompatible root. Remote overview output must never expose the server's absolute filesystem root or memory body content. Connection stats are an explicit-link graph only; they are not marketed as an embedding mesh.
 
 ### `GET /` and `GET /graph`
 
@@ -935,7 +936,7 @@ Boards are canonical version-1 JSON files under the server-local memory root, se
 | `/memories/all/drawings/:name` | PATCH | `{name}` renames; required If-Match; never overwrites. Also rewrites `[[Old.excalidraw]]` mentions in notes and returns the drawing plus `mentions:{updated:[{id,title}], failed:[{id,title,code}]}` |
 | `/memories/all/drawings/:name` | DELETE | Required If-Match; returns `{name, deleted:true, notesPreserved:true}` |
 
-A drawing name is its filename without `.excalidraw`: 1–100 characters, no control characters, `/ \ : [ ] | #`, or leading/trailing dot or space. A scene is standard Excalidraw JSON (`type:"excalidraw"`, `elements`, optional `appState`/`files`), at most 4 MiB stored; these routes accept request bodies up to 5 MiB. Errors use `invalid_drawing` (400), `drawing_missing` (404), `drawing_conflict`/`drawing_busy` (409) and 428 without If-Match. Drawings are not searched, recalled or indexed, and writes do not schedule indexing. `GET /drawing-frame` and `GET /drawing-app/*` are public, content-free editor files.
+A drawing name is its filename without `.excalidraw`: 1–100 characters, no control characters, `/ \ : [ ] | #`, or leading/trailing dot or space. A scene is standard Excalidraw JSON (`type:"excalidraw"`, `elements`, optional `appState`/`files`), at most 4 MiB stored; these routes accept request bodies up to 5 MiB. Errors use `invalid_drawing` (400), `drawing_missing` (404), `drawing_conflict`/`drawing_busy` (409) and 428 without If-Match. Drawings are not searched, recalled or indexed, and writes do not schedule indexing. Clients should use `jumpybrain drawings list|show|update` rather than calling these routes directly. `GET /drawing-frame` and `GET /drawing-app/*` are public, content-free editor files.
 
 Board fields are exactly `{schemaVersion:1,id,name,archived,columns:[{name,pages}]}`. ID is a UUID; pages are canonical note IDs. Exactly three ordered columns, 100 boards/root, 100 cards/column, 100-character names and 64 KiB per file. IDs may repeat across boards but not within one. POST/PUT return `{board,contentHash}`. Unknown fields and unsupported versions fail; reads never recreate corrupt data. Layout references can remain missing: deletion of a board/card never deletes notes.
 

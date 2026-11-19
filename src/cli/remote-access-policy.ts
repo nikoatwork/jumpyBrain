@@ -124,6 +124,7 @@ export function isReadInvocation(args: ParsedCliArgs): boolean {
   if (command === "attention") return args._[1] === "list";
   if (command === "access") return args._[1] === "list";
   if (command === "board") return ["list", "show", "status"].includes(args._[1] ?? "");
+  if (command === "drawings") return ["list", "show"].includes(args._[1] ?? "");
   if (command === "dream") {
     // Deprecated mutations remain blocked before input/credentials; normal windows are read-only.
     if (args["apply-manifest"] || args.complete || args.abandon || args.force) return false;
@@ -134,7 +135,7 @@ export function isReadInvocation(args: ParsedCliArgs): boolean {
 
 function isTargetAwareInvocation(args: ParsedCliArgs): boolean {
   const command = args._[0];
-  if (command === "dream" || command === "note") return true;
+  if (command === "dream" || command === "note" || command === "drawings") return true;
   if (["status", "index", "tree", "overview", "search", "recall", "show", "delete", "expand", "process", "remember", "wrapup"].includes(command)) return true;
   if (command === "update") return Boolean(args.id || args["if-match"] || args.root || args["target-url"] || args["remote-url"]);
   if (command === "run" && typeof args._[1] === "string" && args._[1].startsWith(MEMORY_RECIPE_PREFIX)) return true;

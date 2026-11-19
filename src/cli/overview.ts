@@ -28,6 +28,17 @@ export function formatMemoryOverview(result: MemoryOverviewResult, options: Memo
     });
   }
 
+  const drawings = result.drawings;
+  if (drawings && (drawings.count > 0 || drawings.skipped > 0)) {
+    lines.push("");
+    lines.push(`drawings/ (${drawings.count} Excalidraw file${drawings.count === 1 ? "" : "s"}, not indexed${drawings.skipped ? `, ${drawings.skipped} skipped` : ""})`);
+    drawings.names.forEach((name, index) => {
+      const last = index === drawings.names.length - 1 && drawings.count <= drawings.names.length;
+      lines.push(`${last ? "└──" : "├──"} ${name.replace(/[\x00-\x1f\x7f-\x9f]/g, " ")}.excalidraw`);
+    });
+    if (drawings.count > drawings.names.length) lines.push(`└── … ${drawings.count - drawings.names.length} more (jumpybrain drawings list)`);
+  }
+
   if (options.showFiles && result.files && result.files.length > 0) {
     lines.push("");
     lines.push(`Files (showing ${result.files.length})`);

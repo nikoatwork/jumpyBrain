@@ -1,13 +1,14 @@
 import { memoryTransportDeadlineMs } from "../../core/execution-limits.js";
-import { record, validDocumentRead, validDocumentUpdate, validAttentionReceipt, validBoardReceipt } from "./receipts.js";
+import { record, validDocumentRead, validDocumentUpdate, validAttentionReceipt, validBoardReceipt, validDrawingRecord } from "./receipts.js";
 import type { Board, BoardRecord, BoardList } from "../../core/boards/model.js";
+import type { DrawingList, DrawingRecord } from "../../core/drawings/model.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import { normalizeEvidenceDate } from "../../core/writing/metadata.js";
 import { validTemporalResponse } from "./temporal-response.js";
 import type { ExecutionOptions, TemporalQuery } from "../../types.js";
 import { randomUUID } from "node:crypto";
-import { HTTP_MEMORY_ROUTES, memoryDocumentPath, memoryDreamBatchAbandonPath, memoryDreamBatchCompletePath, memoryDreamBatchPath } from "../http-protocol.js";
+import { HTTP_MEMORY_ROUTES, memoryDocumentPath, memoryDrawingPath, memoryDreamBatchAbandonPath, memoryDreamBatchCompletePath, memoryDreamBatchPath } from "../http-protocol.js";
 import { packetFits, validatePacketMaxBytes } from "../../core/serialized-budget.js";
 import type { CompactRecallOptions, CompactRecallPacket } from "../../core/retrieval-policy/compact.js";
 import type { ExpansionOptions, ExpansionResult } from "../../core/canonical/expansion.js";
@@ -71,6 +72,9 @@ export interface RemoteMemoryTransport {
   saveBoard(board: Board, ifMatch?: string): Promise<BoardRecord>;
   deleteBoard(id: string, ifMatch: string): Promise<{id:string;deleted:true;notesPreserved:true}>;
   getBoardStatus(id: string, limit?: number): Promise<Record<string, any>>;
+  listDrawings(): Promise<DrawingList>;
+  readDrawing(name: string): Promise<DrawingRecord>;
+  saveDrawing(name: string, scene: unknown, ifMatch: string): Promise<DrawingRecord>;
   memoryRootStatus(): Promise<MemoryRootStatus & Record<string, unknown>>;
   indexMemory(options?: Pick<IndexMemoryOptions, "rebuild" | "signal" | "timeoutMs">): Promise<IndexMemoryResult & Record<string, unknown>>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult & Record<string, unknown>>;
@@ -219,6 +223,11 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     }).then(packet => receipt(packet, validBoardReceipt(packet, board.id))) as unknown as Promise<BoardRecord>,
     deleteBoard: (id, ifMatch) => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id), {method:"DELETE",headers:{"If-Match":ifMatch}}) as Promise<{id:string;deleted:true;notesPreserved:true}>,
     getBoardStatus: (id, limit = 12) => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id) + "/status?limit=" + limit),
+    listDrawings: () => request(HTTP_MEMORY_ROUTES.drawings).then(packet => receipt(packet, Array.isArray(packet.drawings) && typeof packet.skipped === "number")) as unknown as Promise<DrawingList>,
+    readDrawing: name => request(memoryDrawingPath(name)).then(packet => receipt(packet, validDrawingRecord(packet, name))) as unknown as Promise<DrawingRecord>,
+    saveDrawing: (name, scene, ifMatch) => request(memoryDrawingPath(name), {
+      method: "PUT", headers: { "If-Match": ifMatch }, body: JSON.stringify({ scene }),
+    }).then(packet => receipt(packet, validDrawingRecord(packet, name))) as unknown as Promise<DrawingRecord>,
     url: baseUrl,
     memoryRootStatus: () => request(HTTP_MEMORY_ROUTES.status) as Promise<MemoryRootStatus & Record<string, unknown>>,
     indexMemory: (indexOptions = {}) => {

@@ -357,6 +357,14 @@ export interface MemoryOverviewResult {
   index: MemoryOverviewIndexState;
   warnings: string[];
   connections?: MemoryConnectionSummary;
+  /** Excalidraw workspace files in drawings/: listed for discovery, never indexed. Names are newest first, bounded by the overview limit. */
+  drawings?: MemoryOverviewDrawings;
+}
+
+export interface MemoryOverviewDrawings {
+  count: number;
+  skipped: number;
+  names: string[];
 }
 
 export type MemoryNoteType = "note" | "session" | "finding" | "decision" | "preference" | "page";

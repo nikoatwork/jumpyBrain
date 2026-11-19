@@ -13,6 +13,7 @@ import type { SourceCheckRequest, SourceCheckResult } from "../core/dream/source
 import type { LogseqMigrationOptions, LogseqMigrationResult } from "../core/migration/types.js";
 import type { ObsidianMigrationOptions, ObsidianMigrationResult } from "../core/migration/obsidian.js";
 import type { BoardList, BoardRecord } from "../core/boards/model.js";
+import type { DrawingRecord } from "../core/drawings/model.js";
 
 type WrapupDraft = { title: string; body: string; tags?: string[]; recallTopic?: string };
 type DocumentUpdateOptions = {
@@ -75,6 +76,7 @@ export const backendOperations = {
   saveBoard: operation<[board: unknown, ifMatch?: string], BoardRecord>({ admission: "canonical" }),
   deleteBoard: operation<[id: string, ifMatch: string], { id: string; deleted: true; notesPreserved: true }>({ admission: "canonical" }),
   getBoardStatus: operation<[id: string, limit?: number, signal?: AbortSignal], BoardStatus>({ admission: "read" }),
+  saveDrawing: operation<[name: string, scene: unknown, ifMatch: string], DrawingRecord>({ admission: "canonical" }),
 } satisfies Record<string, OperationPolicy>;
 
 export type BackendMethod = keyof typeof backendOperations;

@@ -17,7 +17,7 @@ memory-root/
   .jumpybrain/        # derived/rebuildable; do not edit (except private access/recovery state below)
 ```
 
-Drawings are standard Excalidraw files created in the app or dropped into `drawings/`. They are not memory: search, recall and agents do not read them. Mention one from a note as `[[Name.excalidraw]]` and let the note carry the meaning.
+Drawings are standard Excalidraw files created in the app or dropped into `drawings/`. They are not memory: search and recall do not read them. `tree` lists them, and agents can use `jumpybrain drawings list|show|update` ([CLI](cli-commands.md#drawings)). Mention one from a note as `[[Name.excalidraw]]` and let the note carry the meaning.
 
 Create this layout with:
 

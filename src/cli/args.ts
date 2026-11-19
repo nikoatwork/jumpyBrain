@@ -3,6 +3,7 @@ import { isValidMemoryDocumentId } from "../core/document-id-format.js";
 import { validateMemoryAttentionAction } from "../core/attention.js";
 import { extensionsUsage } from "./usage.js";
 import { parseBoardArgs } from "./board-args.js";
+import { parseDrawingArgs } from "./drawing-args.js";
 import { normalizeEvidenceDate } from "../core/writing/metadata.js";
 
 export interface ParsedCliArgs {
@@ -13,6 +14,7 @@ export interface ParsedCliArgs {
 export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "identity") return parseIdentityArgs(argv);
   if (argv[0] === "board") return parseBoardArgs(argv);
+  if (argv[0] === "drawings") return parseDrawingArgs(argv);
   if (argv[0] === "feedback") return parseFeedbackArgs(argv);
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);
   if (argv[0] === "migrate") return parseMigrationArgs(argv);

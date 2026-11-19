@@ -23,3 +23,7 @@ export function validBoardReceipt(value: Record<string, unknown>, id: string): b
     && board.columns.length === 3 && board.columns.every(column => record(column) && text(column.name)
       && Array.isArray(column.pages) && column.pages.every(text));
 }
+export function validDrawingRecord(value: Record<string, unknown>, name: string): boolean {
+  return value.name === name && hash(value.contentHash) && text(value.updatedAt)
+    && record(value.scene) && value.scene.type === "excalidraw" && Array.isArray(value.scene.elements);
+}

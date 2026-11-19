@@ -90,6 +90,7 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain feedback [--message "..."] [--dry-run] [--id <UUID-v4>] [--json]` | Send explicit product feedback to the developers through the UI support relay, or preview it without sending. |
 | `jumpybrain agent-hint` | Alias for `jumpybrain instructions`. |
 | `jumpybrain board --help` | Manage canonical boards and read initiative status with `--root` or `--target-url`; no running app required. See [boards for agents](boards.md). |
+| `jumpybrain drawings list\|show\|update` | List, read and hash-checked replace Excalidraw drawings in `drawings/`, locally or with `--target-url`. See [drawings](#drawings). |
 | `jumpybrain doctor [--root <memory-root>] [--probe-query <text>] [--json] [--check]` | Inspect CLI, Node, QMD, root compatibility/readiness and optional integration file presence. Optionally test read-only lexical execution. `--check` exits 1 when a required check or requested probe fails. |
 | `jumpybrain update [--dry-run] [--install-root <path>]` | For a standard paired Mac installation, prepare one published release through the running app (Restart there), or install app/runtime/CLI together and verify startup when the app is quit. CLI-only installs retain their recorded source/ref workflow; legacy standalone companions retain quit-before-update support. Custom/pinned paired policies require the app-only exception. `--dry-run` previews without changes. |
 | `jumpybrain serve --root <memory-root> --host <host> --port <port> [--api-key <key>] [--public-base-url <url>] [--init]` | Start a jumpyBrain HTTP server backed by a server-local Markdown memory root. Use `--init` to initialize the root before serving. |
@@ -306,7 +307,7 @@ Deprecated forms:
 
 A failing command exits 1. Plain output prints the explanation to stderr and nothing to stdout.
 
-With `--json`, a memory command (`status`, `index`, `tree`/`overview`, `search`, `recall`, `show`, `expand`, `update`, `delete`, `remember`, `wrapup`, `process`), a `run memory:*` recipe or a `board` command that was parsed successfully prints exactly one object to stdout instead and nothing to stderr:
+With `--json`, a memory command (`status`, `index`, `tree`/`overview`, `search`, `recall`, `show`, `expand`, `update`, `delete`, `remember`, `wrapup`, `process`), a `run memory:*` recipe, a `board` or a `drawings` command that was parsed successfully prints exactly one object to stdout instead and nothing to stderr:
 
 ```json
 { "error": { "code": "rate_limited", "message": "…", "status": 429, "retryAfterSeconds": 60 } }
@@ -474,6 +475,18 @@ bounded inventory of at most 32 explicitly named roots through their private
 owned descriptors. It reports status, `pidAlive` and available redacted runtime
 identity (including stopped historical descriptors). It never scans processes or
 unrelated folders, starts services, or changes CLI/app brain selection.
+
+## Drawings
+
+Excalidraw sketches live as `drawings/<Name>.excalidraw` beside canonical Markdown. They are workspace files, not memory: `search`, `recall` and `show --id` never return them. `tree` lists them (newest first, up to `--limit`) with a count; JSON adds `drawings: {count, skipped, names}`.
+
+```sh
+jumpybrain drawings list [--json]
+jumpybrain drawings show --drawing "Auth flow" [--json]
+jumpybrain drawings update --drawing "Auth flow" --if-match <contentHash> --file scene.excalidraw [--json]
+```
+
+All three use the usual target selection, or one explicit `--root`/`--target-url`; remote keys resolve as for other commands and the CLI sends them as a bearer key, so agents never need the HTTP routes. A name is the file name without `.excalidraw` (the suffix is accepted). `show` prints element counts, text labels and the content hash; `show --json` returns `{brain, name, scene, contentHash, updatedAt}`. `update` replaces the whole scene with a standard Excalidraw file or a saved `show --json` packet, only if `--if-match` still equals the current hash; a changed drawing fails with `drawing_conflict` and is never merged or retried. A device read-only origin allows `list` and `show` only. Writes do not index. Creating, renaming and deleting drawings stays in the app/browser editor.
 
 ## Note attention
 

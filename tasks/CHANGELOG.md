@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-19 — Drawings in the CLI and tree
+
+- Added `jumpybrain drawings list|show|update` (hash-checked, local or `--target-url`, read-only policy aware) and a drawings branch/packet in `tree`, so agents no longer reverse-engineer HTTP routes; drawings remain unindexed. [Implementation, checks and limits](done/2026-11-19_tasks-drawings-cli.md).
+
 ## 2026-11-18 — Project memory approval and project-local search engine
 
 - Commands and installed skills inside a project use its memory once the user runs `jumpybrain project trust`; an unapproved project memory stops commands with that exact command instead of silently using the personal brain, and a repository cannot approve itself. Capture without asking needs the project's `"capture": "durable"` plus device `--allow-capture`. A QMD installed beside jumpyBrain in a consuming project is now found (v0.3.26 missed it), and doctor names the engine and its source. The GitHub release tarball is the supported pinned project dependency; footprint measured and kept as one package; QMD 2.9.0 split into [its own task](todo/tasks-qmd-2.9-upgrade.md). [Outcome, review and limits](done/2026-11-18_tasks-portable-installation-project-integration.md).

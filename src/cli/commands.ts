@@ -25,7 +25,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
 /**
  * Failures are JSON only for a successfully parsed `--json` memory command,
- * memory recipe or board command. Parse/help failures and other commands stay plain text.
+ * memory recipe, board or drawings command. Parse/help failures and other commands stay plain text.
  */
 function jsonFailureRequested(argv: string[]): boolean {
   let args: ReturnType<typeof parseArgs>;
@@ -36,7 +36,7 @@ function jsonFailureRequested(argv: string[]): boolean {
   const command = args._[0];
   if (args.json !== true || !command) return false;
   if (command === "update") return looksLikeMemoryDocumentUpdate(args);
-  return command === "run" || command === "board" || isMemoryCommand(command);
+  return command === "run" || command === "board" || command === "drawings" || isMemoryCommand(command);
 }
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
@@ -99,6 +99,13 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
     if (!args.help) await enforceRemoteAccessPolicy(args);
     const { boardsCli } = await import("./boards.js");
     await boardsCli(args);
+    return;
+  }
+
+  if (command === "drawings") {
+    if (!args.help) await enforceRemoteAccessPolicy(args);
+    const { drawingsCli } = await import("./drawings.js");
+    await drawingsCli(args);
     return;
   }
 

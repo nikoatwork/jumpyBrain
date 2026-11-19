@@ -3,12 +3,14 @@ import { retrievalReadiness } from "./freshness.js";
 import { readMarkdownDocuments, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
 import { bucketFor, firstString, stringValue, tagsValue, tryLoadManifest } from "./document-fields.js";
+import { listDrawingFiles } from "../../core/drawings/store.js";
 import type {
   MarkdownDocument,
   MemoryConnectionSummary,
   MemoryOverviewBucketSummary,
   MemoryOverviewCount,
   MemoryOverviewDocumentSummary,
+  MemoryOverviewDrawings,
   MemoryOverviewIndexState,
   MemoryOverviewOptions,
   MemoryOverviewResult,
@@ -31,6 +33,7 @@ export async function overviewMemory(rootArg: string, options: MemoryOverviewOpt
   const index = overviewIndexState(documents, manifest, indexedFiles, readiness);
   const timestamps = summaries.flatMap((summary) => [summary.updatedAt, summary.createdAt]).filter(isIsoLike).sort();
   const limit = normalizeLimit(options.limit);
+  const drawings = status.compatible ? await drawingSummary(root, limit, warnings) : undefined;
 
   return {
     root,
@@ -49,7 +52,18 @@ export async function overviewMemory(rootArg: string, options: MemoryOverviewOpt
     index,
     warnings,
     ...(options.connections ? { connections: await connectionSummary(documents) } : {}),
+    ...(drawings ? { drawings } : {}),
   };
+}
+
+async function drawingSummary(root: string, limit: number, warnings: string[]): Promise<MemoryOverviewDrawings | undefined> {
+  try {
+    const packet = await listDrawingFiles(root);
+    return { count: packet.drawings.length, skipped: packet.skipped, names: packet.drawings.slice(0, limit).map((drawing) => drawing.name) };
+  } catch {
+    warnings.push("Drawings could not be listed; run `jumpybrain drawings list` for details.");
+    return undefined;
+  }
 }
 
 function summarizeDocument(document: MarkdownDocument, indexedFiles: Set<string>): MemoryOverviewDocumentSummary {
