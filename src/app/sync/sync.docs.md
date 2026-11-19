@@ -5,7 +5,7 @@
 Collect a brain's inventory through an `InventorySource` (canonical file listing with content/body hashes and declared edit dates, plus drawings read once each for their scene), compare two sources with `core/sync`, and apply a local → server migration plan through a `MigrationTarget`.
 
 - `localInventorySource(root)` reuses the server-memory file listing over a local root, so local and hosted listings hash identically.
-- `applyRemoteMigration` re-reads each local note or drawing and skips it if it changed since planning. Server writes carry the planned `If-Match` (updates) or are exact no-clobber copies (`copy-in`, drawing create), so concurrent server changes are refused rather than overwritten. A 401/403 stops the run; other failures are reported per action. Nothing is retried.
+- `applyRemoteMigration` re-reads each local note (by its listed path) or drawing and skips it if its hash changed since planning. New notes go to the server in batches of up to 100 (about 700 KB), one server-side ID scan per batch. Server writes carry the planned `If-Match` (updates) or are exact no-clobber copies (`copy-in`, drawing create), so concurrent server changes are refused rather than overwritten. A 401/403 stops the run; other failures are reported per action. Nothing is retried.
 
 ## Non-responsibilities
 

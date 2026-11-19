@@ -614,7 +614,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
     if (isJsonError(operation)) { writeJson(response, operation.statusCode, operation.body); return; }
     try {
       const packet = await enqueueWrite(() => applyServerMemoryFileOperation({ root, operation, ifMatch: ifMatchHeader(request) }));
-      if (("moved" in packet && packet.moved) || ("contentHash" in packet && "created" in packet)) context.onMemoryWrite?.();
+      if (("moved" in packet && packet.moved) || ("copied" in packet && packet.copied)) context.onMemoryWrite?.();
       writeJson(response, 200, packet);
     } catch (error) {
       const mapped = documentUpdateErrorResponse(error);

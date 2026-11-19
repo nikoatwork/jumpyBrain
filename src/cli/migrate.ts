@@ -81,7 +81,7 @@ export async function syncCli(args: ParsedCliArgs): Promise<void> {
   const plan = planRemoteMigration(report);
   const apply = args.apply === true;
   const outcomes = apply ? await applyRemoteMigration(root, plan, report, {
-    copyMemoryDocument: (file, content) => target.memory.copyMemoryDocument(file, content),
+    copyMemoryDocuments: notes => target.memory.copyMemoryDocuments(notes),
     updateMemoryDocument: (id, content, options) => target.memory.updateMemoryDocument(id, content, options),
     createDrawing: (name, scene) => target.memory.createDrawing(name, scene),
     saveDrawing: (name, scene, ifMatch) => target.memory.saveDrawing(name, scene, ifMatch),

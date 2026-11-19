@@ -1,4 +1,4 @@
-import { createCanonicalMemoryDocumentCopy, createCanonicalMemoryFolder, moveCanonicalMemoryDocumentById, resolveMemoryRoot, MemoryDocumentLookupError } from "../../core/canonical/index.js";
+import { createCanonicalMemoryDocumentCopies, createCanonicalMemoryFolder, moveCanonicalMemoryDocumentById, resolveMemoryRoot, MemoryDocumentLookupError } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import { markRemoteIndexStale } from "./state.js";
 
@@ -21,11 +21,14 @@ export async function applyServerMemoryFileOperation(options: { root: string; op
     try { await markRemoteIndexStale(root); return { ...result, indexing: { status: "pending" } }; }
     catch { return { ...result, indexing: { status: "failed" } }; }
   }
-  // Migration from another brain: an exact copy at a new path, never a replacement.
-  if (op.action === "copy-in" && typeof op.path === "string" && typeof op.content === "string" && Object.keys(op).every(key => ["action", "path", "content"].includes(key))) {
-    const result = await createCanonicalMemoryDocumentCopy(root, op.path, op.content);
-    try { await markRemoteIndexStale(root); return { ...result, indexing: { status: "pending" } }; }
-    catch { return { ...result, indexing: { status: "failed" } }; }
+  // Migration from another brain: exact copies at new paths, never replacements.
+  if (op.action === "copy-in" && Array.isArray(op.notes) && op.notes.length >= 1 && op.notes.length <= 100 && Object.keys(op).every(key => ["action", "notes"].includes(key))
+    && op.notes.every(note => note && typeof note === "object" && !Array.isArray(note) && Object.keys(note).every(key => ["path", "content"].includes(key)))) {
+    const results = await createCanonicalMemoryDocumentCopies(root, op.notes as { path: unknown; content: unknown }[]);
+    if (!results.some(result => result.ok)) return { copied: 0, results };
+    const copied = results.filter(result => result.ok).length;
+    try { await markRemoteIndexStale(root); return { copied, results, indexing: { status: "pending" } }; }
+    catch { return { copied, results, indexing: { status: "failed" } }; }
   }
   throw new MemoryDocumentLookupError("validation_failed", "Invalid file operation.");
 }

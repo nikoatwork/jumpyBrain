@@ -129,14 +129,31 @@ test('diff and migrate remote against a real server: plan, guarded apply, re-dif
   const again = JSON.parse((await cli('migrate', 'remote', ...both, '--json')).stdout);
   assert.deepEqual(again.actions, [], 'a second run has nothing left to copy');
 
-  // The server refuses to copy over an existing path or a duplicate ID.
+  // copy-in is a batch with per-note results: existing paths, used or repeated IDs, unsafe paths and missing IDs are refused individually.
   const http = (body) => fetch(server.url + '/memories/all/files/operations', { method: 'POST', headers: { Authorization: 'Bearer sync-fixture-key', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  assert.equal((await http({ action: 'copy-in', path: 'notes/same.md', content: note(id(), 'X', 'x\n') })).status, 422);
-  const duplicate = await http({ action: 'copy-in', path: 'notes/new-path.md', content: note(ids.same, 'X', 'x\n') });
-  assert.equal(duplicate.status, 409); assert.equal((await duplicate.json()).error.code, 'duplicate_id');
-  assert.equal((await http({ action: 'copy-in', path: '../escape.md', content: note(id(), 'X', 'x\n') })).status, 422);
-  assert.equal((await http({ action: 'copy-in', path: 'notes/no-id-copy.md', content: '# no id\n' })).status, 400);
+  const goldId = id(), freshId = id();
+  // Imported vault notes whose names match an ignored pattern ("gold") are visible in discovery, so they copy too.
+  const imported = `---\nid: "${goldId}"\ntype: "note"\nsource: "logseq-migration"\nsource_path: "pages/goldpan.ai.md"\n---\nImported page\n`;
+  const batch = await http({ action: 'copy-in', notes: [
+    { path: 'notes/same.md', content: note(id(), 'X', 'x\n') },
+    { path: 'notes/new-path.md', content: note(ids.same, 'X', 'x\n') },
+    { path: '../escape.md', content: note(id(), 'X', 'x\n') },
+    { path: 'notes/no-id-copy.md', content: '# no id\n' },
+    { path: 'notes/goldpan.ai.md', content: imported },
+    { path: 'notes/gold-answers.md', content: note(id(), 'Not imported', 'x\n') },
+    { path: 'notes/fresh.md', content: note(freshId, 'Fresh', 'x\n') },
+    { path: 'notes/fresh-again.md', content: note(freshId, 'Fresh twice', 'x\n') },
+  ] });
+  assert.equal(batch.status, 200);
+  const packet = await batch.json();
+  assert.deepEqual(packet.results.map(result => result.ok ? 'ok' : result.code),
+    ['validation_failed', 'duplicate_id', 'validation_failed', 'invalid_id', 'ok', 'validation_failed', 'ok', 'duplicate_id']);
+  assert.equal(packet.copied, 2); assert.equal(packet.indexing.status, 'pending');
   assert.equal(await readFile(path.join(remote, 'notes/same.md'), 'utf8'), same, 'an existing file is never replaced');
+  assert.equal((await http({ action: 'copy-in', notes: [] })).status, 422);
+  assert.equal((await http({ action: 'copy-in', path: 'notes/x.md', content: 'x' })).status, 422, 'only the batch form is accepted');
+  const listing = await (await fetch(server.url + '/memories/all/files?hashes=1', { headers: { Authorization: 'Bearer sync-fixture-key' } })).json();
+  assert.ok(listing.files.some(file => file.id === goldId), 'the imported copy is listed on the server');
   // Agents guessing X-API-Key are told which header works.
   const guessed = await fetch(server.url + '/memories/all/status', { headers: { 'X-API-Key': 'sync-fixture-key' } });
   assert.equal(guessed.status, 401); assert.match((await guessed.json()).error.message, /Authorization: Bearer <key>/);
