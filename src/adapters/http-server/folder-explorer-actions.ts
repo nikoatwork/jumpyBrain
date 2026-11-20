@@ -4,7 +4,10 @@ import { prepareDropdown } from "./browser-dropdown.js";
 import { viewportMargin } from "./browser-design-system.js";
 
 export interface ExplorerOperationHost {
+  /** Whether to offer change controls. The host may offer them while a change is not allowed. */
   writable(): boolean;
+  /** Asked when a change starts; true stops it (the host has explained why). */
+  denied?(action: "rename" | "create" | "move"): boolean;
   json(url: string, options?: RequestInit): Promise<unknown>;
   guard<T>(operation: () => Promise<T>): Promise<T>;
   link(id: string): string;
@@ -56,7 +59,7 @@ export function installExplorerActions(options: {
   }
   function openEdit(action: "rename" | "create" | "move", node: ExplorerNode) {
     hideMenu();
-    if (!writable()) return;
+    if (!writable() || host!.denied?.(action)) return;
     edit = { action, node: { ...node }, scope: options.scope() };
     error.textContent = ""; save.disabled = false;
     heading.textContent = action === "create" ? "New folder" : action === "rename" ? "Rename file" : "Move file";
@@ -194,7 +197,7 @@ export function installExplorerActions(options: {
   });
   tree.addEventListener("dragstart", event => {
     const row = rowAt(event.target), node = row && options.node(row.dataset.explorerPath!);
-    if (!writable() || node?.kind !== "file" || !node.id || !event.dataTransfer) { event.preventDefault(); return; }
+    if (!writable() || node?.kind !== "file" || !node.id || !event.dataTransfer || host!.denied?.("move")) { event.preventDefault(); return; }
     hideMenu(); dragging = { node: { ...node }, scope: options.scope() };
     event.dataTransfer.setData("application/x-jumpybrain-file", node.path); event.dataTransfer.effectAllowed = "move";
   });

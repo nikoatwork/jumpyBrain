@@ -137,7 +137,6 @@ let companionActionBusy = false;
 let companionIndexRefreshing = false;
 const companionHealth = new Map();
 const companionTestedAccess = new Map();
-let companionAccessNoticeCount = 0;
 const companionAcknowledged = new Set();
 `;
 
@@ -201,7 +200,7 @@ function companionMessage(text, error = false) {
 }
 function companionDreamTarget() {
   if (companionState?.active?.kind !== "remote") throw new Error("Dream handoff is unavailable for local companion folders. Use the CLI with an explicitly chosen local memory root; the companion gateway is not an agent endpoint.");
-  if (!companionCan("write")) throw new Error(companionAccessExplanation("Dream handoff") + " See Settings → Access keys.");
+  if (!companionCan("write")) throw new Error(accessExplanationInline("Dream handoff"));
   return companionState.active.url;
 }
 // What the active brain's role permits, as last reported by the app. A remote role is
@@ -227,23 +226,6 @@ function companionAccessLabel(access) {
   if (!access) return "";
   if (access.source === "local") return "Full access";
   return access.role ? companionRoleLabel(access) + " access" : access.reason === "checking" ? "Checking access…" : "Access not confirmed";
-}
-function companionAccessExplanation(action, capability = "write") {
-  const active = companionState?.active, access = companionState?.access;
-  const name = "“" + (active?.name || "This brain") + "”";
-  if (!access?.role) return action + " is paused: the app could not confirm what your access key may do on " + name + ".";
-  return action + " needs " + (capability === "manage_access" ? "an admin key" : "a writer or admin key") + ". Your key for " + name + " has " + access.role + " access.";
-}
-function companionOpenAccessSettings() { systemMessages.clear("companion-access"); return navigation.navigate("/settings?section=access"); }
-function companionExplainAccess(action, capability = "write") {
-  systemMessages.dispatch({ source: "companion-access", text: companionAccessExplanation(action, capability), severity: "warning",
-    revision: String(++companionAccessNoticeCount), duration: 12000, action: { label: "Open Settings", run: companionOpenAccessSettings } });
-}
-// Call when the user starts a change. True means stop; a role restriction is explained.
-function companionDenied(action, capability = "write") {
-  if (capability === "write" ? !companionReadOnly() : companionCan(capability)) return false;
-  if (companionAccessBlocked(capability)) companionExplainAccess(action, capability);
-  return true;
 }
 function companionScopeUrl(value) {
   const url = new URL(value, location.origin);
@@ -358,7 +340,7 @@ function companionLock(value) {
   // The settings card is modal; keep the app behind it inert while it is open.
   document.querySelector(".app-nav").inert = preparing || state.view === "settings";
   $("graph-header").inert = preparing;
-  for (const id of ["new-note", "home-new"]) $(id).disabled = creatingNote || (companionReadOnly() && !companionAccessBlocked());
+  for (const id of ["new-note", "home-new"]) $(id).disabled = creatingNote || !accessOffered();
   $("companion-fields").disabled = companionActionBusy || companionFrozen;
   if (state.editor) syncEditorUi(state.editor.state);
   else richEditor.setReadOnly(companionReadOnly());
@@ -670,12 +652,12 @@ function renderCompanionIndex() {
   const reason = !active ? "Connect to a brain first."
     : companionSessionFailed ? "Reconnect the companion session first."
     : companionHealthText(companionState.health) !== "connected" ? "Connect to this brain first."
-    : !companionCan("write") ? companionAccessExplanation("Refreshing the search index") : "";
+    : !companionCan("write") ? accessExplanation("Refreshing the search index") : "";
   $("companion-refresh-index").setAttribute("aria-description", (active?.name || "") + (reason ? " · " + reason : ""));
   $("companion-refresh-index").title = label + (active ? " · " + active.name : "") + (reason ? " · " + reason : "");
 }
 async function companionRefreshIndex() {
-  if (companionIndexExplains()) { companionExplainAccess("Refreshing the search index"); return; }
+  if (companionIndexExplains()) { accessExplain("Refreshing the search index"); return; }
   if (!companionCanRefreshIndex()) return;
   await companionAction(async () => {
     companionIndexRefreshing = true;

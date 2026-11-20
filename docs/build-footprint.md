@@ -465,6 +465,15 @@ saved 56 bytes; shorter wording saved another 56. The reviewed ceiling rises to
 **186,500 bytes**, leaving 147. The next editor addition needs its own measured
 review.
 
+Blocked-action explanations (2026-11-20) keep the ceiling at 186,500. The shared
+role guard is inline page script, which the gate does not count; the only
+bundled change is the folder explorer's optional `denied(action)` hook, a
+measured 13 to 14 gzip bytes (186,365 to 186,366 total across rebuilds, as
+the embedded build ID changes; 186,352 before on the same machine, macOS ARM64,
+Node 26.7.0), leaving 134. The companion-only explanation helpers
+it replaces were inline as well, so the bundle carries no second copy. The guard
+lives in the existing `access-keys-view.ts`, so the package gains no file.
+
 Measured and not adopted: a newer syntax target (0 bytes), dropping `console`
 calls (41), removing the in-bundle Lucide notice (559, needed for the licence)
 and renaming `_`/`__` properties (871–1,511, with a real risk of breaking

@@ -166,8 +166,9 @@ function syncSettingsNavigation(url) {
   $("settings-back").href = settingsReturnUrl || companionScopeUrl("/");
   applySettingsSearch();
   sidebarPreference.sync();
-  // Opening the section loads a fresh list; leaving it drops any newly shown secret.
-  if (settings && section === "access") { if (previousSection !== "access") void accessKeys.refresh(true); }
+  // Opening the section loads a fresh list and re-checks the role the rest of the app acts on;
+  // leaving it drops any newly shown secret.
+  if (settings && section === "access") { if (previousSection !== "access") { void accessRefresh(); void accessKeys.refresh(true); } }
   else if (previousSection === "access") accessKeys.reset();
 }
 function closeSettings() { return navigation.navigate($("settings-back").getAttribute("href")); }

@@ -8,9 +8,11 @@ import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback.js";
 
 const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+// The shared role guard (accessGuardScript) is part of every shell; a test may replace any of it.
+const accessGuard = ["accessState", "accessCan", "accessBlocked", "accessWritable", "accessOffered", "accessExplanation", "accessExplanationInline", "accessExplain", "accessDenied", "accessDeniedIn", "accessObserved"];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, pageBacklinks: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
-  vm.runInContext(shellFunctions(script, names, context), context);
+  const context = vm.createContext({ companionMode: false, connectionStatus: "disconnected", hostedAccess: null, accessNoticeCount: 0, accessRefresh: async () => {}, accessRefused() {}, hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, pageBacklinks: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  vm.runInContext(shellFunctions(script, [...names, ...accessGuard.filter(name => !(name in globals) && !names.includes(name))], context), context);
   return context;
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -48,9 +50,11 @@ test("connection reflects confirmed auth, ignores old credentials, and preserves
     renderConnection: () => {},
     fetch: (url, options) => { const request = { options, ...deferred() }; requests.push(request); return request.promise; },
   });
-  const send = async (status) => {
+  const refused = [];
+  context.accessRefused = (code) => refused.push(code);
+  const send = async (status, code) => {
     const pending = context.graphFetch("/memories/all/recent");
-    requests.at(-1).resolve({ status, ok: status === 200 });
+    requests.at(-1).resolve(new Response(code ? JSON.stringify({ error: { code } }) : "", { status }));
     await pending;
   };
   await send(200);
@@ -63,6 +67,16 @@ test("connection reflects confirmed auth, ignores old credentials, and preserves
   await send(401);
   assert.equal(context.connectionStatus, "disconnected");
   await send(200);
+  await send(403, "untrusted_origin");
+  assert.equal(context.connectionStatus, "disconnected");
+  assert.deepEqual(refused, []);
+  // A refusal over the key's role comes from a working connection: it is explained, not shown as disconnected.
+  await send(200);
+  for (const code of ["read_only", "admin_required", "access_unconfirmed"]) {
+    await send(403, code);
+    assert.equal(context.connectionStatus, "connected", code);
+  }
+  assert.deepEqual(refused, ["read_only", "admin_required", "access_unconfirmed"]);
   await send(403);
   assert.equal(context.connectionStatus, "disconnected");
   const stale = context.graphFetch("/memories/all/recent");

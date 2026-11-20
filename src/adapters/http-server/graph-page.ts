@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
 import { sidebarBootstrap, sidebarScript } from "./browser-sidebar.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
-import { accessKeysDialogMarkup, accessKeysStyles } from "./access-keys-view.js";
+import { accessGuardScript, accessKeysDialogMarkup, accessKeysStyles } from "./access-keys-view.js";
 import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
@@ -244,6 +244,7 @@ let credentialRevision = 0;
 let hostedPrincipalId = null;
 const hostedIdentityChannel = !companionMode && typeof BroadcastChannel === "function" ? new BroadcastChannel("jumpybrain.browser.identity.v2") : null;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
+${accessGuardScript}
 
 let searchMaintenance = null;
 const map = JumpyBrainBrowser.createMapController({
@@ -277,7 +278,7 @@ const graphTopicPreview = JumpyBrainBrowser.installGraphTopicPreview({
   document,
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   enabled: () => state.view === "graph" && Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
-  canCreate: () => companionMode && !companionReadOnly(),
+  canCreate: () => companionMode && accessOffered(),
   search: (query, signal, limit) => recentWrites.search(query, signal, limit),
   ensure: (title, signal) => graphJson("/memories/all/ensure-title", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }), signal,
@@ -286,6 +287,8 @@ const graphTopicPreview = JumpyBrainBrowser.installGraphTopicPreview({
   navigate: (destination) => navigation.navigate(destination),
   onCreated: () => referenceTargetCreated(),
 });
+// Registered for the capture phase so it runs before the preview's own handler on the same button.
+$("graph-topic-create").addEventListener("click", (event) => { if (accessDeniedIn($("graph-topic-status"), "Creating this page")) event.stopImmediatePropagation(); }, true);
 const graphFilters = $("graph-filters");
 document.addEventListener("click", (event) => {
   if (graphFilters.open && !graphFilters.contains(event.target)) graphFilters.open = false;
@@ -353,15 +356,20 @@ async function graphFetch(url, options) {
   try {
     const response = await fetch(url, requestOptions);
     feedbackDiagnostics.finish(url, requestOptions.method || "GET", diagnosticRequest, response);
-    if (typeof companionMode !== "undefined" && companionMode && response.status === 409) {
-      const packet = await response.clone().json().catch(() => null);
-      if (packet?.error?.code === "stale_generation") companionFence();
-    }
+    const companion = typeof companionMode !== "undefined" && companionMode;
+    const refusal = response.status === 403 || (companion && response.status === 409)
+      ? (await response.clone().json().catch(() => null))?.error?.code : undefined;
+    if (companion && refusal === "stale_generation") companionFence();
+    // A refusal over the key's role is an answer from a working connection, not a lost one.
+    const roleRefused = response.status === 403 && ["read_only", "admin_required", "access_unconfirmed"].includes(refusal);
     if (revision === credentialRevision) {
-      if (response.status === 401 || response.status === 403) connectionStatus = "disconnected";
+      if (response.status === 401 || (response.status === 403 && !roleRefused)) connectionStatus = "disconnected";
       else if (response.ok) connectionStatus = "connected";
       else if (connectionStatus === "checking") connectionStatus = "unavailable";
       renderConnection();
+      if (roleRefused) accessRefused(refusal);
+      // A rejected key in the app: have the gateway re-check so Settings and the notice say so.
+      else if (companion && response.status === 401) void accessRecheck();
     }
     return response;
   } catch (error) {
@@ -375,9 +383,12 @@ async function graphFetch(url, options) {
 }
 
 async function graphJson(url, options) {
+  const revision = credentialRevision;
   const response = await graphFetch(url, options);
   let payload;
   try { payload = await response.json(); } catch { payload = null; }
+  // Every hosted read of /capabilities (opening a note, a drawing or Access keys) refreshes the role known here.
+  if (url === "/capabilities" && response.ok && revision === credentialRevision && !(typeof companionMode !== "undefined" && companionMode)) accessObserved(payload);
   feedbackDiagnostics.result(url, options?.method || "GET", response, payload);
   if (!response.ok) {
     const error = new Error(payload?.error?.message || "Request failed with HTTP " + response.status);
@@ -487,9 +498,9 @@ const drawingsUI = createDrawingsUI({
   revealSidebar: () => { if (document.documentElement.dataset.sidebarCollapsed === "true") sidebarPreference.toggle(); },
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) + ":" + String(companionState?.activeId) : "hosted"),
   connected: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
-  readOnly: () => companionMode && companionReadOnly(),
+  readOnly: () => !accessWritable(),
   // A role restriction keeps creation available so that choosing it explains why.
-  explainReadOnly: (action) => { if (!companionMode || !companionAccessBlocked()) return false; companionExplainAccess(action); return true; },
+  explainReadOnly: (action) => { if (!accessBlocked()) return false; accessExplain(action); return true; },
   scopeUrl: (url) => companionMode ? companionScopeUrl(url) : url,
   navigate: (destination) => navigation.navigate(destination),
   replaceUrl: (destination) => {
@@ -521,11 +532,18 @@ const accessKeys = JumpyBrainBrowser.installAccessKeys({
   confirm: (text) => confirm(text),
   copy: (text) => navigator.clipboard.writeText(text),
 });
+// Hosted access details. Opens above whatever is showing; an open note and its draft stay as they are.
+function openAccessKeys() {
+  const accessKeysDialog = $("access-keys-dialog");
+  if (connectionDialog.open) closeConnection();
+  if (!accessKeysDialog.open) accessKeysDialog.showModal();
+  void accessKeys.refresh(true);
+}
 if (!companionMode) {
   const accessKeysDialog = $("access-keys-dialog");
   // A newly created secret is dropped as soon as the dialog closes.
   const closeAccessKeys = () => { accessKeysDialog.close(); accessKeys.reset(); };
-  $("open-access-keys").addEventListener("click", () => { closeConnection(); accessKeysDialog.showModal(); void accessKeys.refresh(true); });
+  $("open-access-keys").addEventListener("click", openAccessKeys);
   $("access-keys-close").addEventListener("click", closeAccessKeys);
   accessKeysDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeAccessKeys(); });
 }
@@ -561,7 +579,7 @@ if (!companionMode) {
   (async () => {
     try {
       const response = await fetch("/session", {headers: activeApiKey ? {Authorization:"Bearer " + activeApiKey} : {}});
-      if (response.ok) {hostedPrincipalId = (await response.json()).principal?.id; activeApiKey = "browser-session"; apiKeyInput.value = ""; connectionStatus = "connected";}
+      if (response.ok) {hostedPrincipalId = (await response.json()).principal?.id; activeApiKey = "browser-session"; apiKeyInput.value = ""; connectionStatus = "connected"; void accessRefresh();}
     } catch { /* The connection dialog remains available offline. */ }
     showPage(initialEntry.url); renderConnection();
   })();
@@ -578,7 +596,7 @@ function syncCompanionExtensions() {
       currentDocument: () => state.view === "note" && state.editor?.state.loaded
         ? { id: state.editor.state.documentId, title: (state.editor.state.title || state.editor.state.savedTitle || "Untitled").slice(0, 512) } : null,
       writable: () => !companionReadOnly(),
-      readOnlyReason: () => companionAccessBlocked() ? companionAccessExplanation("This extension command") + " See Settings → Access keys." : "",
+      readOnlyReason: () => accessBlocked() ? accessExplanationInline("This extension command") : "",
       openNote: async id => {
         if (!isValidMemoryDocumentId(id) || companionFrozen || companionSessionFailed) return false;
         return navigation.navigate(companionScopeUrl("/?note=" + encodeURIComponent(id)));
