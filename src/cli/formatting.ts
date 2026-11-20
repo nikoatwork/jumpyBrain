@@ -40,8 +40,11 @@ function resultMetadata(provenance: Provenance, temporal = false): string {
   return fields.join(" | ");
 }
 
-export function formatHumanResults(results: SearchResult[], options: { temporal?: boolean } = {}): string {
-  if (results.length === 0) return "No memory matches found.";
+/** Static text for the retrieval `no_matches_try_fewer_keywords` hint; no query or note text. */
+export const FEWER_KEYWORDS_TEXT = "Try fewer keywords; text search needs them to appear together.";
+
+export function formatHumanResults(results: SearchResult[], options: { temporal?: boolean; fewerKeywords?: boolean } = {}): string {
+  if (results.length === 0) return `No memory matches found.${options.fewerKeywords ? ` ${FEWER_KEYWORDS_TEXT}` : ""}`;
 
   let linksShortened = false;
   const displaySnippet = (snippet: string) => {

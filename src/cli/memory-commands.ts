@@ -15,6 +15,7 @@ import { formatMemoryOverview, overviewOptionsFromArgs } from "./overview.js";
 import { readStdin } from "./stdin.js";
 import { compactOptions, expansionOptions, printCompactRecall, printExpansion } from "./bounded-reads.js";
 import { normalizeRetrievalDepth } from "../core/retrieval-policy/index.js";
+import { FEWER_KEYWORDS_HINT } from "../core/retrieval-policy/zero-hit.js";
 
 export type MemoryCommand =
   | "status"
@@ -145,7 +146,7 @@ export async function runMemoryCommand(
       }
       if (result.recognition) console.log(`Search recognition: up to ${result.recognition.candidateLimit} ranked candidates; other matches may exist. ${result.recognition.matched} matches within candidates.${result.recognition.nextOffset !== undefined ? ` Next offset: ${result.recognition.nextOffset}.` : ""}`);
       printRetrievalWarnings(result);
-      console.log(formatHumanResults(result.results, { temporal: Boolean(temporal) }));
+      console.log(formatHumanResults(result.results, { temporal: Boolean(temporal), fewerKeywords: result.retrieval?.warnings?.includes(FEWER_KEYWORDS_HINT) }));
     }
     return;
   }
@@ -251,6 +252,8 @@ function printReadiness(readiness?: RetrievalReadiness): void {
 
 function printRetrievalWarnings(result: SearchMemoryResult): void {
   const warnings = new Set(result.retrieval?.warnings ?? []);
+  // Shown as plain guidance beside the empty result, not as a degraded-retrieval warning.
+  warnings.delete(FEWER_KEYWORDS_HINT);
   if (result.readiness && result.readiness.freshness !== "fresh") warnings.add(`Index is ${result.readiness.freshness}; results may be incomplete. Run index to refresh.`);
   if (result.readiness?.embedding === "incomplete" || result.readiness?.embedding === "unknown") warnings.add("Semantic readiness is incomplete or unknown; retrieval may be degraded.");
   if (result.retrieval?.status === "partial" && !warnings.size) warnings.add("Retrieval is partial; results may be incomplete.");

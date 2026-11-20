@@ -226,6 +226,11 @@ export function queryTermWeight(term: string): number {
   return 1;
 }
 
+/** Distinct whitespace-separated query words that survive stopword filtering. Guidance only, never a query. */
+export function queryKeywordCount(value: string): number {
+  return new Set(value.split(/\s+/).map(word => tokenize(word).join(" ")).filter(Boolean)).size;
+}
+
 export function tokenize(value: string): string[] {
   return value
     .toLowerCase()

@@ -145,6 +145,8 @@ Rich search/recall and compact recall accept optional boolean `readOnly`. Authen
 
 Unconstrained successful empty discovery may use at most two meaningful singleton lexical queries in spare slots of the existing eight-call budget; partial `keyword_query_relaxed` reports topic relaxation, never full-answer completeness. Strict matches/constraints/depth/root/temporal policy remain intact; token-only temporal backfill is suppressed for constrained queries.
 
+Rich and compact results may add the advisory warning code `no_matches_try_fewer_keywords` when a completed, fresh, lexical-only search of two or more keywords returned nothing. It is an ordinary string in the existing open `retrieval.warnings` list: no new field, route or version, so compact version-1 clients and older clients accept it unchanged. It never sets `status: "partial"` by itself, and clients must not treat it as a failure or retry on it. Stale, failed, temporal, semantic and budget-omitted outcomes do not carry it.
+
 ## Index stale state
 
 Remote writes do not synchronously update the index. After each successful remote write, mark the index stale in `.jumpybrain/remote/index-state.json`:

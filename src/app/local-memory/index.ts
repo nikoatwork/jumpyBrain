@@ -5,8 +5,9 @@ import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { recognizeSearchResults } from "./search-recognition.js";
 import { readCanonicalMemoryDocumentById, discoverMarkdownIndexInputs, replaceCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
-import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, recoverQmdIndex, searchQmdIndex } from "../../adapters/qmd/index.js";
+import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, queryKeywordCount, recoverQmdIndex, searchQmdIndex } from "../../adapters/qmd/index.js";
 import { normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
+import { FEWER_KEYWORDS_HINT, fewerKeywordsHintApplies } from "../../core/retrieval-policy/zero-hit.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import type { ExecutionOptions, TemporalRetrieval } from "../../types.js";
 import { retrievalReadiness } from "./freshness.js";
@@ -99,7 +100,8 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   const depth = normalizeRetrievalDepth(options.depth);
   const retrieval: RetrievalOutcome = { status: "complete", warnings: [] };
   let readiness!: RetrievalReadiness;
-  const results = await searchQmdIndex(root, query, recognition ? 120 : limit, { depth, outcome: retrieval, temporal, readOnly: options.readOnly, recover: options.refresh !== false,
+  const requested = recognition ? 120 : limit;
+  const results = await searchQmdIndex(root, query, requested, { depth, outcome: retrieval, temporal, readOnly: options.readOnly, recover: options.refresh !== false,
     inspect: async manifest => { readiness = await retrievalReadiness(root, manifest); },
   });
   if (options.readOnly) {
@@ -109,6 +111,10 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   if (readiness.freshness !== "fresh") retrieval.warnings.push("index_not_fresh");
   if (readiness.embedding === "incomplete" || readiness.embedding === "unknown") retrieval.warnings.push("semantic_coverage_incomplete");
   if (retrieval.warnings.length) retrieval.status = "partial";
+  // Advisory after the status decision: an empty lexical search stays as complete as it was.
+  // The same query is never rerun, broadened or reranked for this.
+  if (fewerKeywordsHintApplies({ results: results.length, requested, keywords: queryKeywordCount(query),
+    readOnly: options.readOnly === true, modes: readiness.modes, warnings: retrieval.warnings })) retrieval.warnings.push(FEWER_KEYWORDS_HINT);
   const recognized = recognition ? await recognizeSearchResults(root, results, limit, recognition, executionSignal()) : undefined;
   if (recognized) { retrieval.status = "partial"; retrieval.warnings.push("recognition_bounded_candidates"); }
   return { root, query, depth, results: recognized?.results ?? results, readiness, retrieval, ...(recognized ? { recognition: recognized.scope } : {}), ...(temporal ? { temporal } : {}) };

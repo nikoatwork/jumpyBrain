@@ -60,6 +60,12 @@ The app verifies expansion identity and current source bytes; this policy module
 
 Only an explicit temporal request adds the optional packet `temporal` interval/coverage and passage `evidenceDate`/`relationships`. Written `date` remains separate. Relationships contain only source-declared `conflicts_with`/`supersedes` strings or string arrays, never inferred resolution. All additions count toward the same whole-passage UTF-8 budget; oversized declarations omit the passage, not the qualifications. Without a temporal envelope the pure packer strips temporal passage additions, preserving legacy V1 output.
 
+## Zero-hit keyword guidance
+
+`zero-hit.ts` owns one static advisory code, `no_matches_try_fewer_keywords`, and the pure decision for it. `fewerKeywordsHintApplies` is true only when a requested search returned no rows, the query had at least two keywords, discovery was lexical-only (no semantic mode, strict read-only, or `query_constraints_lexical_only`), and every other recorded warning is one of `query_constraints_lexical_only`, `keyword_query_relaxed`, `read_only_index` or `read_only_lexical_fallback`. Any other warning (stale index, failed branch, temporal scope, changed source, incomplete embeddings, a future code) suppresses it, because that outcome already has its own explanation.
+
+The code is appended to `retrieval.warnings` and never changes `retrieval.status`: an empty lexical search that completed stays `complete`. It is guidance about the query, not evidence that the memory lacks the topic. The policy sees counts and codes only; it never reads the query text, runs or reshapes a query, or adds per-result metadata. The adapter supplies the keyword count and the app supplies the remaining facts.
+
 ## Semantic connection policy
 
 `semantic-links.ts` normalizes and averages supplied complete document chunks, rejects invalid/oversized vectors and selects unique undirected pairs with cosine >= 0.70 and mutual top-three agreement. Stable path ties and fixed work limits keep selection deterministic and prevent hubs from gaining unbounded inferred degree. Similarity means related subject matter, not agreement, factual support or canonical reference. The adapter supplies complete vectors; the app owns source validity and explicit-link precedence. This initial threshold has fixture evidence for the provisioned EmbeddingGemma model, not universal calibration across custom models or corpora.

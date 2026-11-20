@@ -248,6 +248,8 @@ Add valueless `--read-only` to local/hosted recall/search, compact output or rec
 
 Keyword fallback is likewise explicit: only successful strict discovery with no eligible candidates can use up to two meaningful lexical singleton queries in **spare** slots of the existing eight-call budget. Quotes, exclusions, paths/identifiers and Boolean constraints suppress relaxation, vector discovery and token-only temporal backfill; skipped semantic work reports `query_constraints_lexical_only`. `keyword_query_relaxed` marks partial-topic evidence, not a complete answer; unrelated partial matches/noise can still occur. Strict successful retrieval remains unchanged.
 
+An empty result can carry the advisory code `no_matches_try_fewer_keywords`. It appears only when a text (lexical) search of two or more keywords completed against a fresh index and matched nothing: text search needs the keywords to appear together, so `SAP C4C CRM step setup` can miss a note that `SAP C4C` finds. Text output shows `No memory matches found. Try fewer keywords; text search needs them to appear together.`; `--json` and `--compact` list the code in `retrieval.warnings`, local and hosted alike. The CLI does not rerun or broaden the query for you, and the code does not mark retrieval partial. It is omitted when semantic search ran, when a backend query failed, when the index is stale, when a date range was requested, for single-keyword queries, and when matching evidence existed but did not fit a `--max-bytes` budget; those cases keep their own warnings and omission counts.
+
 ### Explicit temporal retrieval
 
 Search, recall, and their `run memory:*` recipes accept these optional flags on local or remote targets, with either rich or compact output:

@@ -6,7 +6,8 @@ import { isValidMemoryDocumentId } from "../../core/document-id.js";
 import { resolveIndexRoot } from "../../core/memory-root/index.js";
 import { compactWrittenDate, excerptMatchesSource, packCompactRecall, type CompactRecallCandidate, type CompactRecallOptions,
   type CompactRecallPacket, type CompactRecallPassage, type ExpansionUnavailableReason } from "../../core/retrieval-policy/compact.js";
-import { validatePacketMaxBytes } from "../../core/serialized-budget.js";
+import { PacketBudgetError, validatePacketMaxBytes } from "../../core/serialized-budget.js";
+import { FEWER_KEYWORDS_HINT } from "../../core/retrieval-policy/zero-hit.js";
 import type { Frontmatter, MemoryDocumentReadResult } from "../../types.js";
 import { searchMemory } from "./index.js";
 
@@ -112,12 +113,18 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
     }
     candidates.push({ passages, omittedPassages: (result.omittedPassages ?? 0) + changedPassages });
   }
-  return packCompactRecall({ query: search.query, depth: search.depth ?? "normal",
+  const retrieval = sourceChanged ? { status: "partial" as const, warnings: [...new Set([...(search.retrieval?.warnings ?? []), "source_changed"])] }
+    : search.retrieval ?? { status: "partial" as const, warnings: ["retrieval_outcome_unavailable"] };
+  const pack = (outcome: typeof retrieval) => packCompactRecall({ query: search.query, depth: search.depth ?? "normal",
     readiness: search.readiness ?? { freshness: "unknown", modes: [], embedding: "unknown" },
-    retrieval: sourceChanged ? { status: "partial", warnings: [...new Set([...(search.retrieval?.warnings ?? []), "source_changed"])] }
-      : search.retrieval ?? { status: "partial", warnings: ["retrieval_outcome_unavailable"] },
+    retrieval: outcome,
     ...(interval && search.temporal ? { temporal: search.temporal } : {}),
   }, candidates, { maxBytes, diagnostics: options.diagnostics });
+  try { return pack(retrieval); } catch (error) {
+    // The keyword hint is advisory: drop it before an envelope that fit without it fails its budget.
+    if (!(error instanceof PacketBudgetError) || error.code !== "budget_too_small" || !retrieval.warnings.includes(FEWER_KEYWORDS_HINT)) throw error;
+    return pack({ ...retrieval, warnings: retrieval.warnings.filter(warning => warning !== FEWER_KEYWORDS_HINT) });
+  }
   });
 }
 
