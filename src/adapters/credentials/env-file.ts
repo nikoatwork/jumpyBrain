@@ -253,9 +253,9 @@ export async function remoteKeyForUrl(url: string, options: EnvFileOptions = {})
 /**
  * Every key the CLI could use for `url`, in precedence order, for diagnostics
  * after a rejection. Never throws: an unreadable or insecure file is reported
- * as `fileProblem` (its message names the file, never a key).
+ * as `fileProblem` (its message names the file, never a key) with its code.
  */
-export async function remoteKeyCandidates(url: string, options: EnvFileOptions = {}): Promise<{ keys: RemoteKey[]; fileProblem?: string }> {
+export async function remoteKeyCandidates(url: string, options: EnvFileOptions = {}): Promise<{ keys: RemoteKey[]; fileProblem?: string; fileProblemCode?: CredentialFileError["code"] }> {
   const env = options.env ?? process.env;
   const keys: RemoteKey[] = [];
   const direct = env.JUMPYBRAIN_API_KEY?.trim();
@@ -266,7 +266,8 @@ export async function remoteKeyCandidates(url: string, options: EnvFileOptions =
     if (values) keys.push(...fileKeys(values, url, file));
     return { keys };
   } catch (error) {
-    return { keys, fileProblem: error instanceof CredentialFileError ? error.message : `Cannot read ${displayPath(file)}.` };
+    return error instanceof CredentialFileError ? { keys, fileProblem: error.message, fileProblemCode: error.code }
+      : { keys, fileProblem: `Cannot read ${displayPath(file)}.`, fileProblemCode: "credential_file_unreadable" };
   }
 }
 

@@ -84,6 +84,11 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
     const { identityCli } = await import("./identity.js"); await identityCli(args); return;
   }
 
+  // Observational, and it must keep working when a device policy blocks or cannot be read.
+  if (command === "access" && args._[1] === "whoami") {
+    const { accessWhoamiCli } = await import("./access-diagnostic.js"); await accessWhoamiCli(args); return;
+  }
+
   if (command === "backend" || command === "access") {
     const { backendCli, accessCli } = await import("./backend-commands.js");
     // A device-local read-only origin still blocks remote key issuance and revocation.

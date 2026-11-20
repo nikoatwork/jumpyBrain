@@ -64,6 +64,6 @@ export async function remoteAuthFailure(error: unknown, url: string): Promise<Er
   if (fileProblem) lines.push(`Not checked: ${fileProblem}`);
   lines.push(`Key order: JUMPYBRAIN_API_KEY in the environment, then the key the jumpyBrain app saved for this exact URL, then JUMPYBRAIN_API_KEY in ${file}.`);
   const need = status === 401 ? "a valid key" : reason === "read_only" ? "a writer key" : "an admin key";
-  lines.push(`To fix: ${issueHint.replace("Ask", "ask").replace("for a key", `for ${need}`)}, then ${setKeyHint(used.source, file)}.${status === 401 ? ` Check with: jumpybrain status --target-url ${url}` : ""}`);
+  lines.push(`To fix: ${issueHint.replace("Ask", "ask").replace("for a key", `for ${need}`)}, then ${setKeyHint(used.source, file)}.${status === 401 ? ` Check with: jumpybrain status --target-url ${url}` : ` See what this key may do: jumpybrain access whoami --target-url ${url}`}`);
   return Object.assign(new Error(lines.join("\n"), { cause: error }), { status, code: reason });
 }
