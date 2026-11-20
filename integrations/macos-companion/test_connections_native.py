@@ -68,14 +68,20 @@ extension Companion {
               "no loopback address or obsolete native controls")
         check(loginItem.state == .off, "absent fixture login item is unchecked")
 
-        // Decode production-shaped payloads: write approval is browser/gateway policy,
-        // not a reason to hide any of the remaining native recovery controls.
-        func state(_ kind: String?, _ health: String, _ phase: String = "idle", _ allowWrites: Bool = true) -> CompanionState {
+        // Decode production-shaped payloads: effective access (the server role) is
+        // browser/gateway presentation, not a reason to hide any of the remaining native
+        // recovery controls. `legacyFlag` is the write flag older gateways also sent.
+        func state(_ kind: String?, _ health: String, _ phase: String = "idle", _ role: String? = "admin", legacyFlag: Bool? = nil) -> CompanionState {
             var object: [String: Any] = ["phase": phase, "health": health, "generation": 3,
                                        "profiles": [], "activeId": kind as Any? ?? NSNull()]
             if let kind = kind {
-                var active: [String: Any] = ["id": kind, "kind": kind, "allowWrites": allowWrites,
+                var active: [String: Any] = ["id": kind, "kind": kind,
                     "name": kind == "local" ? "Local fixture" : "Remote\nfixture"]
+                if let legacyFlag = legacyFlag { active["allowWrites"] = legacyFlag }
+                let granted = role == "admin" ? ["read", "write", "manage_access"] : role == "writer" ? ["read", "write"] : role == "reader" ? ["read"] : []
+                var access: [String: Any] = ["source": kind == "local" ? "local" : "server", "role": role as Any? ?? NSNull(), "capabilities": granted]
+                if role == nil { access["reason"] = health == "connected" ? "unsupported" : health }
+                object["access"] = access
                 if kind == "local" { active["root"] = directory }
                 else { active["url"] = "https://fixture.invalid" }
                 object["active"] = active
@@ -99,12 +105,12 @@ extension Companion {
         controls(true, true, true, true)
         check(connectionState?.active?.root == directory && statusLine.title == "Local fixture · Connected",
               "local status/folder follow selected target")
-        for allowWrites in [false, true] {
-            present(state("remote", "connected", "idle", allowWrites))
+        for (role, legacyFlag) in [("reader", nil), ("writer", nil), ("admin", false), (nil, true)] as [(String?, Bool?)] {
+            present(state("remote", "connected", "idle", role, legacyFlag: legacyFlag))
             controls(true, false, true, true)
             check(!statusLine.title.contains("\n"), "active label sanitizes newline")
             for health in ["offline", "credential_unavailable", "authentication_failed"] {
-                present(state("remote", health, "idle", allowWrites))
+                present(state("remote", health, "idle", nil, legacyFlag: legacyFlag))
                 controls(true, false, true, true)
                 check(connectionState?.active?.kind == "remote" && connectionState?.active?.root == nil,
                       "offline does not select a local fallback")

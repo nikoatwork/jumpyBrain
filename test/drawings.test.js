@@ -299,12 +299,14 @@ test('the lazy drawing bundle stays within its reviewed weight and never ships C
   }
 });
 
-test('the Mac gateway serves the frame, proxies drawings and enforces per-brain write approval', async t => {
+test('the Mac gateway serves the frame, proxies drawings and follows the key\'s server role', async t => {
   const root = await fixture(t), remoteRoot = await fixture(t), support = path.join(root, 'support');
   await mkdir(support, { mode: 0o700 });
   const server = await startJumpyBrainHttpServer({ root: remoteRoot, apiKeys: ['fixture'], port: 0, host: '127.0.0.1', autoIndex: false });
+  // The saved connection uses a reader key issued by that server.
+  const remoteKey = (await (await fetch(server.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer fixture', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
   const gateway = await startCompanionGateway({ runtimeRoot: path.resolve('.'), directory: support, initialRoot: root, port: 0, controlKey: 'b'.repeat(64),
-    credentials: { get: async () => 'fixture', set: async () => {}, delete: async () => {} } });
+    credentials: { get: async () => remoteKey, set: async () => {}, delete: async () => {} } });
   t.drawingHosts.push(server, gateway);
   const request = (route, method = 'GET', body, extra = {}) => fetch(gateway.url + route, { method,
     headers: { Authorization: 'Bearer ' + 'b'.repeat(64), 'X-Companion-Generation': String(gateway.state().generation), 'Content-Type': 'application/json', ...extra },
@@ -331,7 +333,7 @@ test('the Mac gateway serves the frame, proxies drawings and enforces per-brain 
   assert.equal((await request('/memories/all/drawings', 'GET', undefined, { 'X-Companion-Generation': String(initial.generation - 1) })).status, 409);
   assert.equal((await request('/memories/all/notes', 'POST', { type: 'note', body: 'x'.repeat(1_100_000) })).status, 413, 'other routes keep the ordinary limit');
 
-  const added = await request('/companion/profiles', 'POST', { revision: initial.revision, profile: { name: 'Shared', kind: 'remote', url: server.url, key: 'fixture', allowWrites: false } });
+  const added = await request('/companion/profiles', 'POST', { revision: initial.revision, profile: { name: 'Shared', kind: 'remote', url: server.url, key: remoteKey } });
   const profile = (await added.json()).profiles.find(item => item.kind === 'remote');
   await request('/companion/switch', 'POST', { id: profile.id });
   const remote = await createDrawing(remoteRoot, 'Remote sketch', scene([rectangle('r')]));
@@ -341,7 +343,7 @@ test('the Mac gateway serves the frame, proxies drawings and enforces per-brain 
   assert.equal((await request('/memories/all/drawings/Remote%20sketch', 'PUT', { scene: scene() }, { 'If-Match': remote.contentHash })).status, 403);
   assert.equal((await request('/memories/all/drawings/Remote%20sketch', 'PATCH', { name: 'Moved' }, { 'If-Match': remote.contentHash })).status, 403);
   assert.equal((await request('/memories/all/drawings/Remote%20sketch', 'DELETE', undefined, { 'If-Match': remote.contentHash })).status, 403);
-  assert.equal((await readDrawing(remoteRoot, 'Remote sketch')).contentHash, remote.contentHash, 'a read-only brain is never changed');
+  assert.equal((await readDrawing(remoteRoot, 'Remote sketch')).contentHash, remote.contentHash, 'a reader key never changes the brain');
 });
 
 test('the desktop window permits only its own drawing frame as a subframe', () => {

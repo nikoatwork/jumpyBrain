@@ -3,9 +3,19 @@ import { media } from "./browser-design-system.js";
 
 // Server-rendered markup and styles for the access-key view. Kept apart from the
 // controller in access-keys.ts so the editor bundle does not carry them twice.
+// The three capability rows are static; the controller only marks each allowed or not.
 const panel = String.raw`
 <div id="access-keys" class="access-keys">
   <h2 id="access-keys-title">Access keys</h2>
+  <section id="access-effective" class="access-effective card card--roomy" aria-labelledby="access-effective-title" hidden>
+    <strong id="access-effective-title">Your access</strong>
+    <p id="access-effective-summary"></p>
+    <ul id="access-effective-list" aria-label="What your access allows">
+      <li data-capability="read"><span class="badge access-key-badge"></span><span>Search and read notes, boards and drawings</span></li>
+      <li data-capability="write"><span class="badge access-key-badge"></span><span>Create, edit and delete notes, boards and drawings, and refresh search</span></li>
+      <li data-capability="manage_access"><span class="badge access-key-badge"></span><span>Create and revoke access keys</span></li>
+    </ul>
+  </section>
   <p id="access-keys-intro" class="access-keys-intro"></p>
   <div id="access-keys-new" class="access-keys-new card card--roomy" hidden>
     <strong id="access-keys-new-title"></strong>
@@ -53,6 +63,14 @@ export const accessKeysStyles = String.raw`
   .access-keys p { margin: var(--space-2) 0 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
   .access-keys .access-keys-intro { font-size: var(--text-ui); max-width: 62ch; }
   .access-keys-intro:empty { display: none; }
+  .access-effective { margin-top: var(--space-4); }
+  .access-effective[hidden] { display: none; }
+  .access-effective strong { font-size: var(--text-body); }
+  #access-effective-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-1); font-size: var(--text-ui); }
+  #access-effective-list li { display: flex; gap: var(--space-2); align-items: baseline; }
+  #access-effective-list li[data-allowed="false"] { color: var(--ink-soft); }
+  #access-effective-list .badge { flex: none; }
+  .access-effective + .access-keys-intro { margin-top: var(--space-5); }
   #access-keys-form { margin-top: var(--space-5); }
   #access-keys-form[hidden], #access-keys-list[hidden], .access-keys-new[hidden] { display: none; }
   #access-keys-form .field-label { display: block; margin-bottom: var(--space-1); }

@@ -23,22 +23,60 @@ function deferred() {
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const id = "mem_a0000000-0000-4000-8000-000000000001";
 
-test("changing a remote destination clears approval; local read-only profiles cannot be edited", () => {
-  const elements = { "companion-url": { value: "https://another.example" }, "companion-writes": { checked: true } };
-  const context = runtime(["companionRemoteDestinationChanged", "companionReadOnly"], {
-    URL, $: (id) => elements[id], companionRemoteDestination: "https://original.example",
-    companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
-    companionState: { active: { kind: "local", allowWrites: false } },
+const accessFunctions = ["companionReadOnly", "companionCan", "companionAccessBlocked", "companionAccessExplanation", "companionAccessLabel", "companionRoleLabel", "companionDenied", "companionExplainAccess"];
+const reader = { source: "server", role: "reader", capabilities: ["read"], name: "Reviewer" };
+const writer = { source: "server", role: "writer", capabilities: ["read", "write"], name: "Editor" };
+const admin = { source: "server", role: "admin", capabilities: ["read", "write", "manage_access"], name: "Owner" };
+const localAccess = { source: "local", role: "admin", capabilities: ["read", "write", "manage_access"] };
+
+test("the reported server role alone decides read-only; missing, unknown and malformed access fail closed", () => {
+  const messages = [], visits = [];
+  const context = runtime(accessFunctions, {
+    companionFrozen: false, companionSessionFailed: false, companionRegistered: true, companionAccessNoticeCount: 0,
+    companionState: { active: { kind: "remote", name: "Team" }, access: reader },
+    systemMessages: { dispatch: (message) => messages.push(message) },
+    companionOpenAccessSettings: () => visits.push("/settings?section=access"),
   });
-  context.companionRemoteDestinationChanged();
-  assert.equal(elements["companion-writes"].checked, false);
-  elements["companion-writes"].checked = true;
-  elements["companion-url"].value = "https://another.example:443/";
-  context.companionRemoteDestinationChanged();
-  assert.equal(elements["companion-writes"].checked, true, "equivalent normalized origin retains fresh approval");
   assert.equal(context.companionReadOnly(), true);
-  context.companionState.active.allowWrites = true;
-  assert.equal(context.companionReadOnly(), false);
+  assert.equal(context.companionAccessBlocked(), true);
+  assert.equal(context.companionAccessLabel(reader), "Reader access");
+  for (const access of [writer, admin, localAccess]) {
+    context.companionState.access = access;
+    assert.equal(context.companionReadOnly(), false, access.role + " " + access.source);
+    assert.equal(context.companionAccessBlocked(), false);
+  }
+  assert.equal(context.companionAccessLabel(localAccess), "Full access");
+  assert.equal(context.companionCan("manage_access"), true);
+  context.companionState.access = writer;
+  assert.equal(context.companionCan("manage_access"), false);
+  assert.equal(context.companionDenied("Creating a key", "manage_access"), true);
+  assert.match(messages.pop().text, /Creating a key needs an admin key\. Your key for “Team” has writer access\./);
+  // Nothing but an explicit capability list grants anything, and the removed device flag grants nothing.
+  for (const access of [undefined, null, {}, { role: "admin" }, { role: "admin", capabilities: "write" }, { source: "server", role: null, capabilities: [], reason: "offline" },
+    { source: "server", role: null, capabilities: [], reason: "unsupported" }, { source: "server", role: null, capabilities: [], reason: "checking" }]) {
+    context.companionState = { active: { kind: "remote", name: "Team", allowWrites: true }, access };
+    assert.equal(context.companionReadOnly(), true, JSON.stringify(access));
+    assert.equal(context.companionCan("read"), false);
+  }
+  assert.equal(context.companionAccessLabel({ source: "server", role: null, capabilities: [], reason: "offline" }), "Access not confirmed");
+  assert.equal(context.companionAccessLabel({ source: "server", role: null, capabilities: [], reason: "checking" }), "Checking access…");
+  assert.match(context.companionAccessExplanation("Creating a note"), /Creating a note is paused: the app could not confirm what your access key may do on “Team”\./);
+  // A blocked action explains itself and offers Settings; an allowed one says nothing.
+  context.companionState = { active: { kind: "remote", name: "Team" }, access: reader };
+  assert.equal(context.companionDenied("Creating a note"), true);
+  const explanation = messages.pop();
+  assert.equal(explanation.text, "Creating a note needs a writer or admin key. Your key for “Team” has reader access.");
+  assert.equal(explanation.action.label, "Open Settings"); explanation.action.run(); assert.deepEqual(visits, ["/settings?section=access"]);
+  assert.equal(context.companionDenied("Creating a note"), true);
+  assert.notEqual(messages.pop().revision, explanation.revision, "a repeated attempt is explained again");
+  context.companionState.access = writer;
+  assert.equal(context.companionDenied("Creating a note"), false); assert.equal(messages.length, 0);
+  // A frozen or failed session is not a role restriction: it blocks without the role explanation.
+  context.companionState.access = reader; context.companionSessionFailed = true;
+  assert.equal(context.companionReadOnly(), true); assert.equal(context.companionAccessBlocked(), false);
+  assert.equal(context.companionDenied("Creating a note"), true); assert.equal(messages.length, 0);
+  context.companionSessionFailed = false; context.companionState.active = null;
+  assert.equal(context.companionReadOnly(), true); assert.equal(context.companionAccessBlocked(), false);
 });
 
 test("clean restart reconnect reloads before registration; dirty reconnect never moves the draft", async () => {
@@ -69,20 +107,19 @@ test("companion settings/scripts are opt-in and both shell variants parse", () =
   assert.doesNotMatch(ordinary, /id="companion-settings"/);
   assert.doesNotMatch(ordinary, /function startCompanion/);
   assert.match(html, /id="companion-key" type="password"/);
-  const permission = html.match(/<input\b[^>]*id="companion-writes"[^>]*>/)?.[0];
-  assert.ok(permission);
-  assert.match(permission, /type="checkbox"/);
-  assert.doesNotMatch(permission, /\bchecked\b/, "remote editing is never pre-approved in the shell");
+  assert.doesNotMatch(html, /companion-writes|Allow editing on this remote brain|(?:active|profile)\??\.allowWrites/, "no device write toggle remains");
+  assert.match(html, /id="companion-role-help"[^>]*>[^<]*set by the key’s role on the server/);
+  assert.match(html, /id="access-effective"[^>]*hidden/, "effective access lives in Settings and starts empty");
   assert.doesNotThrow(() => new vm.Script(script));
   assert.doesNotThrow(() => new vm.Script([...ordinary.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1]));
 });
 
-test("Settings owns index refresh; read-only, offline, switching and unavailable sessions cannot refresh", () => {
+test("Settings owns index refresh; reader, unconfirmed, offline, switching and unavailable sessions cannot refresh", () => {
   assert.match(html, /id="companion-heading" class="settings-breadcrumb" tabindex="-1"/);
   assert.match(html, /id="companion-refresh-index"/);
   assert.doesNotMatch(graphPageHtml("fixture"), /id="companion-refresh-index"/);
-  const context = runtime(["companionCanRefreshIndex", "companionReadOnly", "companionHealthText"], {
-    companionState: { phase: "idle", health: { status: "connected" }, active: { allowWrites: true } },
+  const context = runtime(["companionCanRefreshIndex", "companionIndexExplains", "companionReadOnly", "companionCan", "companionAccessBlocked", "companionHealthText"], {
+    companionState: { phase: "idle", health: { status: "connected" }, active: { kind: "remote" }, access: writer },
     companionActionBusy: false, companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
   });
   assert.equal(context.companionCanRefreshIndex(), true);
@@ -91,21 +128,27 @@ test("Settings owns index refresh; read-only, offline, switching and unavailable
   }
   context.companionRegistered = false; assert.equal(context.companionCanRefreshIndex(), false);
   context.companionRegistered = true;
-  context.companionState.active.allowWrites = false; assert.equal(context.companionCanRefreshIndex(), false);
-  context.companionState.active.allowWrites = true;
+  assert.equal(context.companionIndexExplains(), false);
+  for (const access of [reader, { source: "server", role: null, capabilities: [], reason: "offline" }, undefined]) {
+    context.companionState.access = access; assert.equal(context.companionCanRefreshIndex(), false);
+    assert.equal(context.companionIndexExplains(), true, "the control stays available to explain the restriction");
+  }
+  context.companionState.access = writer;
   context.companionState.health = "offline"; assert.equal(context.companionCanRefreshIndex(), false);
   context.companionState.health = "connected";
   context.companionState.phase = "preparing"; assert.equal(context.companionCanRefreshIndex(), false);
 });
 
 test("Settings refresh uses fenced memory transport, prevents repeats, and reports unconfirmed failures", async () => {
-  const feedback = { dataset: {} }, fields = {}, calls = [], pending = deferred();
+  const feedback = { dataset: {} }, fields = {}, calls = [], pending = deferred(), explained = [];
+  let explains = false;
   const context = runtime(["companionRefreshIndex", "companionAction"], {
     companionActionBusy: false, companionFrozen: false, companionRegistered: true, companionSessionFailed: false,
     companionIndexRefreshing: false, state: {},
     $: () => fields,
     systemMessages: { dispatch(value) { feedback.textContent = value.text; feedback.dataset.error = String(value.severity === "error"); } },
     companionCanRefreshIndex: () => !context.companionActionBusy,
+    companionIndexExplains: () => explains, companionExplainAccess: (action) => explained.push(action),
     renderCompanionIndex() {}, renderCompanionSettings() {}, companionMessage() {},
     graphJson: async (...args) => { calls.push(args); return pending.promise; },
   });
@@ -127,6 +170,11 @@ test("Settings refresh uses fenced memory transport, prevents repeats, and repor
   assert.equal(feedback.dataset.error, "true");
   assert.match(feedback.textContent, /could not be confirmed/);
   assert.equal(context.companionActionBusy, false);
+  // Under a role restriction the same control explains instead of sending anything.
+  explains = true; context.graphJson = async () => { throw new Error("must not be requested"); };
+  feedback.textContent = "";
+  await context.companionRefreshIndex();
+  assert.deepEqual(explained, ["Refreshing the search index"]); assert.equal(feedback.textContent, "");
 });
 
 test("memory requests wait for registration and send generation/tab, never bearer target keys", async () => {
@@ -250,9 +298,9 @@ function interactionHarness() {
     return elements.get(id);
   };
   const calls = { references: 0, search: 0, dream: 0, sync: 0, boards: 0, boardRefreshes: 0, barriers: [], replacements: [] };
-  const context = runtime(["companionLock", "companionApplyState", "companionFence", "companionReadOnly", "companionScopeUrl", "companionRecoverable", "companionSessionText", "companionScheduleRecovery"], {
+  const context = runtime(["companionLock", "companionApplyState", "companionFence", "companionReadOnly", "companionCan", "companionAccessBlocked", "companionScopeUrl", "companionRecoverable", "companionSessionText", "companionScheduleRecovery"], {
     URL, location: { origin: "http://127.0.0.1:1234", replace: (url) => calls.replacements.push(url) },
-    companionState: { profiles: [], generation: 1, phase: "idle", activeId: "a", active: { allowWrites: true } },
+    companionState: { profiles: [], generation: 1, phase: "idle", activeId: "a", active: { kind: "remote" }, access: writer },
     companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
     companionAutoRecovery: false, companionRecoveryTimer: null, companionRecoveryDelay: 0,
     browserActor: { kind: "human", id: "browser:fixture" }, identityNameDirty: false,
@@ -285,8 +333,12 @@ test("healthy idle snapshots preserve dialogs and reference interactions while s
   assert.equal(calls.search, 0); assert.equal(calls.dream, 0); assert.equal(calls.boards, 0);
   assert.equal(calls.sync, 8, "healthy polls still synchronize editor permissions");
   assert.equal(element("home-new").disabled, false);
-  context.companionApplyState({ ...context.companionState, active: { allowWrites: false } });
-  assert.equal(element("home-new").disabled, true, "unchanged lock state must not skip permission updates");
+  context.companionApplyState({ ...context.companionState, access: reader });
+  assert.equal(calls.sync, 9, "unchanged lock state must not skip permission updates");
+  assert.equal(context.companionReadOnly(), true);
+  assert.equal(element("home-new").disabled, false, "a role restriction leaves creation available so it can explain itself");
+  context.companionApplyState({ ...context.companionState, active: null, activeId: null, access: null });
+  assert.equal(element("home-new").disabled, true, "with no brain selected there is nothing to explain");
 });
 
 test("healthy idle polling keeps the editor locked while a note metadata action is in flight", () => {
@@ -448,11 +500,11 @@ test("note URLs are scoped and mismatched brain links are rejected", () => {
 });
 
 test("Dream uses the actual authorized remote URL, never the gateway/local folder", () => {
-  const context = runtime(["companionDreamTarget"], { companionState: { active: { kind: "local", root: "/fixture" } } });
+  const context = runtime(["companionDreamTarget", "companionCan", "companionAccessExplanation"], { companionState: { active: { kind: "local", root: "/fixture" } } });
   assert.throws(context.companionDreamTarget, /gateway is not an agent endpoint/);
-  context.companionState.active = { kind: "remote", url: "https://fixture.example", allowWrites: false };
-  assert.throws(context.companionDreamTarget, /read only/);
-  context.companionState.active.allowWrites = true;
+  context.companionState = { active: { kind: "remote", name: "Team", url: "https://fixture.example", allowWrites: true }, access: reader };
+  assert.throws(context.companionDreamTarget, /Dream handoff needs a writer or admin key.*reader access.*Settings/);
+  context.companionState.access = writer;
   assert.equal(context.companionDreamTarget(), "https://fixture.example");
 });
 

@@ -11,7 +11,7 @@ function runtime(names, globals = {}) {
   vm.runInContext(names.map(name => extractShellFunction(source, name)).join('\n'), context);
   return context;
 }
-const remote = { id: 'remote', name: 'VPS brain', kind: 'remote', url: 'https://memory.example', allowWrites: false };
+const remote = { id: 'remote', name: 'VPS brain', kind: 'remote', url: 'https://memory.example' };
 
 test('shared shell may render connection state before the companion notice is constructed', () => {
   const c = runtime(['renderCompanionAccess'], { document: { getElementById: () => null } });
@@ -19,7 +19,7 @@ test('shared shell may render connection state before the companion notice is co
   assert.doesNotThrow(() => vm.runInContext('renderCompanionAccess(); const companionAccessNotice = {};', c));
 });
 
-test('Access key repair and rejected keys take priority over the separate read-only setting', () => {
+test('Access key repair and rejected keys name the key and its repair field', () => {
   const c = runtime(['companionHealthText', 'companionHealthLabel', 'companionConnectionNotice']);
   for (const code of ['credential_unavailable', 'authentication_failed']) {
     assert.doesNotMatch(c.companionHealthLabel(code), /_/);
@@ -33,34 +33,30 @@ test('Access key repair and rejected keys take priority over the separate read-o
   assert.equal(c.companionHealthLabel('unknown_internal_code'), 'Connection unavailable');
 });
 
-test('Read-only notice identifies a local app preference without silently granting writes', () => {
+test('A connected brain shows no access banner: effective access is a Settings detail, whatever old profile data says', () => {
   const c = runtime(['companionHealthText', 'companionConnectionNotice']);
-  const notice = c.companionConnectionNotice(remote, 'connected');
-  assert.match(notice.text, /Editing is off.*in this app/);
-  assert.equal(notice.field, 'companion-writes');
-  assert.equal(notice.action, 'Review editing access');
-  assert.equal(remote.allowWrites, false);
-  assert.equal(c.companionConnectionNotice({ ...remote, allowWrites: true }, 'connected').text, '');
-  assert.equal(c.companionConnectionNotice({ ...remote, kind: 'local', allowWrites: true }, 'connected').text, '');
+  for (const profile of [remote, { ...remote, allowWrites: false }, { ...remote, allowWrites: true }, { ...remote, kind: 'local' }]) {
+    assert.deepEqual({ ...c.companionConnectionNotice(profile, 'connected') }, { text: '', action: '', field: 'companion-name' });
+  }
   assert.match(c.companionConnectionNotice(remote, 'offline').text, /internet connection and server address/);
+  assert.doesNotMatch(source, /companion-writes|Review editing access|Editing is off/);
 });
 
 test('backend build mismatches explain software recovery instead of blaming the memory folder', () => {
   const c = runtime(['companionHealthText', 'companionHealthLabel', 'companionConnectionNotice']);
-  const local = { id: 'local', name: 'Personal', kind: 'local', allowWrites: true };
+  const local = { id: 'local', name: 'Personal', kind: 'local' };
   assert.equal(c.companionHealthLabel('backend_version_mismatch'), 'Software update needed');
   const notice = c.companionConnectionNotice(local, 'backend_version_mismatch');
   assert.match(notice.text, /another software version.*Update jumpyBrain and the CLI, then retry/);
   assert.doesNotMatch(notice.text, /memory folder|Quit/);
   assert.equal(notice.field, 'companion-root');
-  assert.equal(local.allowWrites, true);
 });
 
 test('board loading reuses static software mismatch guidance and keeps unexpected error text private', async () => {
   const notices = [];
   const c = runtime(['companionHealthText', 'companionConnectionNotice'], {
     scope: () => 'same-brain', bound: 'same-brain', sequence: 0,
-    companionState: { active: { kind: 'local', name: 'Personal', allowWrites: true } },
+    companionState: { active: { kind: 'local', name: 'Personal' } },
     notice: text => notices.push(text),
   });
   const boards = readFileSync(new URL('../src/adapters/http-server/boards-view.ts', import.meta.url), 'utf8');
@@ -83,7 +79,7 @@ function formFixture(health = 'credential_unavailable') {
   element('companion-kind').value = 'remote';
   const c = runtime(['companionHealthText', 'companionFormKind', 'companionFormError', 'companionEditConnection'], {
     $: element, companionState: { activeId: remote.id, active: remote, profiles: [remote], health, revision: 4 },
-    companionHealth: new Map(), companionEditId: null, companionEditRevision: null, companionRemoteDestination: '',
+    companionHealth: new Map(), companionEditId: null, companionEditRevision: null,
     companionActionBusy: false, companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
     document: { body: { dataset: { settingsPage: 'brains' } } }, state: { view: 'settings' },
     companionClearForm() {}, navigation: { navigate: async () => true },
@@ -99,11 +95,10 @@ test('New, existing and broken-key edit forms provide accurate help and focus th
   await c.companionEditConnection(remote.id);
   assert.equal(focused(), 'companion-key');
   assert.match(element('companion-key-help').textContent, /repair this connection/);
-  assert.equal(element('companion-writes').checked, false);
   c.companionState.health = 'connected'; c.companionFormKind();
   assert.match(element('companion-key-help').textContent, /Leave blank/);
-  await c.companionEditConnection(remote.id, 'companion-writes');
-  assert.equal(focused(), 'companion-writes');
+  await c.companionEditConnection(remote.id, 'companion-url');
+  assert.equal(focused(), 'companion-url');
 });
 
 test('Repair navigation honors the existing save barrier', async () => {

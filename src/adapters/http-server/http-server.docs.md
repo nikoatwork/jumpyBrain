@@ -72,9 +72,10 @@ Authenticated `/memories/all/boards` and per-ID/status routes delegate to `app/s
 | Operation | CLI remote policy | Hosted server | Companion |
 | --- | --- | --- | --- |
 | Search/recall/expand, document/board reads | Allowed on a configured read-only target | Authenticated read; observational POSTs retain read authorization | Selected target, session/Origin, tab and generation checks; no write barrier for live reads |
-| Document/attention/board mutation | Configured read-only target denies before credentials/dispatch | Writer/admin plus domain preconditions | Also requires target `allowWrites`; admitted mutation drains before switching |
-| Live history/recovery read | Live open/watch remain observational | Authenticated subscription/document scope | Allowed for read-only profiles; late old-generation reply is fenced |
-| Live `resync` | Mutation command path | App/principal rules | Writer-only: substituted upstream credentials must not reset unsafe sessions for a read-only profile |
+| Document/attention/board mutation | Configured read-only target denies before credentials/dispatch | `write` capability (writer/admin) plus domain preconditions | Refused early unless the brain's confirmed server role can write; the server authorizes again; admitted mutation drains before switching |
+| Live history/recovery read | Live open/watch remain observational | Authenticated subscription/document scope | Allowed for reader keys; late old-generation reply is fenced |
+| Live `resync` | Mutation command path | App/principal rules | Writer-only: sent upstream only when the role in this connection's upstream hello can write |
+| Access-key list/issue/revoke | Configured read-only target denies issue/revoke | `manage_access` capability (admin) | Refused early unless the confirmed role is admin; the server authorizes again |
 | Unknown live method | No supported command | Rejected | Rejected, never treated as a permissive read |
 | `/_backend/call` | Private root-owner transport only | Operator capability, never public writer privilege | Not in browser route allowlist |
 

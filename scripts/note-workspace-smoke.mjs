@@ -311,13 +311,14 @@ try {
   assert.equal(await page.locator('#format-controls').isHidden(), true);
   await context.close();
 
-  // A real read-only remote brain keeps useful context/copy while empty-state
-  // guidance never invites an edit the selected connection cannot perform.
+  // A real remote brain reached with a reader key keeps useful context/copy while
+  // empty-state guidance never invites an edit the key's role cannot perform.
   const directory = path.join(temporary, 'support'); await mkdir(directory, { mode: 0o700 });
   const controlKey = 'd'.repeat(64), keys = new Map();
   gateway = await startCompanionGateway({ runtimeRoot: process.cwd(), directory, initialRoot: root, port: 0, controlKey,
     credentials: { get: async ref => keys.get(ref), set: async (ref, value) => keys.set(ref, value), delete: async ref => keys.delete(ref) } });
-  await gateway.store.save({ kind: 'remote', name: 'Review-only workspace', url: server.url, allowWrites: false, key }, gateway.store.snapshot().revision);
+  const readerKey = (await (await fetch(server.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
+  await gateway.store.save({ kind: 'remote', name: 'Review-only workspace', url: server.url, key: readerKey }, gateway.store.snapshot().revision);
   const profile = gateway.store.snapshot().profiles.find(profile => profile.name === 'Review-only workspace');
   const switched = await fetch(gateway.url + '/companion/switch', { method: 'POST', headers: { Authorization: 'Bearer ' + controlKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: profile.id }) });
   assert.equal(switched.status, 200);
@@ -333,7 +334,13 @@ try {
   assert.equal(await readonly.locator('#toggle-note-format').isHidden(), true);
   assert.equal(await readonly.locator('#format-controls').isHidden(), true);
   await readonly.locator('#toggle-page-details').click();
-  assert.equal(await readonly.locator('#delete-note').isDisabled(), true);
+  // Delete stays available under a role restriction: choosing it explains and points to Settings.
+  assert.equal(await readonly.locator('#delete-note').isDisabled(), false);
+  await readonly.locator('#delete-note').click();
+  await readonly.locator('#app-toast').waitFor({ state: 'visible' });
+  assert.match(await readonly.locator('#toast-message').textContent(), /Deleting this note needs a writer or admin key/);
+  assert.equal(await readonly.locator('#toast-action').textContent(), 'Open Settings');
+  assert.equal(await readonly.locator('#delete-note-dialog[open]').count(), 0);
   await readonlyContext.close();
   assert.deepEqual(errors, []);
   console.log('PASS folding-desk journey: real create/title/body, pointer and keyboard selection formatting/undo, direct reference insertion/follow/Back/search, autosave/reopen, failed-save departure guard/reviewed publication, immutable folding, scoped Escape/focus, read-only, exact draft copy, 1280/1180/900/390/320px light/dark details and 18 expanded palette layouts. Screenshots: ' + output);

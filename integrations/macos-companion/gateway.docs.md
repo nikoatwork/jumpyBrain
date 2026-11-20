@@ -24,7 +24,7 @@ The native bootstrap's private `api-key` is now a **control** capability, not a 
 
 Remote access keys come from the shared owner-only `~/.config/jumpybrain/.env` through `appCredentials` ([credentials docs](../../src/adapters/credentials/credentials.docs.md)); a missing key or an insecure file reports `credential_unavailable` with a fix (never the key). The native folder picker travels through bounded anonymous stdin/stdout pipes: `{id,operation:"select-folder"}` requests and `{id,result}` replies. Node stdout is exclusively this protocol; diagnostics use static stderr. Unknown/malformed frames, including the removed `get`/`set`/`delete`, fail closed.
 
-`/companion/connections` is native-only: safe GET snapshot (local profiles carry an observational `available` flag: folder and `jumpybrain.json` present); revision-checked POST add (local, or remote with `url`, `key` and optional `allowWrites`), remove (local or remote) and local select through the singleton store/save barrier, including first activation. Active removal and offline CLI edits are refused; selection never retargets the CLI; remote selection stays in Settings. The CLI's `connections test` and `status --all` use the existing `/companion/test`.
+`/companion/connections` is native-only: safe GET snapshot (local profiles carry an observational `available` flag: folder and `jumpybrain.json` present); revision-checked POST add (local, or remote with `url` and `key`; a boolean `allowWrites` from an older CLI is accepted and ignored), remove (local or remote) and local select through the singleton store/save barrier, including first activation. Active removal and offline CLI edits are refused; selection never retargets the CLI; remote selection stays in Settings. The CLI's `connections test` and `status --all` use the existing `/companion/test`.
 
 ## Switch protocol
 
@@ -33,9 +33,29 @@ Remote access keys come from the shared owner-only `~/.config/jumpybrain/.env` t
 - Registered tabs may finish old-target requests before acknowledging. Once acknowledged, further memory admission is denied. Every admitted memory request pins the generation/target until it settles, including index requests; commit waits for their drain. New registration during commit is rejected.
 - Only after all positive acknowledgements and drained scopes does the host persist the selection and fence the new generation. Old positively acknowledged tabs learn this state through polling and replace their route with scoped home/settings, clearing editor/cache/retry state. Old writes are always rejected. A process restart has a new random generation and no previous acknowledgements; old tabs are fenced with drafts retained, not silently reloaded. Reconnect refuses to move an unsaved draft across that boundary.
 - Hosted and companion editors stop on HTTP 412 and expose explicit draft comparison/reload; neither automatically overwrites another writer. Copy/reconcile the draft deliberately rather than automatically overwriting another tab's saved version.
-- Active destination/key/permission edits use the same barrier. Replacing a destination also allocates a new profile ID, so old `?brain=<id>&note=<id>` bookmarks cannot resolve on its replacement. Key rotation/permission changes on the same destination retain the profile identity but advance the process generation.
+- Active destination/key edits use the same barrier. Replacing a destination also allocates a new profile ID, so old `?brain=<id>&note=<id>` bookmarks cannot resolve on its replacement. Key rotation on the same destination retains the profile identity but advances the process generation; this is the only way a connection's role changes.
 - A persisted selection remains selected if offline or its access key is unavailable. Switching never substitutes a different brain. A failed persistence step does not advance the generation; previously successful old-target saves are not rolled back.
-- Remote profiles default read-only. Explicit target-specific editing/index approval is stored separately from connectivity. Changing the URL clears the browser approval checkbox; no approval transfers from the previous destination. The gateway enforces `allowWrites` for every local/remote mutation.
+- The server role alone decides what a remote connection may do; see [effective access](#effective-access). Profiles store no permission and there is no device read-only setting.
+
+## Effective access
+
+What the active brain permits is reported in `state().access` and beside `health` in the `/companion/test` reply. It is never read from profile data.
+
+| Field | Meaning |
+| --- | --- |
+| `source` | `local` for a folder on this device, `server` for a remote brain. |
+| `role` | `reader`, `writer` or `admin`; `null` when a remote role is not confirmed. A local folder reports `admin`: it is the user's own and no server role applies. |
+| `capabilities` | Subset of `read`, `write`, `manage_access`. Empty whenever `role` is `null`. Check this list, not the role name. |
+| `name` | The server's name for the key (`source: server`, confirmed role only). |
+| `reason` | Only with `role: null`: `checking`, `offline`, `authentication_failed`, `credential_unavailable`, `backend_version_mismatch` or `unsupported` (the server reported no role this build knows). |
+
+`access` is `null` when no brain is selected. A remote role comes from the target's `GET /capabilities` for the saved key: the server's `capabilities` list when present, else the fixed set for its `principal.role` (older servers). It is resolved with the health check, remembered for at most 30 seconds per brain generation and key, and forgotten when a health check fails. A replaced key has a new credential reference and a new generation, so it never inherits a role.
+
+The gateway uses this only to refuse early. Before forwarding a mutation (or any `/access` request) for a remote profile it requires the needed capability, resolving the role first when none is remembered: a known role without it answers 403 `read_only` or `admin_required`; an unconfirmed role answers 403 `access_unconfirmed`, or 503 when the server or key file is unavailable. Passing the check grants nothing: the request carries the key and the server authorizes it again, so a remembered or wrongly advertised role cannot produce a write the server would refuse. A local profile is not checked; its owner backend decides.
+
+Verify with `node --test test/macos-companion-gateway.test.js test/companion-live-gateway.test.js test/access-keys.test.js` and, after a build, `npx --package=playwright node scripts/server-role-access-smoke.mjs` (old restricted admin file, reader, writer, revoked, unreachable and local cases through Chromium).
+
+The shared browser shows effective access only in Settings (the Access keys panel and the active connection row). Elsewhere a restricted action stays visible and, when used, explains the restriction with an **Open Settings** action. See the [browser contract](../../src/adapters/http-server/browser.docs.md).
 
 No tab-closure or browser-crash draft recovery is promised. An ordinary browser unload confirmation is still relevant; force-closing a tab can destroy browser-only drafts. An unresponsive registration blocks switching until the tab wakes or the user closes it. Restarting is not a safe save-guard bypass: old tabs are fenced and may need draft copying/manual recovery. Connections saved by older Keychain-based builds have no key in the file; re-enter it through guarded Settings repair. No hidden prompts or broad Keychain ACL relaxation is used.
 
@@ -49,17 +69,17 @@ Verification: `node --test test/{macos-companion-connections,macos-companion-gat
 
 Direct support feedback uses authenticated, Origin-checked, generation/tab-fenced `POST /feedback`, handled by the gateway itself. It forwards only the explicitly submitted report to the configured support relay, even if the selected brain is offline/read-only, without starting a local engine or forwarding remote credentials. It participates in the coordinator's in-flight drain. The relay URL is public package configuration generated at build time; native process environment filtering remains intact. Mail credentials exist only on the central relay. See [deployment](../../docs/feedback-delivery.md).
 
-The route allowlist includes document DELETE as a write, forwarding its bounded JSON body and If-Match under the same generation/tab admission and target allowWrites policy as PUT. Read-only profiles cannot delete. GET `?deletePreview=1` remains observational. Browser deletion/reload actions settle before switch acknowledgement; destructive actions recheck current editor/scope/write authorization before submission. Expired-session UI offers direct Retry and Recover draft controls without moving a pending draft to a new generation.
+The route allowlist includes document DELETE as a write, forwarding its bounded JSON body and If-Match under the same generation/tab admission and role check as PUT. A reader key cannot delete. GET `?deletePreview=1` remains observational. Browser deletion/reload actions settle before switch acknowledgement; destructive actions recheck current editor/scope/write authorization before submission. Expired-session UI offers direct Retry and Recover draft controls without moving a pending draft to a new generation.
 
-GET `/memories/all/attention` is observational. Document PATCH is a write with its bounded JSON body and If-Match forwarded under the same generation/tab admission, drain and target-specific `allowWrites` policy as PUT/DELETE. Remote read-only profiles can discover attention but cannot settle, snooze or reactivate.
+GET `/memories/all/attention` is observational. Document PATCH is a write with its bounded JSON body and If-Match forwarded under the same generation/tab admission, drain and role check as PUT/DELETE. A reader key can discover attention but cannot settle, snooze or reactivate.
 
-`GET /access` forwards as a read; `POST /access` and `DELETE /access/:id` are writes under the same session/Origin, generation/tab and `allowWrites` admission. The upstream server enforces the admin role. No other administrative route is forwarded.
+`GET /access`, `POST /access` and `DELETE /access/:id` forward under the same session/Origin and generation/tab admission and need the `manage_access` capability (an admin key); reader and writer keys are refused `admin_required` before the server is asked, and the server enforces it again. No other administrative route is forwarded.
 
-POST `/memories/all/ensure-title` is a write, including requests that might reuse an existing page. Its bounded JSON title request uses the same session/Origin checks, generation/tab admission, request drain and target-specific `allowWrites` policy as note creation. POST `/memories/all/resolve-title` remains observational, so read-only profiles can still resolve existing references without permission to create missing pages. The target app owns canonical title lookup and find-or-create publication.
+POST `/memories/all/ensure-title` is a write, including requests that might reuse an existing page. Its bounded JSON title request uses the same session/Origin checks, generation/tab admission, request drain and role check as note creation. POST `/memories/all/resolve-title` remains observational, so a reader key can still resolve existing references without being able to create missing pages. The target app owns canonical title lookup and find-or-create publication.
 
 ## Folder explorer
 
-GET `/memories/all/files` is an observational canonical metadata listing forwarded through the existing generation/tab admission and response-size limit. Read-only local and remote profiles can browse folders; no filesystem root, note bodies or write permission are exposed by the listing. Older remote servers without this route return an ordinary unavailable response, not an incomplete overview fallback.
+GET `/memories/all/files` is an observational canonical metadata listing forwarded through the existing generation/tab admission and response-size limit. Reader keys can browse folders; no filesystem root, note bodies or write permission are exposed by the listing. Older remote servers without this route return an ordinary unavailable response, not an incomplete overview fallback.
 
 ## Unified desktop hosting and shutdown
 
@@ -71,7 +91,7 @@ Native-only POST `/companion/shutdown` with `{action: "prepare"}` reuses the reg
 
 ## Living-page source checks
 
-POST `/memories/all/dream/sources/check` is explicitly observational (`write:false`) in the memory-route allowlist. Forward saved-page IDs and draft content/file bodies unchanged through the existing session/Origin, generation/tab admission and request drain, injecting only the active target credential. Both local and remote `allowWrites:false` profiles can check versions; this grants no note/index/update permission. GET and other source-operation paths remain unsupported. Gateway tests round-trip real saved/draft checks through both target types, assert no canonical byte/mtime change, and reject unauthenticated, wrong-Origin, unknown-tab, stale-generation and mutation attempts.
+POST `/memories/all/dream/sources/check` is explicitly observational (`write:false`) in the memory-route allowlist. Forward saved-page IDs and draft content/file bodies unchanged through the existing session/Origin, generation/tab admission and request drain, injecting only the active target credential. Local profiles and reader keys can check versions; this grants no note/index/update permission. GET and other source-operation paths remain unsupported. Gateway tests round-trip real saved/draft checks through both target types, assert no canonical byte/mtime change, and reject unauthenticated, wrong-Origin, unknown-tab, stale-generation and mutation attempts.
 
 ## Executable extensions
 
@@ -79,7 +99,7 @@ The desktop gateway alone composes one `createExtensionHost` from the bundled `d
 
 `extensions-gateway.mjs` owns the authenticated desktop protocol: GET `/companion/extensions`, POST `/companion/extensions/{manage,invoke,event}`, and GET `/companion/extensions/assets/<id>/<revision>.js`. Browser requests use the existing cookie, exact Host/Origin and registered generation/tab admission. Native CLI calls require the private control bearer and explicit current generation. Manage accepts only reload/enable/disable/remove; installing arbitrary filesystem paths is a local CLI operation. Revisioned scripts require authentication and an active matching revision; subresource requests need no tab headers. They use the shell's existing nonce CSP, with no Node bridge, eval or blob script. State/poll adds only `extensions: {revision,safeMode}`; descriptor refresh reuses the current poll.
 
-Each invocation/event owns a cancellation signal, captured brain/generation, admission and a set of pending memory operations. Each operation rechecks scope and admission, uses existing `targetFetch` with linked request/deadline cancellation, and remains in the switch/shutdown drain through response consumption. Returning, disconnecting, disabling/reloading or shutdown aborts the lifetime; detached later continuations cannot reuse it. Already-started operations still drain before releasing their admitted scopes. A tab that has acknowledged a switch cannot start another operation. Events never authorize writes. Commands need both explicit `allowWrites` and the active target's independent editing approval. Search normalizes canonical metadata IDs, deduplicates and bounds results; read exposes saved content/hash. Create forwards an explicit Idempotency-Key and update forwards the prior If-Match hash. Upstream conflict/auth/write outcome packets retain their status; ambiguous writes are never automatically retried.
+Each invocation/event owns a cancellation signal, captured brain/generation, admission and a set of pending memory operations. Each operation rechecks scope and admission, uses existing `targetFetch` with linked request/deadline cancellation, and remains in the switch/shutdown drain through response consumption. Returning, disconnecting, disabling/reloading or shutdown aborts the lifetime; detached later continuations cannot reuse it. Already-started operations still drain before releasing their admitted scopes. A tab that has acknowledged a switch cannot start another operation. Events never authorize writes. A command write needs the user's explicit per-invocation `allowWrites` approval and a brain role that can write; the role check runs inside the admitted operation and the server authorizes the request again. Search normalizes canonical metadata IDs, deduplicates and bounds results; read exposes saved content/hash. Create forwards an explicit Idempotency-Key and update forwards the prior If-Match hash. Upstream conflict/auth/write outcome packets retain their status; ambiguous writes are never automatically retried.
 
 The gateway produces observational `scope.changed` after a committed brain selection or permission/credential generation change, using a fresh native-admitted context without write approval. Startup also announces the initial scope. The host deduplicates delivery by generation; another editor registering in the same generation never cancels current work. Browser event requests may report document/theme observations but cannot assert a scope transition. Event failures cannot roll back an already committed selection, and any event-initiated reads participate in normal scope drain.
 
@@ -95,15 +115,15 @@ The gateway serves `/drawing-frame` and `/drawing-app/*` from the bundled runtim
 
 ## Canonical brain boards
 
-Board operations proxy the ordinary authenticated `/memories/all/boards` routes to the selected local or remote brain. GET is observational; POST/PUT/DELETE are writes and require the profile's `allowWrites` permission. Existing generation/tab admission, queue draining and save barriers apply. There is no app-support board store, `/companion/collections` route or native CLI capability advertisement. Per-board content hashes protect layout changes. Copying the brain carries its organization; two profiles of the same brain see the same boards. See [agent boards](../../docs/boards.md).
+Board operations proxy the ordinary authenticated `/memories/all/boards` routes to the selected local or remote brain. GET is observational; POST/PUT/DELETE are writes and need a role that can write. Existing generation/tab admission, queue draining and save barriers apply. There is no app-support board store, `/companion/collections` route or native CLI capability advertisement. Per-board content hashes protect layout changes. Copying the brain carries its organization; two profiles of the same brain see the same boards. See [agent boards](../../docs/boards.md).
 
-File explorer `POST /memories/all/files/operations` forwards explicit folder creation and guarded file moves/renames through ordinary write admission, preserving If-Match and the selected target until the request drains. Read-only profiles reject it. Acknowledged tabs and old generations cannot start another operation. The browser includes in-flight explorer operations in its existing save barrier. The optional `includeFolders=1` listing remains observational.
+File explorer `POST /memories/all/files/operations` forwards explicit folder creation and guarded file moves/renames through ordinary write admission, preserving If-Match and the selected target until the request drains. A reader key is refused. Acknowledged tabs and old generations cannot start another operation. The browser includes in-flight explorer operations in its existing save barrier. The optional `includeFolders=1` listing remains observational.
 
 ## Shared root owners and WebSockets
 
 Local destinations join `ensureRootBackend`; switching or closing the gateway
 does not kill another app/CLI's backend. The `/ws` bridge enforces the existing
-Host/Origin/cookie boundary, tab registration, generation and write approval.
+Host/Origin/cookie boundary, tab registration, generation and the server role.
 It substitutes the native credential in the hello frame and pins admitted
 mutations until acknowledgement; observational calls validate scope without
 leaving a mutation/save barrier. A generation change closes old subscriptions.
@@ -117,10 +137,13 @@ They validate the registered tab/generation and stay on their captured upstream,
 but release admission immediately so a delayed read or failed hello cannot leave
 an uncertain mutation/save barrier. Replies from a retired generation are dropped.
 `edit`, `undo`, `redo`, `title`, stream start/chunk/cancel/finish, and `resync`
-require profile write approval and retain admission until acknowledgement.
-`resync` remains writer-only here because an elevated substituted upstream
-credential could reset a conflicted session/epoch even though a healthy resync
-is observational. Read-only profiles cannot gain that capability. Unknown RPCs
+need a writing role and retain admission until acknowledgement.
+`resync` remains writer-only here because it could reset a conflicted
+session/epoch even though a healthy resync is observational. The role is the
+one in the upstream `hello` for this connection's own key, passed to the editor
+unchanged; a reader, unknown or missing role never sends a write upstream, and
+the server authorizes each forwarded RPC itself and closes the socket when the
+key is revoked or downgraded. Unknown RPCs
 remain denied. Interrupted dispatched writes retain their uncertain admission;
 read/hello disconnects do not. Focused actual-cookie/WS/upstream and switch-drain
 coverage: `node --test test/companion-live-gateway.test.js`.

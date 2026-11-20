@@ -49,7 +49,9 @@ export async function createExtensionsFixture({ examples = true } = {}) {
     gateway = await startCompanionGateway({ runtimeRoot: repo, directory, initialRoot: root, port: 0, controlKey: key, credentials,
       localFactory: options => startJumpyBrainHttpServer({ ...options, autoIndex: false }), switchTimeoutMs: 5000 });
     await gateway.store.save({ kind: 'local', name: 'Other local fixture', root: otherRoot }, gateway.store.snapshot().revision);
-    await gateway.store.save({ kind: 'remote', name: 'Read-only remote fixture', url: remote.url, key: remoteKey, allowWrites: false }, gateway.store.snapshot().revision);
+    // View-only because the key has the server's reader role.
+    const readerKey = (await (await fetch(remote.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + remoteKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
+    await gateway.store.save({ kind: 'remote', name: 'Read-only remote fixture', url: remote.url, key: readerKey }, gateway.store.snapshot().revision);
     const profiles = gateway.store.snapshot().profiles;
     const info = { url: gateway.url, key, root, otherRoot, directory, extensions, temporary, ids: fixtureIds, packages, activeId: gateway.store.snapshot().activeId,
       otherId: profiles.find(profile => profile.root === otherRoot)?.id, remoteId: profiles.find(profile => profile.kind === 'remote')?.id };

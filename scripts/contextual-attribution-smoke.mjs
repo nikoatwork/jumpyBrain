@@ -30,8 +30,9 @@ try {
   await writeFile(file, source);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   const directory = path.join(temporary, 'support'); await mkdir(directory, { mode: 0o700 });
+  const keys = new Map();
   gateway = await startCompanionGateway({ runtimeRoot: process.cwd(), directory, identityFile, initialRoot: root, port: 0, controlKey,
-    credentials: { get: async () => null, set: async () => {}, delete: async () => {} },
+    credentials: { get: async ref => keys.get(ref) ?? null, set: async (ref, value) => { keys.set(ref, value); }, delete: async ref => { keys.delete(ref); } },
     localFactory: async () => ({ url: server.url, token: key, close: async () => {} }) });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
@@ -89,8 +90,11 @@ try {
   // Untracked raw edits invalidate note-level attribution instead of retaining a stale name.
   await writeFile(file, (await readFile(file, 'utf8')).replace('Agent contribution.', 'External contribution.'));
   await open(); await select(); assert.match(await page.locator('#note-attribution').innerText(), /Editor unknown/);
-  const current = gateway.store.snapshot();
-  await gateway.store.save({ ...current.profiles.find(profile => profile.id === current.activeId), allowWrites: false }, current.revision);
+  // The same brain through a reader key: the server role, not a device setting, makes it view-only.
+  const readerKey = (await (await fetch(server.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
+  const added = await gateway.store.save({ kind: 'remote', name: 'Reader view', url: server.url, key: readerKey }, gateway.store.snapshot().revision);
+  const switched = await fetch(gateway.url + '/companion/switch', { method: 'POST', headers: { Authorization: 'Bearer ' + controlKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: added.profiles.find(profile => profile.kind === 'remote').id }) });
+  assert.equal(switched.status, 200, await switched.text());
   await open(); await page.waitForFunction(() => document.getElementById('note-editor').getAttribute('aria-readonly') === 'true');
   await page.locator('#note-editor').scrollIntoViewIfNeeded();
   await page.evaluate(() => {

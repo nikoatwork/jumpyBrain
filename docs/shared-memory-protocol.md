@@ -826,10 +826,31 @@ Successful response:
 }
 ```
 
+### `GET /capabilities`
+
+Describes the authenticated key. Any valid key may call it.
+
+```json
+{
+  "protocol": 2,
+  "brainId": "<sha256 of the server's memory root>",
+  "live": true,
+  "principal": { "id": "<credential id>", "name": "Alice", "role": "writer" },
+  "capabilities": ["read", "write"],
+  "roles": { "reader": ["read"], "writer": ["read", "write"], "admin": ["read", "write", "manage_access"] },
+  "maxDocumentBytes": 2097152
+}
+```
+
+- `principal.role` is `reader`, `writer` or `admin`. `capabilities` is that role's named set; `roles` lists every set. The three sets are fixed: there are no custom roles.
+- `read` permits every observational route, including the read requests sent as POST (search, recall, expand, title lookup, source checks). `write` permits every mutation of notes, boards, drawings, files, attention and the index. `manage_access` permits the `/access` routes below.
+- `capabilities` and `roles` were added after `principal`; a server without them still reports `principal.role`, from which a client derives the same set. A client that sees no role, or a role it does not know, must treat the key as having no capabilities.
+- The response is descriptive. The server authorizes each request from the key itself, so nothing a client remembers from this packet can grant a write: a reader key receives **403 `read_only`** for any mutation and a non-admin key **403 `admin_required`** for `/access`, whatever was advertised earlier. A revoked key receives **401**.
+
 ### `GET /access`, `POST /access`, `DELETE /access/:id`
 
-Admin-only access-key management for this brain; any other role receives **403
-`admin_required`**. Responses use `Cache-Control: no-store`.
+Access-key management for this brain needs the `manage_access` capability (an admin key); a writer receives **403
+`admin_required`**, and a reader **403 `read_only`** for the two mutations and `admin_required` for the list. Responses use `Cache-Control: no-store`.
 
 - `GET /access` returns `{ "credentials": [{ "id", "name", "role", "createdAt", "revokedAt"? }] }`, including revoked keys. It never returns a secret or hash.
 - `POST /access` accepts only `{ "name", "role"? }`: a trimmed name of 1–100 characters without control characters, and `reader`, `writer` (default) or `admin`. It returns **201** `{ "credential", "token" }`; the token is the only copy of the secret. Invalid input returns **400 `invalid_credential`**; a full store returns **409 `credential_limit`**. There is no idempotency key: after an unconfirmed response, list the keys and revoke an unwanted one.

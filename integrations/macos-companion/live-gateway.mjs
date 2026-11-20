@@ -2,13 +2,17 @@ import { WebSocket, WebSocketServer } from '../../dist/adapters/websocket/index.
 
 const reads = new Set(['open', 'close', 'ping', 'presence', 'stream.status', 'history.read', 'recovery.read']);
 // resync can reset an unsafe session/epoch when the upstream credential writes.
-// A read-only profile must not gain that capability through credential substitution.
+// A key whose server role cannot write must not reach it through this bridge.
 const writes = new Set(['edit', 'undo', 'redo', 'resync', 'title', 'stream.start', 'stream.chunk', 'stream.cancel', 'stream.finish']);
 
 // Mutations pin the selected brain until acknowledgement. Reads only validate
 // scope: they stay on the captured upstream and cannot dirty a switch barrier.
 // Credentials are substituted here, never exposed to the renderer or URL.
-export function attachCompanionLive({server, authenticate, coordinator, active, destination, destinationCurrent = () => true, invalidateDestination = () => {}, origin}) {
+// The role in the upstream hello is the server's answer for this connection's
+// credential; the server closes the socket if that key is revoked or downgraded.
+// The bridge passes it through unchanged and refuses writes unless that role is
+// known to include write. This only ever denies: the server authorizes each RPC.
+export function attachCompanionLive({server, authenticate, coordinator, active, destination, destinationCurrent = () => true, invalidateDestination = () => {}, origin, roleCapabilities = () => []}) {
   const sockets = new Set(), destinations = new Map();
   const wss = new WebSocketServer({noServer: true, maxPayload: 3 * 1024 * 1024, perMessageDeflate: false});
   server.on('upgrade', (request, socket, head) => {
@@ -20,7 +24,7 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
   });
   wss.on('connection', client => {
     sockets.add(client);
-    let upstream, context, profile, dest, connected = false, authenticating = false;
+    let upstream, context, profile, dest, connected = false, authenticating = false, canWrite = false;
     const pending = new Map();
     const helloTimer = setTimeout(() => client.close(1008, 'Authenticate first'), 5000);
     const send = packet => { if (client.readyState === WebSocket.OPEN) {if (client.bufferedAmount > 6 * 1024 * 1024) client.close(1009, 'Resynchronize'); else client.send(JSON.stringify(packet));} };
@@ -49,7 +53,7 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
           upstream = new WebSocket(endpoint, {origin: new URL(dest.url).origin, maxPayload: 3 * 1024 * 1024, perMessageDeflate: false, handshakeTimeout: 10000, followRedirects: false});
           upstream.on('message', raw => {
             let response; try { response = JSON.parse(raw.toString()); } catch {upstream.close(); return;}
-            if (response.id === packet.id) {connected = response.ok === true; clearTimeout(helloTimer); if (connected && profile.allowWrites !== true) response.result.principal.role = 'reader';}
+            if (response.id === packet.id) {connected = response.ok === true; clearTimeout(helloTimer); canWrite = connected && roleCapabilities(response.result?.principal?.role).includes('write');}
             if (context.generation === coordinator.generation && destinationCurrent(dest)) send(response);
             if (response.id) release(response.id);
           });
@@ -64,7 +68,7 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
         if (packet.method === 'hello' || pending.has(packet.id) || pending.size >= 64) throw new Error();
         if (!reads.has(packet.method) && !writes.has(packet.method)) {reject(packet.id, 'unknown_method', 'Unsupported live operation.'); return;}
         const write = writes.has(packet.method);
-        if (profile.allowWrites !== true && write) {reject(packet.id, 'read_only', 'This connection is read-only.'); return;}
+        if (write && !canWrite) {reject(packet.id, 'read_only', 'Your access key for this brain cannot make changes. Review access in Settings.'); return;}
         admit(packet.id, write);
         if (upstream.readyState !== WebSocket.OPEN || upstream.bufferedAmount > 6 * 1024 * 1024) {release(packet.id); client.close(1013, 'Resynchronize'); return;}
         upstream.send(JSON.stringify(packet));

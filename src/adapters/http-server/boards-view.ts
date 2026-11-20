@@ -106,7 +106,8 @@ const boardsUI = (() => {
     compatibility.hidden=support!=='unsupported';
     if(support==='unsupported'){compatibilityMessage(compatibility);compatibilityMessage($('settings-boards-list'));}
     $('note-add-to-board').disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope();
-    for(const id of ['new-board','settings-new-board'])$(id).disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
+    // A role restriction leaves creation available so that choosing it explains why.
+    for(const id of ['new-board','settings-new-board'])$(id).disabled=support!=='supported'||(companionReadOnly()&&!companionAccessBlocked())||busy||formBusy||companionFrozen||!scope()||bound!==scope();
     const board=packet.boards.find(b=>b.id===selected), columns=$('board-columns');
     const available=board&&!board.archived;
     if(composer&&(!available||composer.boardId!==selected||composer.scope!==scope()))dismissComposer(false);
@@ -357,7 +358,7 @@ const boardsUI = (() => {
     else {destinationBoards();$('note-board-message').textContent='Not added. Check your connection or board selection and retry.';}
   };
   const create=async()=>{
-    if(support!=='supported'||companionReadOnly())return;
+    if(support!=='supported'||companionDenied('Creating a board'))return;
     if(busy||formBusy||companionFrozen||!scope()||bound!==scope())return;
     const s=scope();
     if(!creation)creation={schemaVersion:1,id:crypto.randomUUID(),name:createBoardName(packet.boards.map(b=>b.name)),archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};

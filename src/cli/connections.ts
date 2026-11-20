@@ -15,6 +15,7 @@ export async function connectionsCli(args: ParsedCliArgs): Promise<void> {
   const directory = path.resolve(typeof args.directory === "string" ? args.directory : defaultCompanionDirectory());
   // Read the key before contacting the app so a missing key changes nothing.
   const key = action === "add" && args.url !== undefined ? await remoteKeyFromArgs(args) : undefined;
+  if (action === "add" && args["allow-writes"] === true) console.error("Note: --allow-writes is no longer needed and is ignored. What a connection may do is set by its key's role on the server.");
   const companion = await liveCompanion(directory, "connection control");
   if (!companion) throw new Error("No running companion. Open the Mac app and retry. CLI-only installs use --root or JUMPYBRAIN_MEMORY_ROOT.");
   let result;
@@ -23,14 +24,14 @@ export async function connectionsCli(args: ParsedCliArgs): Promise<void> {
       const listed = await companion.request("/companion/connections");
       const profile = listed.profiles.find((item: { id: string }) => item.id === args.id);
       if (!profile) throw Object.assign(new Error("Connection not found. Run connections list for current IDs."), { status: 404 });
-      const { health } = await companion.request("/companion/test", { id: args.id });
-      result = { id: profile.id, name: profile.name, kind: profile.kind, ...(profile.kind === "remote" ? { url: profile.url } : { root: profile.root }), allowWrites: profile.allowWrites, health };
+      const { health, access } = await companion.request("/companion/test", { id: args.id });
+      result = { id: profile.id, name: profile.name, kind: profile.kind, ...(profile.kind === "remote" ? { url: profile.url } : { root: profile.root }), health, ...(access ? { access } : {}) };
     } else {
       result = await companion.request("/companion/connections", action === "list" ? undefined : {
         action, revision: Number(args.revision),
         ...(action === "add" ? { profile: key === undefined
           ? { name: args.name, kind: "local", root: path.resolve(String(args.root)) }
-          : { name: args.name, kind: "remote", url: args.url, key, allowWrites: args["allow-writes"] === true } } : { id: args.id }),
+          : { name: args.name, kind: "remote", url: args.url, key } } : { id: args.id }),
       });
     }
   } catch (error) {
@@ -46,7 +47,7 @@ export async function connectionsCli(args: ParsedCliArgs): Promise<void> {
   }
   if (args.json) { console.log(JSON.stringify(result, null, 2)); return; }
   if (action === "test") {
-    console.log(`${result.name} (${result.kind}, ${result.url ?? result.root}): ${healthText(result.health)}`);
+    console.log(`${result.name} (${result.kind}, ${result.url ?? result.root}): ${healthText(result.health)}${result.access ? `, ${accessText(result.access)}` : ""}`);
     return;
   }
   console.log(`App connections (revision ${result.revision}; CLI target unchanged):`);
@@ -67,6 +68,12 @@ const healthText = (health: string) => ({
   backend_version_mismatch: "a backend from another build owns this brain",
 } as Record<string, string>)[health] ?? health;
 
+type Access = { source?: string; role?: string | null; capabilities?: string[]; reason?: string };
+/** Effective access as the app reports it: the server role for a remote brain, never a device setting. */
+const accessText = (access: Access | undefined) => !access ? "access not reported (update the app)"
+  : access.source === "local" ? "local folder (full access, no server role)"
+  : access.role ? `${access.role} access (${(access.capabilities ?? []).join(", ")})` : "access not confirmed";
+
 /** The key for a new remote connection: stdin, or a named variable (environment first, then the key file). */
 async function remoteKeyFromArgs(args: ParsedCliArgs): Promise<string> {
   let key: string | undefined;
@@ -83,12 +90,12 @@ async function remoteKeyFromArgs(args: ParsedCliArgs): Promise<string> {
   return key;
 }
 
-type Profile = { id: string; name: string; kind: "local" | "remote"; root?: string; url?: string; allowWrites: boolean; available?: boolean };
+type Profile = { id: string; name: string; kind: "local" | "remote"; root?: string; url?: string; available?: boolean };
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error)).split("\n")[0]!;
 
 /**
  * One read-only overview for agents: the CLI's target (and key source), the
- * Mac app's connections with health and write permission, and local
+ * Mac app's connections with health and effective access, and local
  * connections whose folder is gone. Changes no notes or connections; never prints a key.
  */
 export async function statusAllCli(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<void> {
@@ -116,11 +123,11 @@ export async function statusAllCli(args: ParsedCliArgs, localMemory: LocalMemory
       const listed = await companion.request("/companion/connections") as { revision: number; activeId: string | null; profiles: Profile[] };
       const profiles = [];
       for (const profile of listed.profiles) {
-        let health: string;
-        try { health = (await companion.request("/companion/test", { id: profile.id })).health; }
+        let health: string, access: Access | undefined;
+        try { ({ health, access } = await companion.request("/companion/test", { id: profile.id })); }
         catch (error) { health = (error as { code?: string }).code ?? "unknown"; }
         if (profile.kind === "local" && profile.available === false) staleLocalRoots.push({ id: profile.id, name: profile.name, root: profile.root! });
-        profiles.push({ ...profile, active: profile.id === listed.activeId, health });
+        profiles.push({ ...profile, active: profile.id === listed.activeId, health, ...(access ? { access } : {}) });
       }
       app = { running: true, revision: listed.revision, profiles };
     }
@@ -137,8 +144,8 @@ export async function statusAllCli(args: ParsedCliArgs, localMemory: LocalMemory
   lines.push("Mac app connections:");
   if (app.running === false) lines.push("  app not running");
   else if (app.running !== true) lines.push(`  unknown: ${app.error}`);
-  else for (const profile of app.profiles as (Profile & { active: boolean; health: string })[]) {
-    lines.push(`  ${profile.active ? "*" : " "} ${profile.name} [${profile.kind}] ${profile.url ?? profile.root}: ${profile.health}, ${profile.allowWrites ? "writes allowed" : "read only"} (id ${profile.id})`);
+  else for (const profile of app.profiles as (Profile & { active: boolean; health: string; access?: Access })[]) {
+    lines.push(`  ${profile.active ? "*" : " "} ${profile.name} [${profile.kind}] ${profile.url ?? profile.root}: ${profile.health}, ${accessText(profile.access)} (id ${profile.id})`);
   }
   for (const stale of staleLocalRoots) lines.push(`Warning: "${stale.name}" points at ${stale.root}, which is missing. Remove it: jumpybrain connections list, then connections remove --id ${stale.id} --revision <n>`);
   console.log(lines.join("\n"));

@@ -1,5 +1,7 @@
 // Explicit opt-in: exercise the candidate shell against an already running local
-// brain, through a temporary read-only profile. Never installs or edits notes.
+// brain. A local folder has no read-only mode, so this run types nothing, refuses
+// every mutating request in the browser, and compares every file before and after.
+// Never installs or edits notes.
 // npx --package=playwright node scripts/related-pages-local-smoke.mjs --root /absolute/brain
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
@@ -35,10 +37,15 @@ try {
     } }),
   });
   const snapshot = gateway.store.snapshot();
-  await gateway.store.save({ ...snapshot.profiles.find(p => p.id === snapshot.activeId), allowWrites: false }, snapshot.revision);
   browser = await launchPlaywrightChromium();
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
+  // Hard stop for anything that could change the real brain; reads sent as POST pass.
+  await page.route(url => /^\/(memories|access)(\/|$)/.test(url.pathname), route => {
+    const request = route.request(), pathname = new URL(request.url()).pathname;
+    const read = request.method() === 'GET' || (request.method() === 'POST' && /\/(search|recall|recall\/compact|expand|resolve-title|dream\/sources\/check)$/.test(pathname));
+    return read ? route.continue() : route.abort();
+  });
   const searchDurations = [];
   page.on('requestfinished', request => { if (new URL(request.url()).pathname === '/memories/all/search') searchDurations.push(Math.round(request.timing().responseEnd)); });
   page.on('request', request => {
@@ -56,7 +63,7 @@ try {
   for (const note of candidates.slice(0, 8)) {
     await page.goto(gateway.url + '/?note=' + encodeURIComponent(note.id) + '&brain=' + snapshot.activeId + '#companion=' + controlKey);
     await page.locator('#note-editor').waitFor();
-    await page.waitForFunction(() => state.editor?.state.loaded && document.querySelector('#note-name').readOnly);
+    await page.waitForFunction(() => state.editor?.state.loaded);
     try { await page.locator('#related-pages-list a').first().waitFor({ timeout: 12000 }); found = true; break; } catch {}
   }
   assert.ok(found, 'actual indexed local notes must produce at least one recommendation');
@@ -64,7 +71,7 @@ try {
   const links = await page.locator('#related-pages-list a').count();
   assert.ok(links > 0 && links <= 5);
   await page.evaluate(() => window.relatedAnchor = document.querySelector('#related-pages-list a'));
-  console.log('Local brain: actual recommendations loaded in candidate read-only shell; observing minute cadence.');
+  console.log('Local brain: actual recommendations loaded in the candidate shell; observing minute cadence.');
   await new Promise(resolve => setTimeout(resolve, 25000));
   assert.equal(searches.length, count, 'no per-save or two-second search polling');
   await new Promise(resolve => setTimeout(resolve, 25000));

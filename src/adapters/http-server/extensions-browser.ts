@@ -29,6 +29,8 @@ interface Options {
   currentDocument(): ExtensionDocument | null;
   openNote(id: string): Promise<boolean>;
   writable(): boolean;
+  /** Why writing is unavailable, when the host can say; shown instead of a generic refusal. */
+  readOnlyReason?(): string;
   restoreTheme(): void;
   redrawGraph(): void;
   report(message: string): void;
@@ -230,7 +232,7 @@ export function installExtensionsBrowser(options: Options) {
     // v1 currently declares write capability on the package; authorization never survives an invocation.
     let allowWrites = false;
     if (a.descriptor.capabilities.includes("memory.write")) {
-      if (!options.writable()) { for (const item of abortSignals) item.removeEventListener("abort", abort); throw new Error("This brain is read only."); }
+      if (!options.writable()) { for (const item of abortSignals) item.removeEventListener("abort", abort); throw new Error(options.readOnlyReason?.() || "This brain is read only."); }
       allowWrites = win.confirm(a.descriptor.name + " requests permission to write to the current brain for this command. Allow this invocation?");
       if (!allowWrites) { for (const item of abortSignals) item.removeEventListener("abort", abort); return; }
     }

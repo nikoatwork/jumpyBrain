@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { AccessError, AccessStore, type AccessRole, type Principal } from "../access-control/index.js";
+import { AccessError, AccessStore, ROLE_CAPABILITIES, hasCapability, roleCapabilities, type AccessRole, type Principal } from "../access-control/index.js";
 import { canonicalPublicationEvidence, createCollaborationHub } from "../../app/collaboration/index.js";
 import { createLiveServer } from "../live/index.js";
 import { callBackend } from "../../app/backend-rpc.js";
@@ -120,11 +120,16 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         principal = await authenticate(usesCookie ? browserToken ?? "" : bearer);
         if (!principal) { writeJson(response, 401, errorResponse(header?.startsWith("Bearer ") ? "invalid_api_key" : "auth_required", header?.startsWith("Bearer ") ? "Invalid API key." : MISSING_BEARER)); return; }
         const readPosts = [HTTP_MEMORY_ROUTES.search, HTTP_MEMORY_ROUTES.recall, HTTP_MEMORY_ROUTES.compactRecall, HTTP_MEMORY_ROUTES.expand, HTTP_MEMORY_ROUTES.resolveTitle, HTTP_MEMORY_ROUTES.dreamSources];
-        if (principal.role === "reader" && !["GET", "HEAD"].includes(request.method ?? "") && !(request.method === "POST" && readPosts.includes(url.pathname as any))) {
+        // Roles are fixed capability sets (access-control). Every request is authorized
+        // here from the freshly authenticated principal, never from what a client was told.
+        if (!hasCapability(principal, "write") && !["GET", "HEAD"].includes(request.method ?? "") && !(request.method === "POST" && readPosts.includes(url.pathname as any))) {
           writeJson(response, 403, errorResponse("read_only", "This credential grants reader access.")); return;
         }
-        if (url.pathname.startsWith("/_backend/") || url.pathname.startsWith("/access")) {
-          if (principal.role !== "admin") { writeJson(response, 403, errorResponse("admin_required", "Backend administration requires operator access.")); return; }
+        if (url.pathname.startsWith("/access") && !hasCapability(principal, "manage_access")) {
+          writeJson(response, 403, errorResponse("admin_required", "Managing access keys requires an admin key.")); return;
+        }
+        if (url.pathname.startsWith("/_backend/") && principal.role !== "admin") {
+          writeJson(response, 403, errorResponse("admin_required", "Backend administration requires operator access.")); return;
         }
       }
       response.setHeader("cache-control", "no-store");
@@ -134,7 +139,9 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         writeJson(response,200,{protocol:2,principal}); return;
       }
       if (url.pathname === "/capabilities" && request.method === "GET") {
-        writeJson(response, 200, {protocol: 2, brainId: createHash("sha256").update(cookieRoot).digest("hex"), live: true, principal, maxDocumentBytes: collaboration.maxDocumentBytes}); return;
+        // `capabilities` describes this credential; `roles` names every fixed set. Both are
+        // advisory for presentation: the checks above remain the only authorization.
+        writeJson(response, 200, {protocol: 2, brainId: createHash("sha256").update(cookieRoot).digest("hex"), live: true, principal, capabilities: roleCapabilities(principal?.role), roles: ROLE_CAPABILITIES, maxDocumentBytes: collaboration.maxDocumentBytes}); return;
       }
       if (url.pathname === "/_backend/activate" && request.method === "POST") {options.onBackendActivate?.(); writeJson(response,200,{activated:true}); return;}
       if (url.pathname === "/_backend/diagnostics" && request.method === "GET") {writeJson(response, 200, await diagnostics.snapshot()); return;}

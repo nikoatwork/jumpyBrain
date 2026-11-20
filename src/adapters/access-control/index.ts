@@ -4,6 +4,14 @@ import { mkdir, lstat, open, readFile, realpath, rename, unlink, link, rmdir } f
 import path from "node:path";
 
 export type AccessRole = "reader" | "writer" | "admin";
+/** Named permissions. Roles are fixed sets of these; there are no custom roles. */
+export type AccessCapability = "read" | "write" | "manage_access";
+export const ACCESS_CAPABILITIES: readonly AccessCapability[] = Object.freeze(["read", "write", "manage_access"] as const);
+export const ROLE_CAPABILITIES: Readonly<Record<AccessRole, readonly AccessCapability[]>> = Object.freeze({
+  reader: Object.freeze(["read"] as const),
+  writer: Object.freeze(["read", "write"] as const),
+  admin: Object.freeze(["read", "write", "manage_access"] as const),
+});
 export interface Principal { id: string; name: string; role: AccessRole; }
 export interface AccessCredential extends Principal { createdAt: string; revokedAt?: string; }
 interface StoredCredential extends AccessCredential { tokenHash: string; }
@@ -167,4 +175,11 @@ export class AccessStore {
   close() { this.listeners.clear(); if (this.watchedFile) unwatchFile(this.watchedFile); this.watchedFile = undefined; }
 }
 export function createAccessStore(root: string, options: AccessStoreOptions = {}): AccessStore { return new AccessStore(root, options); }
-export function canWrite(principal: Principal): boolean { return principal.role === "writer" || principal.role === "admin"; }
+/** An unknown or missing role has no capabilities: callers fail closed. */
+export function roleCapabilities(role: unknown): readonly AccessCapability[] {
+  return typeof role === "string" && Object.hasOwn(ROLE_CAPABILITIES, role) ? ROLE_CAPABILITIES[role as AccessRole] : [];
+}
+export function hasCapability(principal: { role?: unknown } | undefined | null, capability: AccessCapability): boolean {
+  return roleCapabilities(principal?.role).includes(capability);
+}
+export function canWrite(principal: Principal): boolean { return hasCapability(principal, "write"); }

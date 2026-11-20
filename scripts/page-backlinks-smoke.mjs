@@ -109,13 +109,15 @@ try {
   await gateway.close();
   const other = path.join(temporary, 'other'), otherSupport = path.join(temporary, 'support-remote');
   await initializeMemoryRoot(other); await mkdir(otherSupport, { mode: 0o700 });
+  // View-only because the key has the server's reader role.
+  const readerKey = (await (await fetch(hosted.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + hostedKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
   gateway = await startCompanionGateway({ runtimeRoot: process.cwd(), directory: otherSupport, initialRoot: other, port: 0, controlKey: token,
-    credentials: { get: async () => hostedKey, set: async () => {}, delete: async () => {} } });
+    credentials: { get: async () => readerKey, set: async () => {}, delete: async () => {} } });
   const native = (route, body) => fetch(gateway.url + route, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const saved = await native('/companion/profiles', { profile: { name: 'Read-only backlinks', kind: 'remote', url: hosted.url, key: hostedKey }, revision: gateway.state().revision });
+  const saved = await native('/companion/profiles', { profile: { name: 'Read-only backlinks', kind: 'remote', url: hosted.url, key: readerKey }, revision: gateway.state().revision });
   assert.equal(saved.status, 200, await saved.clone().text());
   const remote = (await saved.json()).profiles.find(profile => profile.kind === 'remote');
-  assert.notEqual(remote.allowWrites, true, 'remote profiles start read-only');
+  assert.equal('allowWrites' in remote, false, 'no device write flag: the reader role decides');
   const switched = await native('/companion/switch', { id: remote.id });
   assert.equal(switched.status, 200, await switched.clone().text());
   const context = await browser.newContext({ viewport: { width: 390, height: 900 } });

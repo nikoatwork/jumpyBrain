@@ -67,8 +67,15 @@ async function fixture(t, options = {}) {
   };
   const memory = (route, body, tab = 'tab-a', generation = gateway.coordinator.generation, method) => browser('/memories/all/' + route, body,
     { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': tab }, method);
+  // A real key with a server role, issued by the disposable remote server itself.
+  const issue = async (role, name = role + ' key') => {
+    const response = await fetch(remote.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer remote-test-key', 'Content-Type': 'application/json' }, body: JSON.stringify({ name, role }) });
+    assert.equal(response.status, 201, await response.clone().text());
+    const packet = await response.json();
+    return { token: packet.token, id: packet.credential.id };
+  };
   t.after(async () => { await gateway.close(); if (remote.server.listening) await remote.close(); await rm(temporary, { recursive: true, force: true }); });
-  return { temporary, directory, roots, keys, credentials, gateway, remote, native, browser, save, memory };
+  return { temporary, directory, roots, keys, credentials, gateway, remote, native, browser, save, memory, issue };
 }
 
 test('local support export correlates gateway/server failures, strips private data and rejects browser ingestion/CSRF', async (t) => {
@@ -95,7 +102,7 @@ test('local support export correlates gateway/server failures, strips private da
   assert.ok(events.some((e) => e.component === 'electron' && e.code === 'crashed'));
   const text = JSON.stringify(exported);
   for (const secret of [controlKey, 'private', f.roots[0], 'fixture.md', id]) assert.ok(!text.includes(secret), secret);
-  const state = await f.save({ name: 'Remote private label', kind: 'remote', url: f.remote.url, key: 'remote-test-key', allowWrites: false });
+  const state = await f.save({ name: 'Remote private label', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
   f.gateway.coordinator.unregister('tab-a', f.gateway.coordinator.generation);
   const remoteId = state.profiles.find((p) => p.kind === 'remote').id;
   assert.equal((await f.native('/companion/switch', { id: remoteId })).status, 200);
@@ -109,7 +116,7 @@ test('support diagnostics distinguish forwarding timeouts and rejected switches 
     ? new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(new Error('private timeout')), { once: true })) : fetch(url, options) });
   await f.browser('/companion/register', { tabId: 'tab-a', generation: f.gateway.coordinator.generation });
   assert.equal((await f.memory('documents/' + id)).status, 504);
-  const state = await f.save({ name: 'other', kind: 'local', root: f.roots[1], allowWrites: true });
+  const state = await f.save({ name: 'other', kind: 'local', root: f.roots[1] });
   const target = state.profiles.find((p) => p.root === f.roots[1]);
   const switching = f.native('/companion/switch', { id: target.id });
   await until(() => f.gateway.coordinator.pending);
@@ -205,25 +212,43 @@ test('local A/B switching saves old target, blocks stale writes, and reports new
   assert.match((await (await f.memory('documents/' + id, undefined, 'tab-b')).json()).content, /Body b/);
 });
 
-test('remote profile keys stay out of state/file/browser, read-only writes blocked; offline selection persists', async (t) => {
+test('remote profile keys stay out of state/file/browser; the server role alone decides writes; offline selection persists', async (t) => {
   const f = await fixture(t);
-  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
+  const reader = await f.issue('reader', 'Reviewer');
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: reader.token });
   const remote = saved.profiles.find((profile) => profile.kind === 'remote');
-  assert.equal(remote.allowWrites, false); assert.ok(!('credentialRef' in remote));
-  assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
+  assert.deepEqual(Object.keys(remote).sort(), ['id', 'kind', 'name', 'url'], 'no device write flag and no credential reference');
+  assert.deepEqual(saved.access, { source: 'local', role: 'admin', capabilities: ['read', 'write', 'manage_access'] }, 'the active local folder is fully the user\'s own');
+  const switched = await (await f.native('/companion/switch', { id: remote.id })).json();
+  assert.deepEqual(switched.access, { source: 'server', role: 'reader', capabilities: ['read'], name: 'Reviewer' });
   const gen = f.gateway.coordinator.generation;
   await f.browser('/companion/register', { tabId: 'tab-a', generation: gen });
+  const noteFile = path.join(f.roots[2], 'notes', 'fixture.md'), before = await readFile(noteFile, 'utf8');
   const read = await f.memory('documents/' + id); assert.match((await read.json()).content, /Body remote/);
-  assert.equal((await f.memory('notes', { type: 'note', body: '', dailyDate: '2026-01-01' })).status, 403);
-  assert.equal((await f.memory('documents/' + id, { apply: true }, 'tab-a', gen, 'DELETE')).status, 403);
+  for (const denied of [
+    await f.memory('notes', { type: 'note', body: '', dailyDate: '2026-01-01' }),
+    await f.memory('documents/' + id, { apply: true }, 'tab-a', gen, 'DELETE'),
+    await f.memory('documents/' + id, { action: 'settle' }, 'tab-a', gen, 'PATCH'),
+    await f.memory('index', {}),
+    await f.memory('boards', { name: 'Denied' }),
+  ]) {
+    assert.equal(denied.status, 403);
+    const packet = await denied.json();
+    assert.equal(packet.error.code, 'read_only'); assert.match(packet.error.message, /reader access.*Settings/);
+  }
   assert.equal((await f.memory('attention')).status, 200);
-  assert.equal((await f.memory('documents/' + id, { action: 'settle' }, 'tab-a', gen, 'PATCH')).status, 403);
-  assert.ok(!(await readFile(path.join(f.directory, 'connections.json'), 'utf8')).includes('remote-test-key'));
-  assert.ok(!JSON.stringify(await (await f.native('/companion/state')).json()).includes('remote-test-key'));
+  assert.equal(await readFile(noteFile, 'utf8'), before);
+  assert.deepEqual((await readdir(path.join(f.roots[2], 'notes'))).sort(), ['fixture.md'], 'a reader created nothing');
+  assert.ok(!(await readFile(path.join(f.directory, 'connections.json'), 'utf8')).includes(reader.token));
+  assert.ok(!JSON.stringify(await (await f.native('/companion/state')).json()).includes(reader.token));
   f.gateway.coordinator.unregister('tab-a', gen);
-  const allowed = await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, allowWrites: true });
-  assert.equal(allowed.active.allowWrites, true);
+  // Replacing the key is the only way to change the role; it restarts open tabs in a new generation.
+  const allowed = await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, key: (await f.issue('writer', 'Editor')).token });
+  assert.notEqual(f.gateway.coordinator.generation, gen);
+  assert.equal('allowWrites' in allowed.active, false);
+  assert.deepEqual((await (await f.native('/companion/state')).json()).access, { source: 'server', role: 'writer', capabilities: ['read', 'write'], name: 'Editor' });
   const newGen = f.gateway.coordinator.generation; await f.browser('/companion/register', { tabId: 'tab-a', generation: newGen });
+  assert.equal((await f.memory('notes', { type: 'note', body: '', dailyDate: '2026-01-01' }, 'tab-a', gen)).status, 409, 'the reader generation cannot reuse the writer key');
   const created = await f.browser('/memories/all/notes', { type: 'note', body: '', dailyDate: '2026-01-01' },
     { 'X-Companion-Generation': String(newGen), 'X-Companion-Tab': 'tab-a', 'Idempotency-Key': 'companion-test-remote-create-1' });
   assert.equal(created.status, 200, await created.clone().text());
@@ -233,24 +258,135 @@ test('remote profile keys stay out of state/file/browser, read-only writes block
   // Probe result can be cached for two seconds; selected identity is never changed.
   assert.equal(snapshot.activeId, remote.id);
   assert.equal(f.gateway.store.snapshot().activeId, remote.id);
+  await f.browser('/companion/register', { tabId: 'tab-a', generation: newGen });
+  assert.equal((await f.memory('notes', { type: 'note', body: '', dailyDate: '2026-01-02' }, 'tab-a', newGen)).status, 503, 'an unreachable server accepts nothing');
 });
 
-test('access keys for the active remote brain forward under editing approval and stay unreachable otherwise', async t => {
+test('a connection an older build restricted on this device writes with its admin role after the upgrade; keys survive', async (t) => {
   const f = await fixture(t);
   const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
+  const remote = saved.profiles.find((profile) => profile.kind === 'remote');
+  assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
+  await f.gateway.close();
+  // What the previous build left behind: the same connections with allowWrites false.
+  const file = path.join(f.directory, 'connections.json'), current = JSON.parse(await readFile(file, 'utf8'));
+  const legacy = JSON.stringify({ ...current, profiles: current.profiles.map((profile) => ({ ...profile, allowWrites: profile.kind === 'local' })) }, null, 2) + '\n';
+  await writeFile(file, legacy, { mode: 0o600 });
+  const keys = new Map(f.keys);
+  const upgraded = await startCompanionGateway({ runtimeRoot, directory: f.directory, initialRoot: f.roots[0], port: 0, controlKey, credentials: f.credentials, switchTimeoutMs: 2000, identityFile: path.join(f.temporary, 'identity.json') });
+  t.after(() => upgraded.close());
+  const native = (route, body) => fetch(upgraded.url + route, { method: body === undefined ? 'GET' : 'POST', headers: { Authorization: 'Bearer ' + controlKey, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const state = await (await native('/companion/state')).json();
+  assert.equal(state.activeId, remote.id, 'the selected brain is kept');
+  assert.equal(JSON.stringify(state).includes('allowWrites'), false);
+  assert.deepEqual([state.access.source, state.access.role, state.access.capabilities], ['server', 'admin', ['read', 'write', 'manage_access']]);
+  assert.equal(await readFile(file, 'utf8'), legacy, 'starting the upgraded app leaves the old file as it was');
+  assert.deepEqual(new Map(f.keys), keys, 'no key was removed or replaced');
+  const headers = { Authorization: 'Bearer ' + controlKey, 'Content-Type': 'application/json', 'X-Companion-Generation': String(upgraded.coordinator.generation) };
+  const created = await fetch(upgraded.url + '/memories/all/notes', { method: 'POST', headers: { ...headers, 'Idempotency-Key': 'upgraded-admin-create-1' }, body: JSON.stringify({ type: 'note', body: '', dailyDate: '2026-01-03' }) });
+  assert.equal(created.status, 200, await created.clone().text());
+  const issued = await fetch(upgraded.url + '/access', { method: 'POST', headers, body: JSON.stringify({ name: 'After upgrade', role: 'reader' }) });
+  assert.equal(issued.status, 201, 'key management needs no device approval either');
+  assert.deepEqual(new Map(f.keys), keys);
+});
+
+test('unknown, unconfirmed, revoked and offline roles fail closed; an advertised role never grants a server write', async (t) => {
+  let capabilities = null; const forwarded = [];
+  const f = await fixture(t, { fetchImpl: async (url, options = {}) => {
+    const route = new URL(url).pathname;
+    if (new URL(url).origin === f.remote.url && route === '/capabilities' && capabilities) return capabilities();
+    if ((options.method || 'GET') !== 'GET') forwarded.push(route);
+    return fetch(url, options);
+  } });
+  const reader = await f.issue('reader'), writer = await f.issue('writer');
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: reader.token });
+  const remote = saved.profiles.find((profile) => profile.kind === 'remote');
+  const json = (packet, status = 200) => () => new Response(JSON.stringify(packet), { status, headers: { 'Content-Type': 'application/json' } });
+  const noteFile = path.join(f.roots[2], 'notes', 'fixture.md'), before = await readFile(noteFile, 'utf8');
+  const notes = async () => (await readdir(path.join(f.roots[2], 'notes'), { recursive: true })).sort();
+  const untouched = await notes();
+  let generation, key = reader.token, attempt = 0;
+  // Each case restarts the connection so nothing is remembered from the previous one.
+  const reconnect = async () => {
+    if (generation !== undefined) f.gateway.coordinator.unregister('tab', generation);
+    const state = await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, key });
+    if (state.activeId !== remote.id) assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
+    generation = f.gateway.coordinator.generation;
+    await f.browser('/companion/register', { tabId: 'tab', generation });
+    return (await (await f.native('/companion/state')).json()).access;
+  };
+  const write = () => f.browser('/memories/all/notes', { type: 'note', body: '', dailyDate: '2026-02-01' },
+    { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'tab', 'Idempotency-Key': 'role-test-denied-' + (++attempt) });
+  for (const [label, response, reason] of [
+    ['a role this build does not know', json({ protocol: 2, principal: { id: 'x', name: 'x', role: 'superuser' }, capabilities: ['read', 'write', 'manage_access'] }), 'unsupported'],
+    ['no principal at all', json({ protocol: 2, capabilities: ['read', 'write'] }), 'unsupported'],
+    ['a server without the route', json({ error: { code: 'not_found' } }, 404), 'unsupported'],
+    ['not JSON', () => new Response('<html>', { status: 200 }), 'unsupported'],
+    ['a rejected key', json({ error: { code: 'invalid_api_key' } }, 401), 'authentication_failed'],
+  ]) {
+    capabilities = response;
+    const access = await reconnect();
+    assert.deepEqual(access, { source: 'server', role: null, capabilities: [], reason }, label);
+    const denied = await write();
+    assert.equal(denied.status, 403, label); assert.equal((await denied.json()).error.code, 'access_unconfirmed', label);
+    assert.equal((await f.browser('/access', undefined, { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'tab' }, 'GET')).status, 403, label);
+    assert.deepEqual(forwarded, [], label + ': nothing reached the server');
+  }
+  capabilities = () => { throw new Error('network down'); };
+  assert.equal((await reconnect()).role, null);
+  assert.equal((await write()).status, 503, 'an unreachable role check sends nothing');
+  assert.deepEqual(forwarded, []);
+
+  // A stale or wrong advertisement only lets the request through to the server, which decides.
+  capabilities = json({ protocol: 2, principal: { id: 'x', name: 'Claims admin', role: 'admin' }, capabilities: ['read', 'write', 'manage_access'] });
+  assert.equal((await reconnect()).role, 'admin');
+  const refused = await write();
+  assert.equal(refused.status, 403); assert.deepEqual((await refused.json()).error, { code: 'read_only', message: 'This credential grants reader access.' });
+  const keysRefused = await f.browser('/access', { name: 'No', role: 'admin' }, { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'tab' });
+  assert.equal(keysRefused.status, 403);
+  assert.deepEqual(forwarded.splice(0), ['/memories/all/notes', '/access'], 'forwarded, then refused by the server');
+
+  assert.deepEqual(await notes(), untouched, 'no refused request created anything');
+  // A key revoked after its role was confirmed is refused by the server on its next request.
+  capabilities = null; key = writer.token;
+  assert.equal((await reconnect()).role, 'writer');
+  const accepted = await f.browser('/memories/all/notes', { type: 'note', body: '', dailyDate: '2026-02-02' },
+    { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'tab', 'Idempotency-Key': 'role-test-writer-1' });
+  assert.equal(accepted.status, 200, await accepted.clone().text());
+  const revoked = await fetch(f.remote.url + '/access/' + writer.id, { method: 'DELETE', headers: { Authorization: 'Bearer remote-test-key' } });
+  assert.deepEqual(await revoked.json(), { revoked: true });
+  assert.equal((await write()).status, 401, 'the remembered role grants nothing once the server says no');
+  assert.equal(await readFile(noteFile, 'utf8'), before);
+  assert.equal((await notes()).length, untouched.length + 1, 'only the accepted writer note exists');
+});
+
+test('access keys for the active remote brain need an admin role; readers and writers are refused before the server is asked', async t => {
+  const f = await fixture(t);
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: (await f.issue('reader')).token });
   const remote = saved.profiles.find(profile => profile.kind === 'remote');
   assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
   let generation = f.gateway.coordinator.generation;
   await f.browser('/companion/register', { tabId: 'keys-tab', generation });
   const scoped = () => ({ 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'keys-tab' });
+  const use = async (key) => {
+    f.gateway.coordinator.unregister('keys-tab', generation);
+    await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, key });
+    generation = f.gateway.coordinator.generation;
+    await f.browser('/companion/register', { tabId: 'keys-tab', generation });
+  };
+  for (const role of ['reader', 'writer']) {
+    if (role === 'writer') await use((await f.issue('writer')).token);
+    for (const response of [
+      await f.browser('/access', undefined, scoped(), 'GET'),
+      await f.browser('/access', { name: 'Alice', role: 'writer' }, scoped()),
+      await f.browser('/access/00000000-0000-4000-8000-000000000000', undefined, scoped(), 'DELETE'),
+    ]) { assert.equal(response.status, 403, role); assert.equal((await response.json()).error.code, 'admin_required', role); }
+    const edit = await f.browser('/memories/all/notes', { type: 'note', body: '', dailyDate: role === 'reader' ? '2026-03-01' : '2026-03-02' }, { ...scoped(), 'Idempotency-Key': 'keys-test-' + role });
+    assert.equal(edit.status, role === 'writer' ? 200 : 403, role + ' editing');
+  }
+  await use('remote-test-key');
   const listed = await f.browser('/access', undefined, scoped(), 'GET');
-  assert.equal(listed.status, 200); assert.deepEqual(await listed.json(), { credentials: [] });
-  const denied = await f.browser('/access', { name: 'Alice', role: 'writer' }, scoped());
-  assert.equal(denied.status, 403); assert.equal((await denied.json()).error.code, 'write_not_authorized');
-  f.gateway.coordinator.unregister('keys-tab', generation);
-  await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, allowWrites: true });
-  generation = f.gateway.coordinator.generation;
-  await f.browser('/companion/register', { tabId: 'keys-tab', generation });
+  assert.equal(listed.status, 200); assert.equal((await listed.json()).credentials.length, 2);
   assert.equal((await f.browser('/access', { name: 'Alice', role: 'writer' }, { ...scoped(), Origin: 'https://evil.invalid' })).status, 403);
   const issued = await f.browser('/access', { name: 'Alice', role: 'admin' }, scoped());
   assert.equal(issued.status, 201, await issued.clone().text());
@@ -263,7 +399,7 @@ test('access keys for the active remote brain forward under editing approval and
   f.gateway.coordinator.unregister('keys-tab', generation);
 });
 
-test('page find-or-create requires remote write approval while title lookup remains read-only', async t => {
+test('page find-or-create needs a writing role while title lookup stays open to readers', async t => {
   const forwarded = [];
   const f = await fixture(t, { fetchImpl: async (url, options) => {
     if (url.endsWith('/memories/all/ensure-title')) {
@@ -272,7 +408,7 @@ test('page find-or-create requires remote write approval while title lookup rema
     }
     return fetch(url, options);
   } });
-  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: (await f.issue('reader')).token });
   const remote = saved.profiles.find(profile => profile.kind === 'remote');
   assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
   const generation = f.gateway.coordinator.generation;
@@ -283,11 +419,11 @@ test('page find-or-create requires remote write approval while title lookup rema
   for (const title of ['Fixture remote', 'Missing page']) {
     const denied = await f.memory('ensure-title', { title }, 'reference-tab', generation);
     assert.equal(denied.status, 403);
-    assert.equal((await denied.json()).error.code, 'write_not_authorized');
+    assert.equal((await denied.json()).error.code, 'read_only');
   }
   assert.equal(forwarded.length, 0);
   f.gateway.coordinator.unregister('reference-tab', generation);
-  await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, allowWrites: true });
+  await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
   const nextGeneration = f.gateway.coordinator.generation;
   await f.browser('/companion/register', { tabId: 'reference-tab', generation: nextGeneration });
   const headers = { 'X-Companion-Generation': String(nextGeneration), 'X-Companion-Tab': 'reference-tab' };
@@ -386,7 +522,7 @@ test('invalid TLS certificates fail closed before target credentials or requests
   const upstream = createHttpsServer({ key: await readFile(keyPath), cert: await readFile(certPath) }, (request, response) => { received++; response.end('{}'); });
   await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise((resolve) => upstream.close(resolve)));
-  const saved = await f.save({ name: 'Invalid TLS', kind: 'remote', url: 'https://127.0.0.1:' + upstream.address().port, key: 'fixture-tls-target-key', allowWrites: true });
+  const saved = await f.save({ name: 'Invalid TLS', kind: 'remote', url: 'https://127.0.0.1:' + upstream.address().port, key: 'fixture-tls-target-key' });
   const profile = saved.profiles.find((item) => item.name === 'Invalid TLS');
   const switched = await f.native('/companion/switch', { id: profile.id }); assert.equal(switched.status, 200);
   assert.equal(f.gateway.state().health, 'offline'); assert.equal(received, 0);
@@ -495,10 +631,10 @@ test('only the native owner can prepare shutdown; cancellation preserves target 
   assert.equal((await fetch(f.remote.url + '/health')).status, 200);
 });
 
-test('direct feedback uses authenticated fenced gateway delivery without remote write permission', async t => {
+test('direct feedback uses authenticated fenced gateway delivery without any brain access', async t => {
   const sent = [];
   const f = await fixture(t, { feedbackSender: async report => { sent.push(report); } });
-  const profile = await f.save({ name: 'Offline read-only', kind: 'remote', url: 'https://offline.invalid', key: 'private-remote-key', allowWrites: false });
+  const profile = await f.save({ name: 'Offline read-only', kind: 'remote', url: 'https://offline.invalid', key: 'private-remote-key' });
   await f.native('/companion/switch', { id: profile.profiles.at(-1).id });
   const generation = f.gateway.coordinator.generation;
   await f.browser('/companion/register', { tabId: 'feedback-tab', generation });
@@ -539,7 +675,7 @@ test('gateway attention PATCH forwards body/hash, fences generation/tab and keep
 });
 
 
-for (const kind of ['local', 'remote']) test(`folder explorer reads nested canonical files through a read-only ${kind} companion profile`, async t => {
+for (const kind of ['local', 'remote']) test(`folder explorer reads nested canonical files through a ${kind === 'remote' ? 'reader remote' : 'local'} companion profile`, async t => {
   const f = await fixture(t);
   const root = kind === 'local' ? f.roots[0] : f.roots[2];
   const file = path.join(root, 'notes/projects/deep/note.md');
@@ -549,12 +685,12 @@ for (const kind of ['local', 'remote']) test(`folder explorer reads nested canon
   await writeFile(file, content);
   const before = await stat(file);
   if (kind === 'remote') {
-    const saved = await f.save({ name: 'Explorer remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key', allowWrites: false });
+    const saved = await f.save({ name: 'Explorer remote', kind: 'remote', url: f.remote.url, key: (await f.issue('reader')).token });
     const profile = saved.profiles.find(profile => profile.kind === 'remote');
     assert.equal((await f.native('/companion/switch', { id: profile.id })).status, 200);
   } else {
     const profile = f.gateway.store.snapshot().profiles.find(profile => profile.kind === 'local');
-    await f.save({ id: profile.id, name: 'Explorer local', kind: 'local', root, allowWrites: false });
+    await f.save({ id: profile.id, name: 'Explorer local', kind: 'local', root });
   }
   const generation = f.gateway.coordinator.generation, tab = 'explorer-tab';
   await f.browser('/companion/register', { tabId: tab, generation });
@@ -577,12 +713,14 @@ for (const kind of ['local', 'remote']) test(`folder explorer reads nested canon
   assert.equal((await fetch(f.gateway.url + '/memories/all/files')).status, 401);
   assert.equal((await f.browser('/memories/all/files', undefined, { Origin: 'https://evil.invalid' })).status, 403);
   assert.equal((await f.memory('files', {}, tab, generation)).status, 404);
-  assert.equal((await f.memory('files/operations', { action: 'create-folder', path: 'notes/forbidden' }, tab, generation)).status, 403, 'file operations obey read-only profiles');
+  // A reader key is refused; a local folder is the user's own and has no read-only mode.
+  assert.equal((await f.memory('files/operations', { action: 'create-folder', path: 'notes/forbidden' }, tab, generation)).status, kind === 'remote' ? 403 : 200, 'file operations follow the server role');
+  assert.equal(await lstat(path.join(root, 'notes/forbidden')).then(() => true, () => false), kind === 'local');
   assert.equal(await readFile(file, 'utf8'), content);
   assert.equal((await stat(file)).mtimeMs, before.mtimeMs);
 });
 
-for (const kind of ['local', 'remote']) test(`source-version checks forward saved/draft requests on a read-only ${kind} companion profile`, async t => {
+for (const kind of ['local', 'remote']) test(`source-version checks forward saved/draft requests on a ${kind === 'remote' ? 'reader remote' : 'local'} companion profile`, async t => {
   const route = '/memories/all/dream/sources/check', forwarded = [];
   const f = await fixture(t, { fetchImpl: async (url, options) => {
     if (url.endsWith(route)) forwarded.push({ url, method: options.method, body: JSON.parse(options.body.toString()), headers: options.headers });
@@ -595,15 +733,17 @@ for (const kind of ['local', 'remote']) test(`source-version checks forward save
   const content = `---\nid: ${pageId}\ntype: page\ntitle: Companion source check\ndream: true\n---\nCurrent evidence. [source](${id} "${hashMemoryDocumentContent(source)}")\n`;
   await writeFile(pageFile, content);
   const before = { page: await stat(pageFile), source: await stat(sourceFile) };
+  let readerKey;
   if (kind === 'remote') {
-    const saved = await f.save({ name: 'Read-only remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key', allowWrites: false });
+    readerKey = (await f.issue('reader')).token;
+    const saved = await f.save({ name: 'Read-only remote', kind: 'remote', url: f.remote.url, key: readerKey });
     const profile = saved.profiles.find(profile => profile.kind === 'remote');
     assert.equal((await f.native('/companion/switch', { id: profile.id })).status, 200);
   } else {
     const profile = f.gateway.store.snapshot().profiles.find(profile => profile.kind === 'local');
-    await f.save({ id: profile.id, name: 'Read-only local', kind: 'local', root, allowWrites: false });
+    await f.save({ id: profile.id, name: 'Read-only local', kind: 'local', root });
   }
-  assert.equal(f.gateway.store.snapshot().profiles.find(profile => profile.id === f.gateway.store.snapshot().activeId).allowWrites, false);
+  assert.deepEqual((await (await f.native('/companion/state')).json()).access.capabilities, kind === 'remote' ? ['read'] : ['read', 'write', 'manage_access']);
   const generation = f.gateway.coordinator.generation, tab = 'source-check-tab';
   await f.browser('/companion/register', { tabId: tab, generation });
   for (const request of [{ id: pageId }, { content, file: 'pages/topic.md' }]) {
@@ -620,14 +760,15 @@ for (const kind of ['local', 'remote']) test(`source-version checks forward save
   assert.equal(forwarded[0].method, 'POST');
   assert.deepEqual(forwarded.map(request => request.body), [{ id: pageId }, { content, file: 'pages/topic.md' }]);
   assert.ok(forwarded.every(request => request.url.endsWith(route) && request.headers.Authorization !== 'Bearer ' + controlKey));
-  if (kind === 'remote') assert.equal(forwarded[0].headers.Authorization, 'Bearer remote-test-key');
+  if (kind === 'remote') assert.equal(forwarded[0].headers.Authorization, 'Bearer ' + readerKey);
   assert.equal((await f.memory('dream/sources/check', { id: pageId }, tab, generation - 1)).status, 409);
   assert.equal((await f.memory('dream/sources/check', { id: pageId }, 'unknown-tab', generation)).status, 409);
   assert.equal((await f.browser(route, { id: pageId }, { Origin: 'https://evil.invalid' })).status, 403);
   assert.equal((await fetch(f.gateway.url + route, { method: 'POST', headers: { Origin: f.gateway.url, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pageId }) })).status, 401);
   assert.equal((await f.memory('dream/sources/check', undefined, tab, generation)).status, 404, 'only the explicit POST is admitted');
   assert.equal((await f.memory('dream/sources/delete', { id: pageId }, tab, generation)).status, 404);
-  assert.equal((await f.memory('notes', { type: 'note', body: 'Not authorized' }, tab, generation)).status, 403);
+  // The check grants nothing: a reader key still cannot write through it.
+  if (kind === 'remote') assert.equal((await f.memory('notes', { type: 'note', body: 'Not authorized' }, tab, generation)).status, 403);
   assert.equal(forwarded.length, 2, 'rejected routes/scopes and writes never reach the target');
   assert.equal(await readFile(pageFile, 'utf8'), content);
   assert.deepEqual(await readFile(sourceFile), source);

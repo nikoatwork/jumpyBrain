@@ -103,37 +103,43 @@ try {
   assert.equal(await js('state.view'), 'home');
   checks.push('rename/test, selector on Home, dirty Work note flushed before switching');
   mark('local and remote'); await settings(); await add();
-  await input('#companion-kind', 'remote'); await input('#companion-url', config.remote + '/wrong-path'); await input('#companion-key', config.remoteKey);
+  // What a connection may do is the server's answer for its key. Start with a reader key issued by the remote.
+  const readerKey = (await (await fetch(config.remote + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + config.remoteKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
+  await input('#companion-kind', 'remote'); await input('#companion-url', config.remote + '/wrong-path'); await input('#companion-key', readerKey);
   await save(); await until('!document.getElementById("companion-form-error").hidden');
-  assert.equal(await js('document.getElementById("companion-key").value'), config.remoteKey, 'failed validation retains the entered key for correction');
+  assert.equal(await js('document.getElementById("companion-key").value'), readerKey, 'failed validation retains the entered key for correction');
   await input('#companion-url', config.remote);
-  assert.equal(await js('document.getElementById("companion-writes").checked'), false);
+  assert.equal(await js('document.getElementById("companion-writes")'), null, 'no device write toggle');
   await save(); await until('companionState.profiles.length === 3');
   const remote = await js('companionState.profiles.find(p=>p.kind==="remote").id');
   await select(remote);
+  await until('companionState.access?.role === "reader"');
   assert.equal(await js('companionReadOnly()'), true);
-  await settings(); assert.equal(await js('document.getElementById("companion-refresh-index").disabled'), true);
+  // Under a role restriction the control stays available and explains itself.
+  await settings(); assert.equal(await js('document.getElementById("companion-refresh-index").disabled'), false);
   await action(remote, 'Edit'); assert.equal(await js('document.getElementById("companion-key").value'), '');
   await input('#companion-name', 'Team'); await save(); await until('companionState.active.name === "Team"');
   await action(remote, 'Test connection'); await until('document.getElementById("toast-message").textContent.includes("connected")');
   await capture('remote-read-only');
-  checks.push('real loopback remote, read-only default, blank-key rename and connectivity');
+  checks.push('real loopback remote, reader key, blank-key rename and connectivity');
   mark('read-only remote note and keyboard connection test');
   await openNote(config.id);
   assert.match(await js('richEditor.getMarkdown()'), /Only in Remote/);
   assert.equal(await js('document.getElementById("note-name").readOnly'), true);
-  assert.equal(await js('document.getElementById("new-note").disabled'), true);
-  assert.equal(await js('document.getElementById("delete-note").disabled'), true);
+  // Blocked actions stay visible; choosing one explains the role and offers Settings.
+  assert.equal(await js('document.getElementById("new-note").disabled'), false);
+  assert.equal(await js('document.getElementById("delete-note").disabled'), false);
+  await click('#new-note'); await until('/Creating a note needs a writer or admin key/.test(document.getElementById("toast-message").textContent)');
+  assert.equal(await js('document.getElementById("toast-action").textContent'), 'Open Settings');
   await settings();
   // Clear the previous success notice so the wait observes this keyboard action.
   await js('companionMessage("")');
   await keyboardAction(remote, 'Test connection');
-  checks.push('read-only remote notes remain viewable; keyboard Test connection preserves focus');
-  mark('explicit remote editing approval');
+  checks.push('reader-key remote notes remain viewable; keyboard Test connection preserves focus');
+  mark('a key with a writing role replaces the reader key');
   await action(remote, 'Edit');
-  assert.equal(await js('document.getElementById("companion-writes").checked'), false);
-  await click('#companion-writes'); await save();
-  await until(`companionState.activeId === ${JSON.stringify(remote)} && companionState.active.allowWrites === true`); await ready();
+  await input('#companion-key', config.remoteKey); await save();
+  await until(`companionState.activeId === ${JSON.stringify(remote)} && companionState.access?.capabilities?.includes("write")`); await ready();
   await until('!document.getElementById("companion-refresh-index").disabled');
   assert.equal(await js('companionReadOnly()'), false);
   await js('navigation.navigate("/")'); await until('state.view === "home" && !navigation.isBusy()');

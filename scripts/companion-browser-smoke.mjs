@@ -12,6 +12,7 @@ import path from "node:path";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { attachCompanionLive } from "../integrations/macos-companion/live-gateway.mjs";
+import { roleCapabilities } from "../dist/adapters/access-control/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { appendEditorText, replaceEditorText, editorMarkdown, selectEditorText } from "./editor-smoke-helpers.mjs";
 import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
@@ -22,9 +23,9 @@ const id = "mem_a0000000-0000-4000-8000-000000000001";
 // Navigation search hides the open page, so Search from a note needs a sibling.
 const siblingId = "mem_a0000000-0000-4000-8000-000000000002";
 const profiles = [
-  { id: "a", name: "Fixture A", kind: "local", root: path.join(root, "a"), allowWrites: true },
-  { id: "b", name: "Fixture B", kind: "local", root: path.join(root, "b"), allowWrites: true },
-  { id: "r", name: "Fixture remote", kind: "remote", url: "https://fixture.invalid", allowWrites: false },
+  { id: "a", name: "Fixture A", kind: "local", root: path.join(root, "a") },
+  { id: "b", name: "Fixture B", kind: "local", root: path.join(root, "b") },
+  { id: "r", name: "Fixture remote", kind: "remote", url: "https://fixture.invalid" },
 ];
 // Canonical Markdown lives in real disposable brains, one backend per profile.
 const initialBodies = { a: "Fixture a\n", b: "Fixture b\n", r: "Fixture r\n- [ ] Read-only task\n```js\n[[Inert]]\n```\n" };
@@ -44,7 +45,14 @@ let activeId = "a", generation = 1, revision = 1, phase = "idle", switchId = nul
 let switchSequence = 0, pendingSwitch = null, failCapture = false, pollDelay = 0;
 let failIndex = false, searchDelay = 0;
 const tabs = new Map(), requests = [], profileWrites = [], violations = [], pollCounts = new Map(), switchCommits = [];
-const snapshot = () => ({ profiles, activeId, generation, revision, phase, switchId, target,
+// Effective access as the real gateway reports it: a local folder is the user's own; the
+// fixture remote is reached with a reader key. `accessOverride` stands in for a role change.
+const localAccess = { source: "local", role: "admin", capabilities: ["read", "write", "manage_access"] };
+const readerAccess = { source: "server", role: "reader", capabilities: ["read"], name: "Fixture reader" };
+let accessOverride = null;
+const accessFor = (id) => accessOverride ?? (profiles.find((item) => item.id === id)?.kind === "remote" ? readerAccess : localAccess);
+const canWrite = (id) => accessFor(id).capabilities.includes("write");
+const snapshot = () => ({ profiles, activeId, generation, revision, phase, switchId, target, access: accessFor(activeId),
   extensions: { revision: "fixture-extensions-1" }, health: { status: "connected" }, active: profiles.find((item) => item.id === activeId) });
 const json = (response, body, status = 200) => {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
@@ -154,7 +162,7 @@ const server = createServer(async (request, response) => {
       if (url.pathname === "/memories/all/index") {
         assert.equal(request.method, "POST");
         assert.deepEqual(body, {});
-        if (!profiles.find((profile) => profile.id === activeId).allowWrites) { error(response, "read_only", 403); return; }
+        if (!canWrite(activeId)) { error(response, "read_only", 403); return; }
         await new Promise((resolve) => setTimeout(resolve, 1000));
         if (failIndex) error(response, "index_failed", 503); else json(response, { index: { stale: false } });
         return;
@@ -167,7 +175,7 @@ const server = createServer(async (request, response) => {
       }
       if (url.pathname === "/memories/all/ensure-title") {
         assert.equal(request.method, "POST");
-        if (!profiles.find((profile) => profile.id === activeId).allowWrites) { error(response, "read_only", 403); return; }
+        if (!canWrite(activeId)) { error(response, "read_only", 403); return; }
         assert.equal(body.title, "Fixture " + activeId);
         json(response, { status: "found", id, created: false }); return;
       }
@@ -192,7 +200,7 @@ const server = createServer(async (request, response) => {
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const origin = "http://127.0.0.1:" + server.address().port;
-const live = attachCompanionLive({ server, coordinator, origin: () => origin,
+const live = attachCompanionLive({ server, coordinator, origin: () => origin, roleCapabilities,
   authenticate: (request) => { if (!request.headers.cookie?.includes("fixture-session=ok")) throw new Error("session_required"); },
   active: () => profiles.find((profile) => profile.id === activeId),
   destination: async (profile) => ({ url: backends[profile.id].url, key: backendKeys[profile.id] }) });
@@ -363,13 +371,14 @@ try {
   await settings.locator("#companion-folder").click();
   await settings.waitForFunction((root) => document.getElementById("companion-root").value === root, path.join(root, "picked"));
   await settings.locator("#companion-kind").selectOption("remote");
-  assert.equal(await settings.locator("#companion-writes").isChecked(), false);
+  assert.equal(await settings.locator("#companion-writes").count(), 0, "no device write toggle");
+  assert.match(await settings.locator("#companion-role-help").textContent(), /set by the key’s role on the server/);
   await settings.locator("#companion-name").fill("Disposable remote");
   await settings.locator("#companion-url").fill("https://disposable.invalid");
   await settings.locator("#companion-key").fill("fixture-secret-write-only");
   await settings.locator("#companion-form button[type=submit]").click();
   await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("Connection saved"));
-  assert.equal(profileWrites[0].profile.allowWrites, false);
+  assert.equal("allowWrites" in profileWrites[0].profile, false, "the form sends no device permission");
   assert.equal(await settings.locator("#companion-key").inputValue(), "");
   await settings.waitForFunction(() => document.getElementById("companion-profiles").textContent.includes("Disposable remote"));
   const savedRow = settings.locator(".companion-profile").filter({ hasText: "Disposable remote" });
@@ -438,12 +447,12 @@ try {
   await editor.locator('#toggle-note-format').click();
   await editor.locator('[data-format=bold]').focus();
   const beforePermissionChange = canonical('a');
-  profiles.find(profile => profile.id === 'a').allowWrites = false;
+  accessOverride = readerAccess;
   await editor.locator('#toggle-note-format').waitFor({ state: 'hidden' });
   assert.equal(await editor.evaluate(() => document.activeElement.id), 'copy-note-draft');
   assert.equal(await editor.locator('#format-controls').isHidden(), true);
   assert.equal(canonical('a'), beforePermissionChange);
-  profiles.find(profile => profile.id === 'a').allowWrites = true;
+  accessOverride = null;
   await editor.locator('#toggle-note-format').waitFor({ state: 'visible' });
 
   // Settings entry saves first, replaces note navigation, and Back restores this note.
@@ -644,18 +653,27 @@ try {
   await settings.waitForURL("**/settings?brain=r");
   await settings.locator("#companion-profiles strong").first().waitFor();
   assert.equal(await settings.locator("#companion-active").getAttribute("data-state"), "connected", "Settings uses confirmed host health before any memory request");
-  assert.equal(await settings.locator("#companion-refresh-index").isDisabled(), true);
-  assert.match(await settings.locator("#companion-refresh-index").getAttribute("title"), /read only/);
+  // Under a role restriction the control stays available and explains itself.
+  assert.equal(await settings.locator("#companion-refresh-index").isDisabled(), false);
+  assert.match(await settings.locator("#companion-refresh-index").getAttribute("title"), /needs a writer or admin key.*reader access/);
+  const indexRequests = requests.filter((item) => item.path === "/memories/all/index").length;
+  await settings.locator("#companion-refresh-index").click();
+  await settings.waitForFunction(() => /Refreshing the search index needs a writer or admin key/.test(document.getElementById("toast-message").textContent));
+  assert.equal(await settings.locator("#toast-action").textContent(), "Open Settings");
+  assert.equal(requests.filter((item) => item.path === "/memories/all/index").length, indexRequests, "nothing was sent");
+  assert.match(await settings.locator(".companion-profile[aria-current=true]").textContent(), /Reader access/);
   const readOnly = await context.newPage(); readOnly.on("pageerror", (exception) => pageErrors.push(exception.message));
   await readOnly.goto(origin + "/?note=" + id + "&brain=r"); await readOnly.locator("#note-editor").waitFor();
   assert.equal(await readOnly.locator("#note-editor").getAttribute("contenteditable"), "false");
-  assert.equal(await readOnly.locator("#new-note").isDisabled(), true);
+  assert.equal(await readOnly.locator("#new-note").isDisabled(), false, "creation stays visible and explains the role restriction");
+  assert.equal(await readOnly.locator("#companion-access-notice").isHidden(), true, "no access banner outside Settings");
+  assert.doesNotMatch(await readOnly.locator("#companion-active").textContent(), /read only|reader/i);
   assert.equal(await readOnly.getByRole("checkbox").isDisabled(), true);
   const readOnlyBody = await editorMarkdown(readOnly);
   await readOnly.getByRole("checkbox").dispatchEvent("click");
   assert.equal(await editorMarkdown(readOnly), readOnlyBody);
   await readOnly.locator("#graph-link").click(); await readOnly.locator("#open-dream").click();
-  assert.match(await readOnly.locator("#dream-feedback").textContent(), /read only/);
+  assert.match(await readOnly.locator("#dream-feedback").textContent(), /needs a writer or admin key/);
   assert.equal(await readOnly.locator("#dream-preview").inputValue(), "");
   await readOnly.locator("#dream-close").click();
 

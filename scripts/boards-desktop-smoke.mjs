@@ -23,11 +23,13 @@ try {
   }
   server=await startJumpyBrainHttpServer({root:remoteRoot,apiKeys:['fixture-remote'],host:'127.0.0.1',port:0,autoIndex:false});
   const remoteBoard=await saveBoard(remoteRoot,{schemaVersion:1,id:randomUUID(),name:'Shared wedding QA',archived:false,columns:[{name:'Ideas',pages:[ids[0]]},{name:'Arranging',pages:[]},{name:'Confirmed',pages:[]}]});
+  // The shared connection is view-only because its key has the server's reader role.
+  const readerKey=(await (await fetch(server.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + 'fixture-remote', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
   gateway=await startCompanionGateway({runtimeRoot:repo,directory:support,initialRoot:root,port:0,controlKey:'b'.repeat(64),
     localFactory:options=>startJumpyBrainHttpServer({...options,autoIndex:false}),
-    credentials:{get:async()=> 'fixture-remote',set:async()=>{},delete:async()=>{}}});
+    credentials:{get:async()=>readerKey,set:async()=>{},delete:async()=>{}}});
   const localId=gateway.state().activeId;
-  await gateway.store.save({kind:'remote',name:'Read-only shared QA',url:server.url,key:'fixture-remote',allowWrites:false},gateway.store.snapshot().revision);
+  await gateway.store.save({kind:'remote',name:'Read-only shared QA',url:server.url,key:readerKey},gateway.store.snapshot().revision);
   const remoteId=gateway.store.snapshot().profiles.find(profile=>profile.kind==='remote').id;
   const config={origin:gateway.url,key:'b'.repeat(64),root,remoteRoot,remoteId,localId,remoteBoardId:remoteBoard.board.id,ids,output,
     node:process.execPath,cli:path.join(repo,'dist/cli.js'),userData:path.join(temporary,'electron'),result:path.join(output,'result.json')};

@@ -87,13 +87,15 @@ test('real scoped read/create/update retain optimistic conflicts, idempotency re
   assert.equal(JSON.parse(await readFile(path.join(f.directory, 'extensions/state/http-fixture.json'), 'utf8')).eventWriteDenied, true);
 });
 
-test('remote extension memory requests use the selected target credential and enforce target read-only policy independently', async t => {
+test('remote extension memory requests use the selected target credential and follow the server role, not command approval alone', async t => {
   const calls = [];
   const f = await fixture(t, { fetchImpl: async (url, options) => {
     calls.push({ url, options });
-    return new Response(JSON.stringify(url.endsWith('/status') ? { memory: 'all' } : { content: 'Remote body', contentHash: 'sha256:' + 'b'.repeat(64) }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(url.endsWith('/status') ? { memory: 'all' }
+      : url.endsWith('/capabilities') ? { protocol: 2, principal: { id: 'reader-id', name: 'Reviewer', role: 'reader' }, capabilities: ['read'] }
+      : { content: 'Remote body', contentHash: 'sha256:' + 'b'.repeat(64) }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } });
-  const state = await (await f.native('/companion/profiles', { profile: { name: 'Remote', kind: 'remote', url: 'https://brain.example', key: 'remote-key', allowWrites: false }, revision: f.gateway.store.snapshot().revision })).json();
+  const state = await (await f.native('/companion/profiles', { profile: { name: 'Remote', kind: 'remote', url: 'https://brain.example', key: 'remote-key' }, revision: f.gateway.store.snapshot().revision })).json();
   const remoteId = state.profiles.find(profile => profile.kind === 'remote').id;
   await f.browser('/companion/unregister', { tabId: 'tab', generation: f.gateway.coordinator.generation });
   assert.equal((await f.native('/companion/switch', { id: remoteId })).status, 200);
@@ -103,7 +105,7 @@ test('remote extension memory requests use the selected target credential and en
   assert.equal(read.options.headers.Authorization, 'Bearer remote-key'); assert.ok(read.options.signal);
   const before = calls.length;
   assert.equal((await f.invoke('create', { type: 'note', title: 'Blocked', body: 'body', idempotencyKey: 'key' }, true)).status, 403);
-  assert.equal(calls.length, before);
+  assert.equal(calls.slice(before).some(call => (call.options.method || 'GET') !== 'GET'), false, 'an approved command on a reader key sends no write');
 });
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
@@ -143,7 +145,7 @@ test('cancelled destination resolution drains its captured scope and never forwa
   const started = deferred(), release = deferred(); let blocked = false, forwarded = 0;
   const credentials = { get: async () => { if (blocked) { started.resolve(); await release.promise; } return 'remote-key'; }, set: async () => {}, delete: async () => {} };
   const f = await fixture(t, { credentials, fetchImpl: async (url) => { forwarded++; return new Response(JSON.stringify(url.endsWith('/status') ? { memory: 'all' } : {})); } });
-  const state = await (await f.native('/companion/profiles', { profile: { name: 'Remote', kind: 'remote', url: 'https://brain.example', key: 'remote-key', allowWrites: false }, revision: f.gateway.store.snapshot().revision })).json();
+  const state = await (await f.native('/companion/profiles', { profile: { name: 'Remote', kind: 'remote', url: 'https://brain.example', key: 'remote-key' }, revision: f.gateway.store.snapshot().revision })).json();
   const remoteId = state.profiles.find(profile => profile.kind === 'remote').id;
   await f.browser('/companion/unregister', { tabId: 'tab', generation: f.gateway.coordinator.generation });
   assert.equal((await f.native('/companion/switch', { id: remoteId })).status, 200);

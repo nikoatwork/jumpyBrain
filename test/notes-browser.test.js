@@ -805,7 +805,7 @@ test("Mac missing references retain source on read-only, ambiguous, failed or ca
     await opening;
     assertRetained(h, "Original body");
     assert.equal(h.reads.length, 0);
-    if (outcome === "read-only") assert.match(h.notice.textContent, /read only/);
+    if (outcome === "read-only") assert.match(h.notice.textContent, /cannot create pages; see Settings → Access keys\. Your draft is retained/);
   }
 });
 

@@ -375,9 +375,10 @@ try {
       await page.keyboard.press("Enter");
       await waitFor(async () => (await readFile(localNoteFile, "utf8")).includes("[[Untitled drawing.excalidraw]]"), "@ inserted a drawing mention in the local brain");
 
-      // A remote brain without editing approval opens drawings view-only and saves nothing.
+      // A remote brain reached with a reader key opens drawings view-only and saves nothing.
       const control = (route, body) => fetch(gateway.url + route, { method: "POST", headers: { Authorization: "Bearer " + controlKey, "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const added = await (await control("/companion/profiles", { revision: gateway.state().revision, profile: { name: "Shared", kind: "remote", url: server.url, key, allowWrites: false } })).json();
+      const readerKey = (await (await fetch(server.url + "/access", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Reader", role: "reader" }) })).json()).token;
+      const added = await (await control("/companion/profiles", { revision: gateway.state().revision, profile: { name: "Shared", kind: "remote", url: server.url, key: readerKey } })).json();
       const remote = added.profiles.find((profile) => profile.kind === "remote");
       await page.goto(gateway.url + "/settings");
       await idle();
@@ -395,8 +396,14 @@ try {
       assert.equal(await page.locator("#drawings-list").isHidden(), false);
       await page.locator("#drawings-disclosure").click();
       await page.locator("#open-drawings").click();
-      assert.equal(await page.locator("#new-drawing").isDisabled(), true);
-      await page.locator("#drawing-create-reason", { hasText: "read only" }).waitFor();
+      // Creation stays available under a role restriction: choosing it explains and points to Settings.
+      assert.equal(await page.locator("#new-drawing").isDisabled(), false);
+      assert.equal(await page.locator("#drawing-create-reason").isHidden(), true);
+      await page.locator("#new-drawing").click();
+      await page.locator("#app-toast").waitFor({ state: "visible" });
+      assert.match(await page.locator("#toast-message").textContent(), /Creating a drawing needs a writer or admin key/);
+      assert.equal(await page.locator("#toast-action").textContent(), "Open Settings");
+      await page.locator("#toast-close").click();
       assert.equal(await page.locator("#sidebar-drawings").textContent().then(text => text.includes("Untitled drawing")), false, "old brain rows never leak into the new brain");
       assert.equal(new URL(page.url()).searchParams.get("drawing"), "Shared sketch", "a read-only brain creates nothing");
       assert.equal(await readFile(drawingFile("Shared sketch"), "utf8"), before, "a read-only brain is never rewritten");
