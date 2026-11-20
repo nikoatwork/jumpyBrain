@@ -21,7 +21,8 @@ Implement the three November 19–20 feedback reports after the owner's nine pro
   - Proof: current gateway/browser/access/installer/query sources inspected; owner answered all nine questions in this thread. Existing Settings key management and current remote-only integration skipping must be reused.
 - [ ] 2. Implement and verify server-role permissions and Settings access presentation.
 - [ ] 3. Implement and verify remote-only installation/reporting and explicit read-only command mode.
-- [ ] 4. Implement and verify zero-hit lexical guidance across supported outputs.
+- [x] 4. Implement and verify zero-hit lexical guidance across supported outputs.
+  - Proof: integrated `60100ed0`; [task evidence](../done/2026-11-20_tasks-zero-hit-guidance.md). Nine targeted cases plus 202 related tests passed in the isolated child snapshot. Existing warning-list code carries the hint through rich/compact local/hosted responses; compact budget behavior is preserved. No query or ranking changes. Tests use fake QMD, and browser/Mac search currently ignores this additive code; the reported headless CLI flow shows it. Integration checks remain in task 6.
 - [ ] 5. Implement and verify the combined access diagnostic after the permission contract lands.
 - [ ] 6. Integrate scoped branches, verify shared boundaries and obtain independent permission review; resolve findings.
 - [ ] 7. Update feedback outcomes, pending release notes and changelog; archive completed lists, commit, merge into master, settle source threads and remove owned worktrees/branches.
