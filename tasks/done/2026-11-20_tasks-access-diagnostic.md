@@ -1,6 +1,6 @@
 # CLI access diagnostic
 
-Status: done 2026-11-20. Child of [remote feedback implementation](../todo/tasks-remote-feedback-implementation.md), task 5. Branch `t3/cli-access-diagnostic`, on the integrated base `029b414c` (server-role permissions, read-only command mode and zero-hit hint merged).
+Status: done 2026-11-20. Child of [remote feedback implementation](2026-11-20_tasks-remote-feedback-implementation.md), task 5. Branch `t3/cli-access-diagnostic`, on the integrated base `029b414c` (server-role permissions, read-only command mode and zero-hit hint merged).
 
 ## Problem
 

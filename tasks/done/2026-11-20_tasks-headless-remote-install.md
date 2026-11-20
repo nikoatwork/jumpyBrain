@@ -1,6 +1,6 @@
 # Headless remote-only installation and read-only command mode
 
-Completed 2026-11-20. Child of [remote feedback implementation](../todo/tasks-remote-feedback-implementation.md), task 3. Source: the Nov 19, 17:50 UTC headless shared-VM report.
+Completed 2026-11-20. Child of [remote feedback implementation](2026-11-20_tasks-remote-feedback-implementation.md), task 3. Source: the Nov 19, 17:50 UTC headless shared-VM report.
 
 ## Goal
 

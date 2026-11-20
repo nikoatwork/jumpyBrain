@@ -2,7 +2,7 @@
 
 Status: done 2026-11-20. Branch `t3/server-role-permissions`; not merged, pushed, installed or released.
 
-Source: task 2 of the [remote feedback implementation plan](../todo/tasks-remote-feedback-implementation.md) (November 20 feedback, 08:30 and 08:48 UTC). Owner decisions applied: the server role alone sets what a remote connection may do; the device `allowWrites` flag is removed, including restrictions already saved; effective access is shown only in Settings; blocked actions stay visible and explain themselves with a Settings action; named capability sets for the three existing roles, no custom roles.
+Source: task 2 of the [remote feedback implementation plan](2026-11-20_tasks-remote-feedback-implementation.md) (November 20 feedback, 08:30 and 08:48 UTC). Owner decisions applied: the server role alone sets what a remote connection may do; the device `allowWrites` flag is removed, including restrictions already saved; effective access is shown only in Settings; blocked actions stay visible and explain themselves with a Settings action; named capability sets for the three existing roles, no custom roles.
 
 ## Tasks
 

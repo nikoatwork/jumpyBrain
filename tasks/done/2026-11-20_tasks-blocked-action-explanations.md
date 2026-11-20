@@ -2,7 +2,7 @@
 
 Status: done 2026-11-20. Branch `t3/explain-blocked-actions`, on `029b414c`; not merged, pushed, installed or released.
 
-Source: task 2 of the [remote feedback implementation plan](../todo/tasks-remote-feedback-implementation.md), closing the UI limits recorded in [server roles decide app access](2026-11-20_tasks-server-role-access.md). Owner decisions applied: access details live only in Settings; an action the key's role does not allow stays visible and explains itself with a Settings action; no access banner or role label in the workspace.
+Source: task 2 of the [remote feedback implementation plan](2026-11-20_tasks-remote-feedback-implementation.md), closing the UI limits recorded in [server roles decide app access](2026-11-20_tasks-server-role-access.md). Owner decisions applied: access details live only in Settings; an action the key's role does not allow stays visible and explains itself with a Settings action; no access banner or role label in the workspace.
 
 ## Gaps taken from the previous record
 

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-20 — Server-role access and headless CLI clarity
+
+- App access follows server roles; Settings and `access whoami` explain permissions. Remote-only installs shrink and report side effects; read-only command mode and empty-search guidance complete the selected feedback. [Verification and limits](done/2026-11-20_tasks-remote-feedback-implementation.md).
+
 ## 2026-11-20 — Project memory checked in Claude Code and Codex
 
 - End-to-end run in the priority hosts (Claude Code, also inside T3 Code, and Codex; Pi is nice to have). The skill now tells agents when durable project capture is on, so both hosts save project decisions to the project without asking; an empty rule slot in `instructions` is fixed. Writes from Codex's default sandbox still fail because the sandbox blocks the local backend; the error now says so. [Host check](done/2026-11-18_tasks-portable-installation-project-integration.md#host-check--2026-11-20), [follow-up](todo/tasks-codex-sandbox-writes.md).

@@ -1,8 +1,13 @@
 # Changes
 
+- **Server-role app access:** your server key now determines what the Mac app can do. The separate editing toggle and old client restrictions are removed; readers cannot change notes or keys. Settings shows your access, and blocked actions explain the restriction and open Settings. After saving a connection with this version, older app builds cannot open that profile file.
+- **Access diagnosis:** `jumpybrain access whoami` explains which brain and key the CLI uses, its server role/capabilities and local restrictions, separately from the app’s selection.
+- **Headless installs:** remote-only release installs need no npm or local search engine. Installer output lists filesystem effects; `--read-only-commands` blocks state-changing CLI commands. Local provisioning and interrupted-install retries still work with that mode enabled.
+- **Empty text searches:** a multi-keyword lexical search with no hits suggests trying fewer keywords, without broadening the query or changing results.
+
 - **Moving to a shared server:** `jumpybrain diff --root <local> --target-url <server>` compares every note and drawing (same, local newer, remote newer, local or remote only, and more), and `jumpybrain migrate remote` previews or, with `--apply`, copies what's missing and pushes newer local edits. It never deletes and never overwrites newer work on the server.
 - **Remote connections from the CLI:** `jumpybrain connections add --url <server> --key-env <VARIABLE>` (or `--key-stdin`) adds a shared server to the Mac app without opening Settings, and `connections test` checks one. If the key is already in `~/.config/jumpybrain/.env`, the app now refers to it instead of saving a second copy.
-- **One overview for agents:** `jumpybrain status --all` shows the CLI's target and which key it uses, every app connection with its health and write permission, and connections whose folder is gone.
+- **One overview for agents:** `jumpybrain status --all` shows the CLI's target and which key it uses, every app connection with its health and effective server access, and connections whose folder is gone.
 - **Deleted brains stay deleted:** a brain's background engine no longer recreates its folder (`.jumpybrain/logs/diagnostics`) after you delete it, and `connections list` flags connections that point at a missing folder.
 - **Clearer for agents:** `show --json` adds `body`, the note text without its frontmatter. A request with the wrong auth header now says to use `Authorization: Bearer <key>`.
 - **Drawings for agents:** `jumpybrain drawings list`, `show` and `update --if-match` read and replace Excalidraw drawings on a local brain or with `--target-url`, and `jumpybrain tree` now lists your drawings. Drawings still stay out of search and recall.

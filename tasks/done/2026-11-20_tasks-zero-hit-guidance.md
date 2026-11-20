@@ -1,6 +1,6 @@
 # Zero-hit keyword guidance
 
-Status: done 2026-11-20. Child of [remote feedback implementation](../todo/tasks-remote-feedback-implementation.md), task 4. Branch `t3/zero-hit-guidance`.
+Status: done 2026-11-20. Child of [remote feedback implementation](2026-11-20_tasks-remote-feedback-implementation.md), task 4. Branch `t3/zero-hit-guidance`.
 
 ## Problem
 
