@@ -57,9 +57,78 @@ For a remote target the CLI uses the first key it finds:
 2. The key the Mac app saved for the same URL (`JUMPYBRAIN_KEY_<ref>` in `~/.config/jumpybrain/.env`, or the variable that `JUMPYBRAIN_KEYREF_<ref>` names when the key was already in the file). The origin and path must match, so `localhost` and `127.0.0.1` are different URLs.
 3. `JUMPYBRAIN_API_KEY` written in `~/.config/jumpybrain/.env`.
 
-There is no per-target CLI configuration. `jumpybrain status --target-url <url>` is the read-only check: it prints `Access key: <source> (<length> chars, ends …<last 4>), accepted`, and `--json` adds `target.credential: {source, variable, file?, length, last4?}`. The last four characters are shown only for keys of 16+ characters, and the key itself is never printed.
+There is no per-target CLI configuration. [`jumpybrain access whoami --target-url <url>`](#checking-access-access-whoami) shows every key source, the one sent and the role the server gives it. `jumpybrain status --target-url <url>` also checks the key: it prints `Access key: <source> (<length> chars, ends …<last 4>), accepted`, and `--json` adds `target.credential: {source, variable, file?, length, last4?}`. The last four characters are shown only for keys of 16+ characters, and the key itself is never printed.
 
-When the server rejects the key (HTTP 401: unknown, mistyped or revoked), or refuses the command for that key's role (HTTP 403 `read_only` / `admin_required`), the error names the key used and its fingerprint, lists other keys the CLI found but did not use, repeats this order and says how to recover. Live `collaborate` reports a rejected key the same way. A key containing smart quotes or line breaks is refused before sending. Recovery: ask the server admin for a key (`jumpybrain access issue` on the server, or **Access keys** in the app), then replace or unset the stale `JUMPYBRAIN_API_KEY` export, or re-enter the key for that connection in the app.
+When the server rejects the key (HTTP 401: unknown, mistyped or revoked), or refuses the command for that key's role (HTTP 403 `read_only` / `admin_required`), the error names the key used and its fingerprint, lists other keys the CLI found but did not use, repeats this order and says how to recover. Live `collaborate` reports a rejected key the same way. A key containing smart quotes or line breaks is refused before sending. A role refusal also points to `access whoami`. Recovery: ask the server admin for a key (`jumpybrain access issue` on the server, or **Access keys** in the app), then replace or unset the stale `JUMPYBRAIN_API_KEY` export, or re-enter the key for that connection in the app.
+
+### Checking access: `access whoami`
+
+```bash
+jumpybrain access whoami                              # the brain CLI commands here use by default
+jumpybrain access whoami --target-url <url> [--json]  # a server: which key is sent and what it may do
+jumpybrain access whoami --root <memory-root>         # a local folder
+```
+
+One read-only check for the four things that decide what a command may do. It changes no notes, connections, keys or settings, starts no backend and creates no file.
+
+1. **CLI target**: the brain CLI commands here use, and why (`flag`, `environment`, `trusted-project`, `install-manifest`). With no target it says `none` and still reports the rest. A target flag works exactly as for other commands; this is never the Mac app's selection.
+2. **Access key** (remote targets): the three places a key is looked for, in [order](#remote-access-keys), each shown as found, not set or not checked, and which one is sent. Only the source, variable name, file, length and last four characters (16+ character keys) are shown, never the key. When no key is found, the key file is not private, or the key contains characters that cannot be sent, **nothing is sent to the server**.
+3. **Server role**: one `GET /capabilities` with that key. It shows the role (`reader`, `writer`, `admin`), its capabilities (`read`, `write`, `manage_access`) and the key's name on the server. A local folder has no server role: whoever can change its files has full access (file permissions are not tested).
+4. **This device**: [read-only command mode](#read-only-command-mode) and the [per-server read-only mark](#protected-remote-targets). These are local guards on this CLI, shown apart from the server role. `effective` combines both: for example a writer key under read-only command mode reads `write no (read-only command mode on this device)`.
+
+Then the **Mac app**, when it is running: its selected connection, health and the role the app resolved with its own saved key. A closed app is reported as not running; its files are never read or edited offline. A note appears when the app and the CLI point at different brains, or reach the same server with different roles.
+
+A role is shown only when the server confirmed it. Otherwise it is `not confirmed` with the reason, and `effective` says `unknown`, never an assumed reader or writer:
+
+| Reason | Meaning |
+| --- | --- |
+| `credential_unavailable` | No usable key (`no_key`, `key_file_problem`, `invalid_characters`); nothing was sent. |
+| `authentication_failed` | The server rejected the key (HTTP 401/403). |
+| `offline` | No answer: `timeout` (10 seconds), `network`, or HTTP 429/5xx. |
+| `unsupported` | Not a usable answer: a redirect (not followed), another status, a body that is not the expected JSON, a role this CLI does not know (`unknown_role`) or a capability list that is not a list of names (`malformed_capabilities`). |
+| `checking`, `backend_version_mismatch` | Reported by the app for its own connection. |
+| `folder_unavailable` | A local target that is `missing`, `not_initialized` or `unreadable`. |
+
+An older server sends only the role; the capabilities are then derived from that role's fixed set and labelled so. A capability list never adds to a role: names outside the confirmed role's fixed set are dropped with a note, and a shorter list is believed.
+
+The command stays available in read-only command mode, for a server marked read-only, and when the device policy file is invalid (which stops other remote commands); the invalid file is reported without quoting it. Server response bodies and error messages and the app's control token are never printed. A `--target-url` containing a user name or password is refused without repeating it; a query string is ignored. The exit status is 0 whenever the check ran, including when a role is not confirmed; only argument errors exit 1.
+
+`--json` prints one object:
+
+```json
+{
+  "cli": {
+    "target": { "kind": "remote", "source": "flag", "url": "https://memory.example.com" },
+    "credential": {
+      "resolved": true, "usable": true, "keyFile": "~/.config/jumpybrain/.env",
+      "candidates": [
+        { "source": "environment", "found": true, "used": true, "variable": "JUMPYBRAIN_API_KEY", "length": 46, "last4": "wXyZ" },
+        { "source": "app-connection", "found": false, "used": false },
+        { "source": "env-file", "found": false, "used": false }
+      ]
+    },
+    "access": { "source": "server", "role": "writer", "capabilities": ["read", "write"], "capabilitiesFrom": "server", "name": "Laptop", "credentialId": "<uuid>" },
+    "restrictions": {
+      "commandMode": { "state": "read-only", "source": "environment" },
+      "originPolicy": { "state": "off", "origin": "https://memory.example.com" },
+      "policyFile": { "path": "/Users/me/.jumpybrain/cli-config.json", "state": "absent" }
+    },
+    "effective": {
+      "read": { "allowed": true, "blockedBy": [] },
+      "write": { "allowed": false, "blockedBy": ["command_mode"] },
+      "manage_access": { "allowed": false, "blockedBy": ["command_mode", "server_role"] }
+    }
+  },
+  "app": { "running": false },
+  "notes": []
+}
+```
+
+- `cli.target` is `{kind: "remote", source, url}`, `{kind: "local", source, root, state}` or `{kind: "none", message}`. `credential` exists only for a remote target; `access` and `effective` are `null` with no target.
+- `access` has the app's shape: `source` (`local` or `server`), `role` (`null` means not confirmed), `capabilities`, and when unconfirmed `reason` with optional `detail` and `httpStatus`. A found candidate adds `variable`, `file`, `length`, `last4` and, when not used, `sameKeyAsUsed`; `found: null` means the key file could not be checked (`fileProblem`, `fileProblemCode`).
+- `effective.<capability>.allowed` is `true`, `false` or `null` (unknown). `blockedBy` lists `server_role`, `unconfirmed`, `folder_unavailable`, `command_mode`, `origin_policy` and `policy_invalid`. Both local read-only guards still permit `access list` when the role grants `manage_access`.
+- `restrictions.commandMode.state` is `read-only`, `off` or `invalid`; `originPolicy.state` adds `not-applicable` for a local or missing target; `policyFile.state` is `absent`, `ok` or `invalid`.
+- `app` is `{running: false}`, `{running: "unknown", problem}` or `{running: true, selected, health, access, matchesCliTarget}`, where `selected` is `{id, name, kind, root | url}` or `null`.
 
 ### Protected remote targets
 
@@ -68,7 +137,7 @@ For a target marked read-only during installation, the CLI permits only this exp
 | Allowed | Blocked |
 | --- | --- |
 | `status`, `tree`/`overview`, `search`, `recall`, `expand`, `show` | `index`, `remember`, `wrapup`, document `update`, and remote `process` |
-| `dream` (stateless window read) | Deprecated batch mutation flags remain rejected |
+| `dream` (stateless window read), `access whoami` | Deprecated batch mutation flags remain rejected |
 | Matching `run memory:status/tree/overview/search/recall/expand/show` recipes | Matching mutation recipes and future unclassified remote operations |
 
 Legacy dream flags fail with deprecation guidance; they cannot turn a window read into a batch mutation. Rejection occurs before credentials, stdin/files, wrapup recall, idempotency creation, or HTTP transport. Local roots and unlisted remote origins keep their existing behavior.
@@ -82,7 +151,7 @@ Read-only command mode blocks every state-changing command of this CLI, for loca
 | Allowed | Blocked |
 | --- | --- |
 | `status`, `tree`/`overview`, `search`, `recall`, `expand`, `show`, `diff`, `dream` windows and their `run memory:*` recipes | `remember`, `wrapup`, document `update`, `delete` (including its preview), `index`, `process`, `init`, and their recipes |
-| `access list`, `attention list`, `board list/show/status`, `drawings list/show`, `collaborate open/watch` | `access issue/revoke`, `attention settle/snooze/bring-back`, board changes, `drawings update`, `collaborate` editing and streaming |
+| `access whoami`, `access list`, `attention list`, `board list/show/status`, `drawings list/show`, `collaborate open/watch` | `access issue/revoke`, `attention settle/snooze/bring-back`, board changes, `drawings update`, `collaborate` editing and streaming |
 | `migrate remote` without `--apply` | `migrate remote --apply`, `migrate obsidian`, `migrate logseq` |
 | `connections list/test`, `project status`, `identity` (show), `backend status/list`, `extensions list/check` | `connections add/remove/select`, `project trust/untrust`, `identity --name`, `backend start/stop`, other `extensions` operations, `serve` |
 | `doctor`, `instructions`, `help`, `version`, `feedback`, `update --dry-run` | `update` (run the installer again instead), and any command not listed as allowed |
@@ -197,7 +266,7 @@ jumpybrain connections remove --id <inactive-profile-id> --revision 3
 
 Use listed revisions; refresh and retry deliberately after conflicts. Selection requires saved drafts; active removal is refused. Add canonicalizes an existing root without initialization/indexing; removal preserves notes. First registration becomes app-active through the barrier. Selection affects only the app; CLI operations use their own selectors.
 
-A remote connection takes an HTTPS origin (or an HTTP loopback origin) and its key from stdin (`--key-stdin`, one trailing newline removed) or from a named variable (`--key-env VAR`: the CLI's environment, else that variable in `~/.config/jumpybrain/.env`). Keys are never command arguments and never printed. The app stores the key in `~/.config/jumpybrain/.env`, where the CLI also finds it for the same `--target-url`; if that file already holds the identical key under another variable (such as `JUMPYBRAIN_API_KEY`), the connection refers to that variable instead of writing a second copy. What a remote connection may do in the app is the role of its key on the server (reader, writer or admin); the app has no separate write switch, and the removed `--allow-writes` flag is accepted and ignored with a note. `connections test` and `status --all` report each connection's effective access as the app resolved it: the role and its named capabilities (`read`, `write`, `manage_access`), `local folder` for a local brain, or `access not confirmed` when the server could not be asked. Removing a remote connection also removes its saved key line (a referenced variable stays). Selecting a remote connection stays in Settings.
+A remote connection takes an HTTPS origin (or an HTTP loopback origin) and its key from stdin (`--key-stdin`, one trailing newline removed) or from a named variable (`--key-env VAR`: the CLI's environment, else that variable in `~/.config/jumpybrain/.env`). Keys are never command arguments and never printed. The app stores the key in `~/.config/jumpybrain/.env`, where the CLI also finds it for the same `--target-url`; if that file already holds the identical key under another variable (such as `JUMPYBRAIN_API_KEY`), the connection refers to that variable instead of writing a second copy. What a remote connection may do in the app is the role of its key on the server (reader, writer or admin); the app has no separate write switch, and the removed `--allow-writes` flag is accepted and ignored with a note. `connections test` and `status --all` report each connection's effective access as the app resolved it: the role and its named capabilities (`read`, `write`, `manage_access`), `local folder` for a local brain, or `access not confirmed` when the server could not be asked. `access whoami` shows the selected connection's role beside the CLI's own. Removing a remote connection also removes its saved key line (a referenced variable stays). Selecting a remote connection stays in Settings.
 
 `connections test --id` checks one connection without selecting it: `connected`, `authentication_failed` (the server rejected the saved key), `credential_unavailable`, `offline`, or `available` for an inactive local folder. `connections list` marks each local connection `available: false` when its folder or `jumpybrain.json` is gone, and prints a removal hint; the app never opens or writes such a folder.
 
@@ -498,7 +567,7 @@ With owner `Alex`, `--actor agent --actor-name Codex` records `Alex · Codex`. `
 
 See [collaboration](collaboration.md) for `backend start|status|stop`, `access
 issue|list|revoke` (on the server with `--root`, or remotely with an admin key
-and `--target-url`), and `collaborate open|watch|edit|stream|undo|resync`. These share
+and `--target-url`; `access whoami` is the [read-only check](#checking-access-access-whoami)), and `collaborate open|watch|edit|stream|undo|resync`. These share
 one root owner with the app and foreground server. Streaming stdin publishes
 bounded UTF-8 chunks before EOF; a stable `--client-id` or JUMPYBRAIN_CLIENT_ID
 keeps agent undo scoped across invocations. Existing one-shot commands retain
