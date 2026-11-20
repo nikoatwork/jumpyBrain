@@ -4,7 +4,7 @@ export const packageBudget = Object.freeze({
   archiveBytes: 3_300_000,
   unpackedBytes: 9_100_000,
   runtimeBytes: 7_500_000,
-  files: 780,
+  files: 788,
 });
 
 export function validatePackageBudget(info) {

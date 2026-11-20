@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startCompanionGateway } from "../integrations/macos-companion/gateway.mjs";
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
+import { createAccessStore } from "../dist/adapters/access-control/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { appendEditorText, editorMarkdown, replaceEditorText } from "./editor-smoke-helpers.mjs";
 
@@ -22,7 +23,7 @@ const ids = ["mem_a0000000-0000-4000-8000-000000000001", "mem_a0000000-0000-4000
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const startedAt = Date.now();
 const passed = [], failures = [], errors = [], traffic = [];
-let temporary, gateway, remote, browser, context, settings, editor, second;
+let temporary, gateway, remote, browser, context, settings, editor, second, readerKey;
 let stage = "bootstrap";
 const keys = new Map();
 const roots = {};
@@ -114,7 +115,7 @@ async function closePage(page) {
   await page.close();
   await until(() => gateway.coordinator.tabs.size < count, "closed tab did not unregister");
 }
-async function addProfile(name, kind, destination, key, writes = false) {
+async function addProfile(name, kind, destination, key) {
   const oldRevision = gateway.state().revision;
   await settings.locator("#companion-add").evaluate(item => { item.open = true; });
   await settings.locator("#companion-name").fill(name);
@@ -124,9 +125,8 @@ async function addProfile(name, kind, destination, key, writes = false) {
     await settings.waitForFunction((value) => document.getElementById("companion-root").value === value, destination);
   } else {
     await settings.locator("#companion-url").fill(destination);
-    assert.equal(await settings.locator("#companion-writes").isChecked(), false);
+    assert.equal(await settings.locator("#companion-writes").count(), 0);
     await settings.locator("#companion-key").fill(key);
-    if (writes) await settings.locator("#companion-writes").check();
   }
   await settings.locator("#companion-form button[type=submit]").click();
   await until(() => gateway.state().revision > oldRevision, "UI profile save did not commit");
@@ -147,7 +147,7 @@ async function createInEditor(page, marker) {
   return packet.id;
 }
 async function noSecrets() {
-  const secrets = [controlKey, remoteKey, repairedKey];
+  const secrets = [controlKey, remoteKey, repairedKey, readerKey];
   const state = JSON.stringify((await (await native("/companion/state")).json()));
   const persisted = await readFile(path.join(temporary, "support", "connections.json"), "utf8");
   assert.ok(!state.includes("credentialRef"), "public state exposes credential reference");
@@ -175,6 +175,9 @@ try {
     await createServerMemoryRuntime({ root: roots[name] }).initializeMemoryRoot();
     for (const [index, id] of ids.entries()) await writeFile(path.join(roots[name], "notes", "fixture-" + index + ".md"), `---\nid: ${id}\ntype: note\ntitle: Smoke ${name} ${index}\n---\nBody ${name} ${index}\n`);
   }
+  const accessStore = createAccessStore(roots.remote);
+  try { readerKey = (await accessStore.issue({ name: "Smoke reader", role: "reader" })).token; }
+  finally { accessStore.close(); }
   remote = await startJumpyBrainHttpServer({ root: roots.remote, apiKeys: [remoteKey, repairedKey], host: "127.0.0.1", port: 0, autoIndex: false });
   gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: 0, controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000, identityFile: path.join(temporary, "identity.json") });
   await writeFile(path.join(directory, "api-key"), controlKey, { mode: 0o600 });
@@ -203,11 +206,11 @@ try {
     assert.deepEqual(traffic.filter((item) => item.path.startsWith("/memories/")
       && !(item.method === "GET" && item.path === "/memories/all/boards")), [], "settings fetched note content or issued a memory operation beyond board metadata");
     b = await addProfile("Smoke local B", "local", roots.b);
-    r = await addProfile("Smoke remote", "remote", remote.url, remoteKey, true);
+    r = await addProfile("Smoke remote", "remote", remote.url, remoteKey);
     await row("Smoke remote").getByRole("button", { name: "Edit", exact: true }).click();
-    assert.equal(await settings.locator("#companion-writes").isChecked(), true);
+    assert.equal(await settings.locator("#companion-writes").count(), 0);
     await settings.locator("#companion-url").fill("https://different-destination.invalid");
-    assert.equal(await settings.locator("#companion-writes").isChecked(), false, "URL replacement must require fresh write approval");
+    assert.equal(await settings.locator("#companion-key").inputValue(), "", "destination replacement must not copy the server key");
     await settings.locator("#companion-cancel").click();
     await noSecrets();
   });
@@ -342,16 +345,18 @@ try {
   await check("read-only remote blocks UI editing and gateway create", async () => {
     const generation = gateway.state().generation;
     await row("Smoke remote").getByRole("button", { name: "Edit", exact: true }).click();
-    await settings.locator("#companion-writes").uncheck();
+    await settings.locator("#companion-key").fill(readerKey);
     await settings.locator("#companion-form button[type=submit]").click();
     await until(() => gateway.state().generation === generation + 1);
     await reloaded(r.id);
     await openEditor(editor, ids[0], r.id);
     assert.equal(await editor.locator("#note-editor").getAttribute("contenteditable"), "false");
-    assert.equal(await editor.locator("#new-note").isDisabled(), true);
+    assert.equal(await editor.locator("#new-note").isDisabled(), false);
+    await editor.locator("#new-note").click();
+    await editor.getByRole("button", { name: "Open Settings", exact: true }).waitFor();
     const headers = await editor.evaluate(() => ({ "X-Companion-Tab": companionTabId, "X-Companion-Generation": String(companionState.generation) }));
     const response = await browserRequest(editor, "/memories/all/notes", { type: "note", title: "Must not create", body: "Denied" }, { ...headers, "Idempotency-Key": randomUUID() });
-    assert.equal(response.status, 403); assert.equal(response.body.error.code, "write_not_authorized");
+    assert.equal(response.status, 403); assert.equal(response.body.error.code, "read_only");
   });
   await check("missing credential stays selected; offline remote stays selected", async () => {
     await switchUI("Smoke local B", b.id);

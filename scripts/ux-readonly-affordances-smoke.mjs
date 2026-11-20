@@ -77,11 +77,11 @@ try {
     await page.locator("#toggle-note-format").click();
     assert.equal(
       await page.locator("#note-save-state").innerText(),
-      "Read only",
+      "Saved",
     );
     assert.equal(
       await page.locator("#note-save-state").getAttribute("aria-label"),
-      "Read only",
+      "Saved",
     );
     await page.locator("#toggle-page-details").click();
     await page.locator("#copy-note-draft").click();

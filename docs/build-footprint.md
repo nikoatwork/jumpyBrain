@@ -4,6 +4,17 @@ Keep the local CLI/runtime distribution small. `npm test` checks the actual npm
 manifest and byte budgets after building; `npm run cli:pack` applies the same
 checks to its real tarball before recording successful package metadata.
 
+## 2026-11-20 integrated remote-feedback package
+
+After integrating role-based app access, the access diagnostic, remote-only
+installation and zero-hit guidance, `npm pack --dry-run --json` measured
+3,271,076 B packed, 9,067,652 B unpacked, 7,431,504 B under `dist/`, and 784 files
+on macOS arm64 with Node 26.7.0. The new zero-hit policy and access diagnostic
+each contribute one JavaScript/declaration pair. Raise the manifest file-count
+ceiling from 780 to 788 for these four files and four files of headroom; keep
+the packed, unpacked and runtime byte ceilings unchanged. This is the existing
+single package, with no added runtime dependencies.
+
 ## 2026-11-18 consumer install cost and advisories
 
 Measured for the portable-installation work on macOS arm64, Node 26.7.0, npm
