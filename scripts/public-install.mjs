@@ -151,7 +151,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
       existing, reuseApp: options.reuseApp, policy, engine, integrations: planned, skipInitialIndex: options.skipInitialIndex, withApp: options.withApp, dependencies, source,
       agentDirs: [home, ...(scope === "project" ? [cwd] : [])].flatMap(base => [".claude", ".agents", ".pi", ".codex"].map(name => path.join(base, name))),
       bootstrapDir: process.env.JUMPYBRAIN_BOOTSTRAP_DIR || undefined, rootExisted });
-    resultReport.commandMode = policy.readOnlyCommands ? "read-only" : "read-write";
+    resultReport.commandMode = policy.readOnlyCommands === null ? "invalid" : policy.readOnlyCommands ? "read-only" : "read-write";
   };
 
   const summary = {
@@ -590,8 +590,12 @@ async function planRemoteAccessPolicy(cliConfigPath, options) {
   if (!explicit) {
     // Report an existing command mode without rewriting or failing on the preserved file.
     let readOnlyCommands = false;
-    try { readOnlyCommands = JSON.parse(await readFile(cliConfigPath, "utf8"))?.commands === "read-only"; } catch {}
-    return { configPath: cliConfigPath, config: null, write: false, readOnlyCommands, description: existsSync(cliConfigPath) ? `preserved at ${cliConfigPath}${readOnlyCommands ? " (read-only commands)" : ""}` : "not configured" };
+    const preserved = existsSync(cliConfigPath);
+    if (preserved) {
+      try { readOnlyCommands = (await readPolicyConfig(cliConfigPath)).commands === "read-only"; }
+      catch { readOnlyCommands = null; }
+    }
+    return { configPath: cliConfigPath, config: null, write: false, readOnlyCommands, description: preserved ? `preserved at ${cliConfigPath}${readOnlyCommands === null ? " (invalid policy; state-changing commands are blocked)" : readOnlyCommands ? " (read-only commands)" : ""}` : "not configured" };
   }
 
   const current = existsSync(cliConfigPath) ? await readPolicyConfig(cliConfigPath) : { schemaVersion: 1, remoteTargets: [] };
@@ -671,12 +675,20 @@ function logPolicyPlan(plan) {
 
 async function initializeMemoryRoot({ cliPath, memoryRoot }) {
   log("Initializing memory root");
-  run(cliPath, ["init", "--root", memoryRoot], { cwd: process.cwd() });
+  run(cliPath, ["init", "--root", memoryRoot], { cwd: process.cwd(), env: provisioningEnvironment(cliPath) });
 }
 
 async function indexMemoryRoot({ cliPath, memoryRoot }) {
   log("Building initial memory index");
-  run(cliPath, ["index", "--root", memoryRoot], { cwd: process.cwd() });
+  run(cliPath, ["index", "--root", memoryRoot], { cwd: process.cwd(), env: provisioningEnvironment(cliPath) });
+}
+
+// The installer is explicitly provisioning this local root. Its two internal
+// mutations must not inherit the command restriction it just installed, a
+// preserved policy, or the caller's process-only restriction. Only these
+// children use an absent policy path; installed commands keep their real policy.
+function provisioningEnvironment(cliPath) {
+  return { JUMPYBRAIN_READ_ONLY_COMMANDS: "", JUMPYBRAIN_CLI_CONFIG: path.join(path.dirname(cliPath), `.provision-policy-${randomUUID()}`) };
 }
 
 

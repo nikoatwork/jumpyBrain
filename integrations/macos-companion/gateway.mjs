@@ -314,7 +314,9 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     if (profile.kind === 'local') return LOCAL_ACCESS;
     const generation = coordinator.generation;
     if (generation !== accessGeneration) { accessCache.clear(); accessGeneration = generation; }
-    // A changed key gets a new credential reference, so it never inherits a cached role.
+    // Saving a replacement key allocates a new reference. An edit to a referenced
+    // .env variable keeps its reference and may retain this advisory role for up
+    // to 30 seconds; the server still authorizes every forwarded request afresh.
     const key = profile.id + ':' + profile.credentialRef, cached = accessCache.get(key);
     if (cached && Date.now() - cached.at <= ACCESS_MAX_AGE) return cached.access;
     let access;

@@ -12,6 +12,8 @@ import { promisify } from 'node:util';
 import { gzipSync } from 'node:zlib';
 import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
+import { stopRootBackend } from '../dist/app/backend-host/index.js';
+import { installFakeQmd } from './fake-qmd-helper.js';
 
 const run = promisify(execFile);
 const repo = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -165,6 +167,41 @@ test('a remote-only consumer installs and reads a shared brain without QMD, npm,
   assert.deepEqual((await rootEntries(f.root)).filter(name => !name.startsWith('app.previous-')), ['.software-retention.lock', 'software-retention.json']);
 });
 
+test('fresh local provisioning completes outside read-only command mode while the installed CLI stays restricted', async t => {
+  for (const mode of ['flag', 'environment']) {
+    const f = await home(t);
+    const { bin } = await installFakeQmd(f.base);
+    await mkdir(path.dirname(bin), { recursive: true });
+    await writeFile(bin, `#!${process.execPath}\nconsole.log(process.argv.includes('--version') ? 'qmd 2.8.3' : '[]');\n`, { mode: 0o755 });
+    const extra = { JUMPYBRAIN_QMD_BIN: bin, ...(mode === 'environment' ? { JUMPYBRAIN_READ_ONLY_COMMANDS: '1' } : {}) };
+    const args = ['--source', repo, '--skip-build', '--skip-qmd-install', '--integrations', 'none', ...(mode === 'flag' ? ['--read-only-commands'] : [])];
+    const brain = path.join(f.root, 'memory');
+    try {
+      const installed = f.install(args, extra);
+      assert.equal(installed.status, 0, `${mode}: ${installed.stderr}`);
+      assert.equal(installed.report.state, 'ready');
+      assert.equal(installed.report.checks.recall, true, 'init, index and retrieval verification all completed');
+      assert.equal(JSON.parse(await readFile(path.join(f.root, 'install-manifest.json'), 'utf8')).state, 'ready');
+      assert.equal(existsSync(path.join(brain, 'jumpybrain.json')), true);
+      const blocked = spawnSync(f.cli, ['init', '--root', path.join(f.base, 'must-not-create')], { env: { ...f.env, ...extra }, encoding: 'utf8' });
+      assert.equal(blocked.status, 1);
+      assert.match(blocked.stderr, /JUMPYBRAIN_READ_ONLY_COMMANDS/);
+      assert.equal(existsSync(path.join(f.base, 'must-not-create')), false);
+      const policy = path.join(f.root, 'cli-config.json');
+      const before = existsSync(policy) ? await readFile(policy, 'utf8') : null;
+      // Resume the fresh-install path with an already persisted policy, as after
+      // an interruption between installing the launcher and provisioning the root.
+      const manifestPath = path.join(f.root, 'install-manifest.json');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+      await writeFile(manifestPath, JSON.stringify({ ...manifest, state: 'installing' }));
+      const repeated = f.install(['--source', repo, '--skip-build', '--skip-qmd-install', '--integrations', 'none'], extra);
+      assert.equal(repeated.status, 0, repeated.stderr);
+      assert.equal(repeated.report.checks.recall, true);
+      assert.equal(existsSync(policy) ? await readFile(policy, 'utf8') : null, before, 'rerun does not lift the installed restriction');
+    } finally { await stopRootBackend(brain).catch(() => {}); }
+  }
+});
+
 test('a remote-only release install needs no npm and installs no runtime dependencies', async t => {
   const f = await home(t);
   const archive = path.join(f.base, `jumpybrain-${VERSION}.tgz`);
@@ -289,6 +326,12 @@ test('read-only command mode is installer-managed, reversible and leaves existin
   await writeFile(config, JSON.stringify({ schemaVersion: 1, remoteTargets: [], commands: 'everything' }));
   const refused = f.install(['--read-only-commands', ...source]);
   assert.equal(refused.status, 1); assert.match(refused.stderr, /unsupported or ambiguous schema/);
+  const preserved = await readFile(config, 'utf8');
+  const invalid = f.install([...source, '--dry-run']);
+  assert.equal(invalid.status, 0, invalid.stderr);
+  assert.equal(invalid.report.commandMode, 'invalid');
+  assert.match(invalid.stderr, /invalid policy; state-changing commands are blocked/);
+  assert.equal(await readFile(config, 'utf8'), preserved);
 });
 
 test('the bootstrap skips engine and Mac app helpers for --remote-only and reports its temporary directory', async t => {

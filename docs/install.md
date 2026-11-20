@@ -231,7 +231,7 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/instal
 
 State-changing commands then fail with `JUMPYBRAIN_READ_ONLY_COMMANDS` before the CLI reads a key, stdin or an input file, contacts a server or starts a local backend. Reading keeps working. The [CLI reference](cli-commands.md#read-only-command-mode) lists what is blocked. `--allow-write-commands` removes the mode; it cannot be combined with `--read-only-commands`.
 
-The mode is one optional `"commands": "read-only"` entry in the same `cli-config.json`. The entry is written only while the mode is on, so existing policy files keep their exact shape. Reruns and `jumpybrain update` preserve it, and the per-target options above do not change it. For a single process or agent, without reinstalling, set `JUMPYBRAIN_READ_ONLY_COMMANDS=1`.
+The mode is one optional `"commands": "read-only"` entry in the same `cli-config.json`. The entry is written only while the mode is on, so existing policy files keep their exact shape. Reruns and `jumpybrain update` preserve it, and the per-target options above do not change it. For a single process or agent, without reinstalling, set `JUMPYBRAIN_READ_ONLY_COMMANDS=1`. The installer provisions its local root outside these command restrictions, including on a retry; the installed CLI keeps them. A preserved invalid policy is reported as `commandMode: "invalid"`, since state-changing commands fail closed until it is repaired.
 
 Scope and limits:
 
