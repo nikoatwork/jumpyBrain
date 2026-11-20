@@ -8,7 +8,7 @@ import { createLocalMemoryTransport } from "./local-transport.js";
 import { runMemoryCommand, type MemoryCommand } from "./memory-commands.js";
 import { migrateCli } from "./migrate.js";
 import { runRecipe } from "./recipes.js";
-import { enforceRemoteAccessPolicy } from "./remote-access-policy.js";
+import { enforceReadOnlyCommandMode, enforceRemoteAccessPolicy } from "./remote-access-policy.js";
 import { remoteAuthFailure } from "./remote-credentials.js";
 import { serveCli } from "./serve.js";
 import { memoryRootInspectionMessage, requireLocalRoot, resolveCliTarget } from "./targets.js";
@@ -69,6 +69,8 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
 
 async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
+  // Device read-only command mode stops every state-changing command before any module, credential or target work.
+  await enforceReadOnlyCommandMode(args);
 
   if (command === "connections") {
     const { connectionsCli } = await import("./connections.js"); await connectionsCli(args); return;

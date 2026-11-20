@@ -66,7 +66,8 @@ async function main(argv = process.argv.slice(2)) {
   }
   if (options.deleteMemory) {
     if (await deleteMemoryRoot(manifest.memoryRoot, { dryRun: options.dryRun })) deletedMemory.push(manifest.memoryRoot);
-  } else if (manifest.memoryRoot) {
+  } else if (manifest.memoryRoot && (manifest.remoteOnly !== true || existsSync(manifest.memoryRoot))) {
+    // A remote-only installation never had a brain: do not report one as preserved.
     preserved.push(manifest.memoryRoot);
   }
 

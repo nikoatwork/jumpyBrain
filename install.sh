@@ -9,7 +9,8 @@ fail() {
   exit 1
 }
 JSON_OUTPUT=0
-for ARG in "$@"; do [ "$ARG" != --json ] || JSON_OUTPUT=1; done
+REMOTE_ONLY=0
+for ARG in "$@"; do case "$ARG" in --json) JSON_OUTPUT=1;; --remote-only) REMOTE_ONLY=1;; esac; done
 fetch() {
   if command -v curl >/dev/null 2>&1; then curl -fsSL --connect-timeout 15 --max-time 120 "$1" -o "$2"
   elif command -v wget >/dev/null 2>&1; then wget --timeout=120 -qO "$2" "$1"
@@ -27,7 +28,10 @@ else
   RAW_BASE="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/$SHA"
 fi
 mkdir -p "$TMP_DIR/scripts/engine" "$TMP_DIR/integrations/macos-companion" "$TMP_DIR/integrations/electron"
-for FILE in scripts/bootstrap-node.sh scripts/public-install.mjs scripts/install-compatibility.mjs scripts/install-support.mjs scripts/installation-storage.mjs scripts/setup-desktop.mjs scripts/desktop-prerequisites.mjs scripts/engine/package.json scripts/engine/package-lock.json scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/electron/update-release.mjs integrations/electron/install-shim.mjs integrations/electron/managed-integrations.mjs integrations/electron/update-retention.py integrations/electron/installation-retention.py integrations/macos-companion/update.py integrations/macos-companion/lifecycle.py; do
+HELPERS='scripts/bootstrap-node.sh scripts/public-install.mjs scripts/install-compatibility.mjs scripts/install-support.mjs scripts/installation-storage.mjs scripts/desktop-prerequisites.mjs scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/electron/update-release.mjs integrations/electron/install-shim.mjs integrations/electron/managed-integrations.mjs integrations/electron/update-retention.py integrations/electron/installation-retention.py integrations/macos-companion/update.py integrations/macos-companion/lifecycle.py'
+# A remote-only CLI never provisions the search engine or the Mac app: skip their recipes.
+[ "$REMOTE_ONLY" = 1 ] || HELPERS="$HELPERS scripts/setup-desktop.mjs scripts/engine/package.json scripts/engine/package-lock.json"
+for FILE in $HELPERS; do
   fetch "$RAW_BASE/$FILE" "$TMP_DIR/$FILE" || fail 'Could not download the selected installer. Retry the same command.'
 done
 INSTALL_ROOT=
@@ -44,4 +48,4 @@ case "$INSTALL_ROOT" in '~') INSTALL_ROOT="$INSTALL_HOME";; '~/'*) INSTALL_ROOT=
 NODE=$(sh "$TMP_DIR/scripts/bootstrap-node.sh" "$INSTALL_ROOT" "$DRY_RUN") || fail 'Node setup is incomplete. See the diagnostic above and rerun the same command.'
 PATH="$(dirname "$NODE"):$PATH"
 export PATH
-"$NODE" "$TMP_DIR/scripts/public-install.mjs" "$@"
+JUMPYBRAIN_BOOTSTRAP_DIR="$TMP_DIR" "$NODE" "$TMP_DIR/scripts/public-install.mjs" "$@"

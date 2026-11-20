@@ -53,7 +53,7 @@ export async function updateCli(args: ParsedCliArgs): Promise<void> {
   } else {
     console.log("Updating jumpyBrain with the installer.");
     console.log(`Install root: ${plan.installRoot}`);
-    console.log(`Memory root: ${plan.memoryRoot}`);
+    console.log(`Memory root: ${plan.remoteOnly ? "none (remote-only)" : plan.memoryRoot}`);
     console.log(`Source: ${plan.source}${plan.ref ? ` (${plan.ref})` : ""}`);
   }
 
@@ -72,6 +72,8 @@ interface InstallerUpdatePlan {
   manifestPath: string;
   installRoot: string;
   memoryRoot: string;
+  /** A remote-only installation has no local brain; `memoryRoot` is then only the preserved manifest value. */
+  remoteOnly: boolean;
   source: string;
   ref?: string;
   scope: string;
@@ -134,6 +136,7 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
     manifestPath,
     installRoot,
     memoryRoot,
+    remoteOnly: manifest.remoteOnly === true,
     source,
     ref: ref || undefined,
     scope,
@@ -147,7 +150,7 @@ function printUpdatePlan(plan: InstallerUpdatePlan): void {
   console.log("jumpyBrain update dry run.");
   console.log(`Manifest: ${plan.manifestPath}`);
   console.log(`Install root: ${plan.installRoot}`);
-  console.log(`Memory root: ${plan.memoryRoot}`);
+  console.log(`Memory root: ${plan.remoteOnly ? "none (remote-only)" : plan.memoryRoot}`);
   console.log(`Scope: ${plan.scope}`);
   console.log(`Integrations: ${plan.integrationMode}`);
   console.log(`Source: ${plan.source}${plan.ref ? ` (${plan.ref})` : ""}`);

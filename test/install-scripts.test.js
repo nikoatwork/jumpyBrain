@@ -825,7 +825,10 @@ test("supported distribution entrypoints ship the QMD check and pin Docker insta
   const pkg = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
   const engine = JSON.parse(await readFile(path.join(repoRoot, "scripts/engine/package.json"), "utf8"));
   const engineLock = JSON.parse(await readFile(path.join(repoRoot, "scripts/engine/package-lock.json"), "utf8"));
-  assert.match(shell, /for FILE in .*scripts\/qmd-install-check\.mjs/);
+  // Every bootstrap downloads the QMD check; only a local install adds the engine recipe.
+  assert.match(shell, /^HELPERS='.*scripts\/qmd-install-check\.mjs/m);
+  assert.match(shell, /\[ "\$REMOTE_ONLY" = 1 \] \|\| HELPERS="\$HELPERS .*scripts\/engine\/package-lock\.json"/);
+  assert.match(shell, /for FILE in \$HELPERS; do/);
   assert.match(docker, /COPY scripts\/engine\/package\.json scripts\/engine\/package-lock\.json/);
   assert.match(docker, /npm ci --omit=dev/);
   assert.equal(engine.dependencies["@tobilu/qmd"], "2.8.3");

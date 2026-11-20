@@ -22,6 +22,7 @@ Most memory commands work against either a local Markdown memory root or a hoste
 | `JUMPYBRAIN_MEMORY_ROOT` | Configured local CLI default, below explicit selectors. |
 | `JUMPYBRAIN_API_KEY` | Access key for `--target-url` / `--remote-url`. Overrides the key the Mac app saved for that URL; see [remote access keys](#remote-access-keys). |
 | `JUMPYBRAIN_CLI_CONFIG` | Optional path to device-local CLI policy; defaults to `~/.jumpybrain/cli-config.json`. Project approvals live beside it in `trusted-projects.json`. |
+| `JUMPYBRAIN_READ_ONLY_COMMANDS` | `1` or `true` turns on [read-only command mode](#read-only-command-mode) for this process. It can only add the restriction, never lift a configured one. |
 | `--json` | Print machine-readable JSON when the command supports it. |
 
 Use one explicit root/URL selector; combinations fail. Otherwise the CLI uses, in order:
@@ -73,6 +74,22 @@ For a target marked read-only during installation, the CLI permits only this exp
 Legacy dream flags fail with deprecation guidance; they cannot turn a window read into a batch mutation. Rejection occurs before credentials, stdin/files, wrapup recall, idempotency creation, or HTTP transport. Local roots and unlisted remote origins keep their existing behavior.
 
 The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local advisory safety guard; server-side authorization is still required for security.
+
+### Read-only command mode
+
+Read-only command mode blocks every state-changing command of this CLI, for local roots and remote targets alike. Turn it on for an installation with the installer's [`--read-only-commands`](install.md#read-only-command-mode), or for one process with `JUMPYBRAIN_READ_ONLY_COMMANDS=1`.
+
+| Allowed | Blocked |
+| --- | --- |
+| `status`, `tree`/`overview`, `search`, `recall`, `expand`, `show`, `diff`, `dream` windows and their `run memory:*` recipes | `remember`, `wrapup`, document `update`, `delete` (including its preview), `index`, `process`, `init`, and their recipes |
+| `access list`, `attention list`, `board list/show/status`, `drawings list/show`, `collaborate open/watch` | `access issue/revoke`, `attention settle/snooze/bring-back`, board changes, `drawings update`, `collaborate` editing and streaming |
+| `migrate remote` without `--apply` | `migrate remote --apply`, `migrate obsidian`, `migrate logseq` |
+| `connections list/test`, `project status`, `identity` (show), `backend status/list`, `extensions list/check` | `connections add/remove/select`, `project trust/untrust`, `identity --name`, `backend start/stop`, other `extensions` operations, `serve` |
+| `doctor`, `instructions`, `help`, `version`, `feedback`, `update --dry-run` | `update` (run the installer again instead), and any command not listed as allowed |
+
+A blocked command fails with `JUMPYBRAIN_READ_ONLY_COMMANDS` (JSON error code `read_only_commands`) before the CLI reads an access key, stdin or an input file, contacts a server, creates a root or starts a backend. Allowed commands behave exactly as without the mode. If the policy file cannot be read, or the variable has a value other than `1`, `true`, `0` or `false`, state-changing commands fail closed until that is corrected.
+
+Limits: this is a local guard on this CLI, defense in depth rather than authorization. Someone who can change the environment or the policy file, or who uses another client, is not bound by it. Give the client a reader key so the server refuses writes and key management itself. `feedback` stays available because it sends only the message you type to support and touches no memory. Ordinary local `recall`/`search` may still repair a local brain's rebuildable index; add `--read-only` for none.
 
 ## Basic CLI commands
 
@@ -334,7 +351,7 @@ With `--json`, a memory command (`status`, `index`, `tree`/`overview`, `search`,
 { "error": { "code": "rate_limited", "message": "…", "status": 429, "retryAfterSeconds": 60 } }
 ```
 
-- `code`: a short machine-readable code such as `rate_limited`, `execution_overloaded`, `service_unavailable`, `invalid_api_key`, `precondition_failed` or `missing_id`; `command_failed` when a local failure has no specific code.
+- `code`: a short machine-readable code such as `rate_limited`, `execution_overloaded`, `service_unavailable`, `invalid_api_key`, `precondition_failed`, `missing_id` or `read_only_commands` ([read-only command mode](#read-only-command-mode)); `command_failed` when a local failure has no specific code.
 - `message`: the same human explanation plain mode prints, including access-key and stale-hash recovery steps.
 - `status`: present for remote HTTP failures (and the client's own 499 cancellation / 504 deadline).
 - `retryAfterSeconds`: present only when the response carried a valid `Retry-After` of at most one day. It is guidance, not a guarantee.

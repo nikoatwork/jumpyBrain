@@ -22,9 +22,9 @@ export async function preflight({ options, installRoot, memoryRoot, source, home
   const probe = (cmd, args) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 10000 });
   if (!['darwin', 'linux'].includes(process.platform)) blockers.push('macOS or Linux is required.');
   if (Number(process.versions.node.split('.')[0]) < 22) blockers.push('Node 22 or newer is required.');
-  if (!options.skipBuild || !options.skipQmdInstall) {
-    if (probe('npm', ['--version']).status !== 0) blockers.push('npm is required.');
-  }
+  // A remote-only release is the compiled package alone: no dependency or engine installation, so no npm.
+  const needsNpm = options.remoteOnly ? source !== 'release' && !options.skipBuild : !options.skipBuild || !options.skipQmdInstall;
+  if (needsNpm && probe('npm', ['--version']).status !== 0) blockers.push('npm is required.');
   if (source !== 'release' && !existsSync(source) && !source.startsWith('file:') && probe('git', ['--version']).status !== 0) blockers.push('Git is required for this source installation.');
   if (options.withApp) {
     blockers.push(...desktopPrerequisites());
@@ -37,10 +37,89 @@ export async function preflight({ options, installRoot, memoryRoot, source, home
     try {
       await access(parent, constants.W_OK | constants.X_OK);
       const disk = await statfs(parent);
-      if (disk.bavail * disk.bsize < (options.withApp ? 3 : 1) * 1024 ** 3) blockers.push(`Insufficient free space at ${parent}; ${options.withApp ? 3 : 1} GB is required.`);
+      // Measured: the compiled package is under 10 MB; allow a staged copy, one rollback copy and headroom.
+      const [bytes, label] = options.withApp ? [3 * 1024 ** 3, '3 GB'] : options.remoteOnly && (source === 'release' || options.skipBuild) ? [256 * 1024 ** 2, '256 MB'] : [1024 ** 3, '1 GB'];
+      if (disk.bavail * disk.bsize < bytes) blockers.push(`Insufficient free space at ${parent}; ${label} is required.`);
     } catch { blockers.push(`The destination is not writable: ${target}`); }
   }
   if (blockers.length) { const error = new Error('Installation needs:\n' + [...new Set(blockers)].map(x => '- ' + x).join('\n')); error.blockers = [...new Set(blockers)]; throw error; }
+}
+// Exact filesystem effects of the CLI installer: a plan before any write, then the
+// observed outcome. Only path existence is inspected; nothing is created here.
+export function filesystemReport({ dryRun, home, installRoot, appDir, cliPath, cliConfigPath, manifestPath, memoryRoot, remoteOnly, existing, reuseApp,
+  policy, engine, integrations, agentDirs, skipInitialIndex, withApp, dependencies, source, bootstrapDir, rootExisted, node = process.execPath }) {
+  const changes = [], retained = [], untouched = [], temporary = [], network = [];
+  const change = (role, file, action, note) => changes.push({ role, path: file, action, ...(note ? { note } : {}) });
+  const skip = (file, reason) => untouched.push({ path: file, reason });
+  // The installer lock creates the root before this report; the caller observed it earlier.
+  const had = { root: rootExisted ?? existsSync(installRoot), app: existsSync(appDir) };
+  change('install-root', installRoot, had.root ? 'reuse' : 'create');
+  if (reuseApp) skip(appDir, 'installed runtime reused for the Mac app');
+  else {
+    change('runtime', appDir, had.app ? 'replace' : 'create', dependencies === 'omitted' ? 'compiled package only: no dependency installation and no node_modules' : undefined);
+    if (had.app) change('rollback-runtime', `${appDir}.previous-*`, 'create', 'previous runtime kept for rollback; the retention ledger retires older copies when it can (see storage in this result)');
+    temporary.push({ path: `${appDir}.installing-*`, note: 'staging directory; renamed into place or removed' });
+  }
+  change('launcher', cliPath, existsSync(cliPath) ? 'replace' : 'create');
+  change('manifest', manifestPath, existsSync(manifestPath) ? 'update' : 'create');
+  if (policy.remove) change('cli-policy', cliConfigPath, 'remove');
+  else if (policy.write) change('cli-policy', cliConfigPath, existsSync(cliConfigPath) ? 'update' : 'create', policy.description);
+  else skip(cliConfigPath, existsSync(cliConfigPath) ? 'preserved' : 'not created: no policy option was given');
+  const engines = path.join(installRoot, 'engines');
+  if (remoteOnly) {
+    skip(memoryRoot, 'remote-only: no local brain is created');
+    skip(engines, 'remote-only: no search engine is installed');
+  } else {
+    if (existing) skip(memoryRoot, 'notes preserved; verification may rebuild a missing derived index under .jumpybrain/');
+    else change('memory', memoryRoot, existsSync(memoryRoot) ? 'initialize' : 'create', engine.bin && !skipInitialIndex ? 'derived lexical index under .jumpybrain/' : 'no initial index');
+    if (engine.source === 'private-new') change('search-engine', path.resolve(engine.bin, '../../..'), 'create', 'pinned private QMD CLI and SDK');
+    else skip(engine.bin || engines, engine.bin ? `existing search engine reused (${engine.source})` : 'search engine installation skipped');
+  }
+  for (const item of integrations) change(`integration:${item.kind}`, item.path, existing ? 'refresh-if-unmodified' : 'create');
+  for (const directory of agentDirs) {
+    if (!changes.some(item => item.path.startsWith(directory + path.sep))) skip(directory, 'agent configuration: no integration is installed here');
+  }
+  skip(path.join(home, '.config/jumpybrain/.env'), 'remote access keys are never read or written by installation');
+  change('retention-ledger', path.join(installRoot, 'software-retention.json'), existsSync(path.join(installRoot, 'software-retention.json')) ? 'update' : 'create',
+    'rollback bookkeeping with its .software-retention.lock; needs python3 and is skipped without it; kept by uninstall');
+  if (withApp) change('mac-app', path.join(home, 'Applications/jumpyBrain.app'), existsSync(path.join(home, 'Applications/jumpyBrain.app')) ? 'verify-or-replace' : 'create',
+    'the app keeps its own profile and support state under ~/Library/Application Support; see the Mac app guide');
+  temporary.push({ path: path.join(installRoot, '.installer-lock'), note: 'held while installing; removed at the end' });
+  if (bootstrapDir) temporary.push({ path: bootstrapDir, note: 'installer helpers downloaded by install.sh; removed when it exits' });
+  const runtimes = path.join(installRoot, 'runtimes') + path.sep, privateNode = node.startsWith(runtimes);
+  if (privateNode) retained.push({ role: 'node-runtime', path: path.resolve(node, '../..'), note: 'private Node downloaded by the bootstrap; pinned by the launcher and kept by uninstall' });
+  if (!reuseApp) retained.push({ role: 'package', path: appDir, note: remoteOnly
+    ? 'one full package: the CLI plus docs, skills, installer/update helpers and Mac app and integration sources that a remote-only CLI never builds or runs'
+    : 'one full package, including installer/update helpers and Mac app sources' });
+  if (bootstrapDir) network.push({ host: 'api.github.com', purpose: 'resolve the installer revision' }, { host: 'raw.githubusercontent.com', purpose: 'installer helpers' });
+  if (privateNode) network.push({ host: 'nodejs.org', purpose: 'private Node runtime and its checksum, on first install' });
+  if (!reuseApp && source === 'release') network.push({ host: 'api.github.com', purpose: 'select the published release' }, { host: 'github.com', purpose: 'release archive, SHA-256 verified (served from GitHub\'s asset host)' });
+  else if (!reuseApp && /^[a-z+]+:\/\//i.test(source) && !source.startsWith('file:')) network.push({ host: source, purpose: 'git clone of the selected source' });
+  if (dependencies === 'installed') network.push({ host: 'registry.npmjs.org', purpose: 'runtime dependencies (npm ci)' });
+  if (engine.source === 'private-new') network.push({ host: 'registry.npmjs.org', purpose: 'private search engine' });
+  return { mode: dryRun ? 'plan' : 'pending', node: { path: node, version: process.version, private: privateNode }, runtimeDependencies: dependencies,
+    changes, retained, untouched, temporary, network,
+    notes: ['No shell profile, PATH, system Node or global npm package is modified.', ...(dryRun ? ['A dry run writes nothing; this plan lists what a real run would do.'] : [])] };
+}
+/** Replace the plan's expectations with what is on disk after a real run. */
+export function observeFilesystem(report, mode, { rollback } = {}) {
+  if (!report || report.mode === 'plan') return report;
+  report.mode = mode;
+  report.changes = report.changes.filter(item => item.role !== 'rollback-runtime' || rollback).map(item => {
+    const file = item.role === 'rollback-runtime' ? rollback : item.path;
+    return { ...item, path: file, present: existsSync(file) };
+  });
+  return report;
+}
+export function formatFilesystem(report) {
+  const lines = [report.mode === 'plan' ? 'Filesystem plan (dry run: nothing was written):' : report.mode === 'applied' ? 'Filesystem changes:' : 'Filesystem changes (interrupted; present shows what exists):'];
+  for (const item of report.changes) lines.push(`  ${item.action.padEnd(22)} ${item.role.padEnd(18)} ${item.path}${item.present === false && item.action !== 'remove' ? '  [absent]' : ''}${item.note ? `  (${item.note})` : ''}`);
+  lines.push('Not touched:', ...report.untouched.map(item => `  ${item.path}  (${item.reason})`));
+  lines.push('Kept on disk:', ...report.retained.map(item => `  ${item.path}  (${item.note})`));
+  lines.push('Temporary:', ...report.temporary.map(item => `  ${item.path}  (${item.note})`));
+  lines.push(`Node: ${report.node.path} ${report.node.version} (${report.node.private ? 'private runtime' : 'existing Node, reused and pinned by the launcher; never modified'})`);
+  lines.push(`Network: ${report.network.length ? report.network.map(item => `${item.host} (${item.purpose})`).join('; ') : 'none'}`);
+  return [...lines, ...report.notes].join('\n');
 }
 export async function atomicJSON(file, value) {
   const temporary = `${file}.tmp-${process.pid}`;
