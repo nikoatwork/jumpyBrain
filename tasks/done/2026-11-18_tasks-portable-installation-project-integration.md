@@ -8,6 +8,14 @@ New surface and why: `jumpybrain project status|trust|untrust` and device-local 
 
 Remaining limits: untested on a clean macOS account, Intel Mac, Linux hardware/AMD64 and Windows (Linux ARM64 ran in a container); project-local QMD on Linux needs Python and a C/C++ toolchain; Mac app signing/notarization and cross-release credential continuity were not addressed by this list and stay open limits; approval is advisory consent, not a security boundary; a concurrent `trust`/`untrust` race is unhandled. Behavior change: running commands without `--root` inside a folder with an unapproved `jumpybrain.json` (or `memory/jumpybrain.json`) now stops instead of using the personal brain.
 
+## Host check — 2026-11-20
+
+The owner set the priority hosts: Claude Code (also inside T3 Code) and Codex; Pi is nice to have. An end-to-end run in a scratch project (approved project memory, `capture: "durable"`, `--allow-capture`, fake personal brain) found two defects in this list and one older limit:
+
+- The skill only said "Do not capture spontaneously", and capture rules lived in the write topic, which an agent reads only once it already plans to write. Claude Code therefore skipped a durable project decision and offered to save it to the personal brain. The skill now names the exception (`project status --json` shows `capture.effective` "durable"). After the fix, Claude Code (Sonnet) and Codex (full access) both recalled from the project and saved the decision there only, without asking; the personal brain stayed empty.
+- `src/cli/instructions.ts` had an empty rule slot (a double comma, added with the shared-server rule in d7ecebb3), so `instructions --topic all` printed a blank rule. Fixed; a test now rejects empty rules.
+- Older limit: in Codex's default `workspace-write` sandbox every write fails with `backend_not_ready`, because the sandbox blocks the local backend's listener and its runtime pin beside the install. The error now says when it ran inside the Codex sandbox. Follow-up: [Codex sandbox writes](../todo/tasks-codex-sandbox-writes.md).
+
 ## Goal
 
 Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer projects and selects the intended memory without integration-specific workarounds. Minimize installed cost while keeping local and shared-server use first-class.

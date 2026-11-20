@@ -69,7 +69,15 @@ export async function ensureRootBackend(rootArg: string, options: EnsureBackendO
     }
     await delay(25);
   }
-  throw new BackendHostError("backend_not_ready", "The registered backend did not become ready. Inspect its private backend log; no foreign process was adopted or stopped.");
+  throw new BackendHostError("backend_not_ready", "The registered backend did not become ready. Inspect its private backend log; no foreign process was adopted or stopped." + sandboxHint());
+}
+/**
+ * Codex marks sandboxed commands with CODEX_SANDBOX. Its default sandbox blocks the
+ * local listener and the runtime pin beside the install, so the backend cannot
+ * start there; say so instead of leaving the agent to guess.
+ */
+export function sandboxHint(env: NodeJS.ProcessEnv = process.env): string {
+  return env.CODEX_SANDBOX ? " This command ran inside the Codex sandbox, which blocks the local jumpyBrain backend. Rerun it with sandbox escalation (approval) or outside the sandbox." : "";
 }
 export type BackendStatus = { status: "stopped" | "starting" | "running" | "unavailable"; backend?: Omit<BackendDescriptor, "token">; };
 export async function backendStatus(root: string, includeStopped = false): Promise<BackendStatus> {

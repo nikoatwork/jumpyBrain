@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-20 — Project memory checked in Claude Code and Codex
+
+- End-to-end run in the priority hosts (Claude Code, also inside T3 Code, and Codex; Pi is nice to have). The skill now tells agents when durable project capture is on, so both hosts save project decisions to the project without asking; an empty rule slot in `instructions` is fixed. Writes from Codex's default sandbox still fail because the sandbox blocks the local backend; the error now says so. [Host check](done/2026-11-18_tasks-portable-installation-project-integration.md#host-check--2026-11-20), [follow-up](todo/tasks-codex-sandbox-writes.md).
+
 ## 2026-11-19 — Shared-server migration for agents
 
 - From one agent-written feedback email: `jumpybrain diff` and `migrate remote` compare a local brain with a server and copy missing or newer-local notes and drawings (never deleting or overwriting newer server work; only declared dates order notes); `connections add --url --key-stdin|--key-env` and `connections test`; `status --all`; `show --json` `body`; a Bearer hint on 401; app connections refer to a key already in `.env` instead of copying it; a deleted brain is no longer recreated by its backend's shutdown diagnostics, and missing folders are flagged. [Outcome, checks and limits](done/2026-11-19_tasks-shared-server-migration.md).

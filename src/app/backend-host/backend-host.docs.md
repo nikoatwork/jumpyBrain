@@ -25,3 +25,8 @@ explicit mismatch policy so an older CLI cannot downgrade an upgraded brain.
 Both foreground claims and detached daemons pin their runtime before serving.
 `backendStatus(root, true)` additionally exposes a redacted historical descriptor
 for explicit inventory when the process has stopped; its default packet is unchanged.
+
+Codex's default `workspace-write` sandbox blocks the local listener and the runtime
+pin beside the install, so no backend can start there. When `CODEX_SANDBOX` is set,
+`backend_not_ready` says so and suggests rerunning with approval
+([follow-up](../../../tasks/todo/tasks-codex-sandbox-writes.md)).

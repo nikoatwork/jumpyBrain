@@ -90,3 +90,9 @@ test("removed disposable brain stops its detached backend while windowless owner
   await new Promise(resolve => setTimeout(resolve, 300));
   await assert.rejects(stat(root), { code: "ENOENT" });
 });
+
+test("a backend that cannot start inside the Codex sandbox says so", async () => {
+  const { sandboxHint } = await import("../dist/app/backend-host/index.js");
+  assert.equal(sandboxHint({}), "");
+  assert.match(sandboxHint({ CODEX_SANDBOX: "seatbelt" }), /Codex sandbox.*escalation/);
+});
