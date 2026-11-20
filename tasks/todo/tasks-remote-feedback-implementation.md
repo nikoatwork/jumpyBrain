@@ -40,3 +40,5 @@ Implement the three November 19–20 feedback reports after the owner's nine pro
 ## Verification and limits
 
 Follow `docs/testing.md`: focused behavioral tests, built-output checks after a build, Chromium for shared UI and permission scenarios. Use disposable roots, credentials and isolated homes. Record each child snapshot and exact selected commands in its own task archive; record integration checks and review here before completion. Actual installed app upgrades and release distribution remain outside this request.
+
+- Integration snapshot `d0563c59` (search guidance plus headless installer): `npm run build` passed; `node --test test/zero-hit-guidance.test.js test/read-only-command-mode.test.js test/installer-remote-only.test.js` passed 21/21. This verifies the installer consumer and command guard together with the additive retrieval hint. No permission changes were present yet.
