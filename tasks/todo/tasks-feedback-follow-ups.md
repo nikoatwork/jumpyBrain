@@ -2,6 +2,14 @@
 
 Canonical owner for the residual email items below. [Email index](../feedback.md) records which messages have been reviewed; reading is not resolution. This list records follow-up scope, not authorization to implement every item now. Existing specialist lists retain their own broader unfinished work.
 
+## New remote access feedback (November 19–20)
+
+Reviewed 2026-11-20 via the live inbox: three previously unindexed full bodies, no attachments. These items record reported behavior and proposals, not confirmed causes or authorization to implement them. Exact email IDs and thread links are in the [email index](../feedback.md).
+
+- [ ] **P2 — Explain effective app access (Nov 20, 08:30 UTC).** Reproduce the reported remote profile with an admin key and `allowWrites=false`; show why a write is blocked and where to enable it. Assess app-profile/credential/server-role diagnostics. The report's Keychain lookup is not evidence of credential loss: [current credential storage](../done/2026-11-12_tasks-env-file-credentials.md) uses an owner-only `.env`; verify the app version and actual credential resolution before assigning a cause.
+- [ ] **P2 — Simplify remote permission controls (Nov 20, 08:48 UTC follow-up).** Evaluate deriving app access from server roles, retaining an explicit visible read-only safety toggle if needed, role-aware app key management and named capability sets. Coordinate with the preceding reproduction; no role or authorization design change is adopted by this triage.
+- [ ] **P2 — Headless remote client and zero-hit search guidance (Nov 19, 17:50 UTC).** Verify the claimed remote-only installation footprint and shared-agent-config side effects against current options; assess an explicit path/side-effect summary or dry run, a minimal remote client and a read-only command mode. Review the stable-HTTP-contract request against the current CLI-first product boundary before changing policy. Reproduce long lexical-query zero hits and assess fewer-keywords guidance or fallback separately. [Prior portable-installation decisions and limits](../done/2026-11-18_tasks-portable-installation-project-integration.md) remain evidence, not resolution of this new report.
+
 ## Reproduce and investigate
 
 - [x] **P2 — Remote authentication diagnosis (Nov 12).** [Completed in source](../done/2026-11-13_tasks-remote-auth-diagnostics.md): 401/403 errors name the key's source and a non-secret fingerprint, list shadowed keys, precedence and the admin reissue path; `status --target-url` reports the accepted key. Server-redeploy key loss remains unproven. Pending release.
