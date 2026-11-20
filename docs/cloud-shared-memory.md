@@ -128,7 +128,7 @@ jumpybrain recall --target-url https://memory.example.com --topic "current proje
 
 `--target-url` and `--remote-url` are equivalent. The CLI uses `JUMPYBRAIN_API_KEY` from the environment first, then the key the Mac app saved for the same URL in `~/.config/jumpybrain/.env`, then `JUMPYBRAIN_API_KEY` written in that file ([details](cli-commands.md#remote-access-keys)). A shell/agent host can inject an issued key from its secret manager into `JUMPYBRAIN_API_KEY`.
 
-An installer-created CLI can mark a remote origin read-only in device-local `cli-config.json`. That is accidental-write protection, not server authorization. Enforce access at the server or reverse proxy.
+An installer-created CLI can mark a remote origin read-only in device-local `cli-config.json`, or block every state-changing command with [read-only command mode](install.md#read-only-command-mode). Both are accidental-write protection, not server authorization. Enforce access at the server with a reader key, or at the reverse proxy.
 
 ### When the server rejects the key
 

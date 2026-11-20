@@ -10,7 +10,7 @@ Choose your starting point:
 
 - **Agents:** run the installer below. It installs the CLI, local text search, and detected agent integrations.
 - **Mac app + agents:** add `--with-app` to the same command.
-- **Remote CLI only:** use `--remote-only`; no local search engine or memory folder is created.
+- **Remote CLI only:** use `--remote-only` for a [headless client of a shared brain](#remote-only-cli-for-a-shared-brain); no local search engine, memory folder, dependencies or agent files are installed.
 
 Software installation downloads code and dependencies. Your Markdown remains local. A cloud assistant may send recalled excerpts to its provider; remote brains, explicit feedback and user-chosen file sync have separate data flows. See the [FAQ](faq.md) and [agent installation guide](install-for-agents.md).
 
@@ -46,7 +46,7 @@ A compatible explicitly selected or existing search engine can be reused. The la
 
 Repeat-install verification uses read-only lexical recall against the existing index; its expected read-only warnings are reported as `recallMode: verified-read-only-lexical`, while other retrieval failures still fail setup.
 
-`--json` writes one result to stdout and progress to stderr. It reports paths, version, dependency selection, checks, installed/skipped integrations and remaining actions. States distinguish `planned`, `ready`, `pending_user_action`, `blocked` and `failed`. A successful dry run is only a plan. A required verification failure exits nonzero. Integration files do not prove that an already-running host loaded them; restart/reload that host when reported. Verification omits recalled note contents from setup logs.
+`--json` writes one result to stdout and progress to stderr. It reports paths, version, dependency selection, checks, installed/skipped integrations, remaining actions and the [filesystem report](#what-the-installer-writes). States distinguish `planned`, `ready`, `pending_user_action`, `blocked` and `failed`. A successful dry run is only a plan. A required verification failure exits nonzero. Integration files do not prove that an already-running host loaded them; restart/reload that host when reported. Verification omits recalled note contents from setup logs.
 
 To inspect the bootstrap first:
 
@@ -77,6 +77,47 @@ This preserves the CLI source/ref and memory root and reuses its installed runti
 The combined flow currently requires the default `~/.jumpybrain` install location. Custom CLI roots remain supported independently. `--app-port <port>` selects a different unprivileged local helper port on first setup; existing settings are preserved. Quit an older app before replacing it. A matching running app can be verified without replacement when simply adding/rechecking Desktop.
 
 Trusted source builds remain available with `npm run desktop:setup`; `npm run desktop:setup -- --check` only checks prerequisites. App-only setup uses `--with-app --integrations none`. Optional [executable extensions](extensions.md) require separate explicit installation.
+
+### What the installer writes
+
+Every run reports its exact filesystem effects: as text at the end of the output, and as `filesystem` in the `--json` result. `--dry-run` prints the same structure as a plan and writes nothing: no file, lock or directory is created in the install root, your home or any agent configuration. With the shell bootstrap, only its own temporary helper directory exists while it runs. A dry run still makes read-only network requests to resolve the installer revision and select the release.
+
+| Field | Meaning |
+| --- | --- |
+| `mode` | `plan` (dry run), `applied`, or `interrupted` when a run failed part-way. |
+| `changes` | Each path with its `role` (`runtime`, `launcher`, `manifest`, `cli-policy`, `memory`, `search-engine`, `integration:<agent>`, `rollback-runtime`, `retention-ledger`, `mac-app`) and `action` (`create`, `replace`, `update`, `remove`, …). After a real run, `present` says whether the path exists. |
+| `untouched` | Paths the run leaves alone, with the reason: agent configuration folders that receive no integration (`~/.claude`, `~/.agents`, `~/.pi`, `~/.codex`), the access-key file `~/.config/jumpybrain/.env`, a preserved policy file, and the brain and engine for a remote-only install. |
+| `retained` | What stays on disk beyond the active program: the full package contents, and a private Node runtime when the bootstrap downloaded one. |
+| `temporary` | The staging directory, the installer lock, and the bootstrap's downloaded helpers. |
+| `node` | The Node executable the launcher pins, its version, and whether it is the private runtime. An existing Node is reused and never modified; reinstall if that path later disappears. |
+| `network` | Hosts the run contacts and why. |
+| `runtimeDependencies` | `installed` (`npm ci`), `omitted` (remote-only release), `source` (`--skip-build`) or `reused`. |
+
+The installer never edits a shell profile, `PATH`, the system Node or global npm packages, and it never reads or stores access keys. The Mac app keeps further state of its own under `~/Library/Application Support`; the report lists only the app bundle for `--with-app`.
+
+### Remote-only CLI for a shared brain
+
+For a headless machine, shared VM or CI job that only talks to a jumpyBrain server:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
+  | bash -s -- --remote-only --dry-run --json      # the plan; nothing is written
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
+  | bash -s -- --remote-only --read-only-commands --json
+```
+
+`--remote-only` is the same package as every other install, with less around it:
+
+- **Installed:** the compiled package in `<install-root>/app`, the launcher `<install-root>/bin/jumpybrain`, `install-manifest.json`, and the rollback ledger `software-retention.json` (with its lock file) when Python 3 is available.
+- **Not installed:** no QMD search engine, no local brain, no agent integrations (it implies `--integrations none`, so `~/.claude`, `~/.agents` and `~/.pi` are untouched), no Mac app, and for a release install no `npm ci` and no `node_modules`. The compiled CLI already contains its WebSocket client; the one runtime dependency left out, `esbuild`, only compiles Mac app extensions. npm is therefore not required, and the free-space check asks for 256 MB instead of 1 GB.
+- **Still on disk:** the package is not split, so `app/` also holds docs, skills, installer/update helpers and the Mac app and integration sources (about 9 MB unpacked for v0.3.26; they are never built or run). A machine without Node 22.12+ additionally gets the private Node runtime under `<install-root>/runtimes`. Uninstall removes the package, launcher, policy file and manifest; it keeps that Node runtime, the two small ledger files and any rollback copies (`app.previous-*`) left by earlier updates.
+- **Bootstrap:** `install.sh --remote-only` skips downloading the engine recipe and Mac app setup helper (about 95 KB of roughly 250 KB of helpers). Helpers live in a temporary directory that is removed when the script exits.
+
+Measured on macOS arm64 with the v0.3.26 package: a remote-only release install is the package alone, about 9 MB. A default release install adds about 10 MB of `node_modules` (`esbuild`, `ws`), the private search engine and the brain. These are file sizes from one machine, not a guarantee for other platforms.
+
+Give the client its key at run time with `JUMPYBRAIN_API_KEY` or `~/.config/jumpybrain/.env`, then use the ordinary commands with `--target-url`. The CLI is the supported interface for agents, including remote ones. The HTTP routes it uses are an internal protocol that changes with jumpyBrain versions. The [implementer reference](shared-memory-protocol.md) describes them, but they are not a stable public API to build other clients against.
+
+The mode is fixed for an installation. Reruns and `jumpybrain update` keep it without repeating the flag. These combinations stop before anything is written: `--remote-only` with `--with-app`, with `--integrations auto|all` or with `--memory-root`; `--remote-only` on an existing local installation (its engine and brain would be orphaned); and `--with-app` on a remote-only installation. Use a separate `--install-root` to keep both kinds side by side.
 
 ### Project-local install
 
@@ -143,14 +184,16 @@ This is an explicit manual copy, not installer-managed ownership. Review before 
 --integrations auto|all|none Default: auto; auto installs detected harnesses
 --with-app                  Install and verify the Mac app with the CLI
 --app-port <port>            Local Mac helper port; default 3787
---remote-only               CLI only: no local QMD, memory or integrations
+--remote-only               CLI only: no local QMD, memory, dependencies or integrations
 --json                      Structured result on stdout; progress on stderr
 --ref <git-ref>              Explicit development/source branch/tag/commit ref
 --source <path-or-git-url>   Install from a local checkout or alternate git URL
 --install-root <path>        Default: ~/.jumpybrain
 --read-only-target <url>     Mark a remote target read-only; repeat for multiple targets
 --allow-write-target <url>   Remove a read-only target policy; repeat for multiple targets
---dry-run                    Print planned actions
+--read-only-commands         Block every state-changing CLI command on this device
+--allow-write-commands       Remove the read-only command mode
+--dry-run                    Print the exact filesystem plan; write nothing
 ```
 
 Use `--integrations all` to install every integration regardless of detection. Use `--integrations none` for CLI-only setup.
@@ -176,6 +219,26 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/instal
 Origins are normalized by scheme, host, and port; paths, queries, fragments, default ports, and trailing slashes do not create separate identities. Embedded credentials, non-HTTP(S) URLs, contradictory flags, and malformed existing policy files are rejected. DNS aliases, redirects, and proxy URLs remain distinct origins.
 
 This is an advisory client-side guard against accidental writes, not authorization. Anyone who can change the device config, use another client, or call the server directly can bypass it; enforce real permissions on the server or surrounding infrastructure. API keys never belong in `cli-config.json` or `install-manifest.json`.
+
+### Read-only command mode
+
+`--read-only-commands` puts the whole CLI installation in read-only command mode, for every local root and every remote target:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
+  | bash -s -- --read-only-commands
+```
+
+State-changing commands then fail with `JUMPYBRAIN_READ_ONLY_COMMANDS` before the CLI reads a key, stdin or an input file, contacts a server or starts a local backend. Reading keeps working. The [CLI reference](cli-commands.md#read-only-command-mode) lists what is blocked. `--allow-write-commands` removes the mode; it cannot be combined with `--read-only-commands`.
+
+The mode is one optional `"commands": "read-only"` entry in the same `cli-config.json`. The entry is written only while the mode is on, so existing policy files keep their exact shape. Reruns and `jumpybrain update` preserve it, and the per-target options above do not change it. For a single process or agent, without reinstalling, set `JUMPYBRAIN_READ_ONLY_COMMANDS=1`.
+
+Scope and limits:
+
+- It is **defense in depth, not authorization**. Anyone who can edit the file, point `JUMPYBRAIN_CLI_CONFIG` elsewhere or use another client bypasses it. Issue the client a **reader key**: the server then refuses every write and key change itself, whatever the client does.
+- It governs CLI commands. The installer, the Mac app and direct file edits are outside it; update a read-only installation by running the installer again.
+- A CLI older than this option does not understand the entry and refuses remote commands until the file is repaired, but it does not block local writes.
+- Ordinary local `recall`/`search` may still repair the rebuildable search index of a local brain. Add `--read-only` to those commands for no derived writes at all. A remote-only installation has no local brain to repair.
 
 ## Update
 
@@ -272,7 +335,7 @@ Local search requires **@tobilu/qmd@2.8.3**, including CLI and SDK from the same
 
 The managed launcher exports its recorded QMD path unless overridden. Runtime and doctor use the same discovery and CLI/SDK checks; fresh Desktop configuration uses the same manifest selection. Unmanaged runtime use retains explicit override, package-local QMD, then PATH precedence. Doctor does not perform inference or prove actual retrieval; the installer separately runs recall.
 
-`--remote-only` avoids local engine and brain provisioning. Advanced `--skip-qmd-install` / `--skip-initial-index` paths report incomplete local verification rather than verified search readiness. Updates preserve canonical notes and use read-only recall verification where configured. Uninstall removes an owned private engine only when no installed Desktop depends on it; customized integrations and notes are preserved. Private Node runtime directories are retained for dependent apps and can be removed manually after all users are uninstalled.
+`--remote-only` avoids local engine, brain and dependency provisioning; see [remote-only CLI](#remote-only-cli-for-a-shared-brain). Advanced `--skip-qmd-install` / `--skip-initial-index` paths report incomplete local verification rather than verified search readiness. Updates preserve canonical notes and use read-only recall verification where configured. Uninstall removes an owned private engine only when no installed Desktop depends on it; customized integrations and notes are preserved. Private Node runtime directories are retained for dependent apps and can be removed manually after all users are uninstalled.
 
 Indexing defaults to lexical; [explicit semantic setup](cli-commands.md#indexing-policy-and-recovery) persists policy in root `jumpybrain.json`. No model is downloaded by recall/status. QMD-derived files live under `<memory-root>/.jumpybrain/`; deleting them retains canonical Markdown and policy. Stop operations before deletion and follow [recovery limits](technical.md#readiness-and-recovery).
 

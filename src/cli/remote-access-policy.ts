@@ -8,14 +8,19 @@ import { resolveCliTarget } from "./targets.js";
 
 export const CLI_CONFIG_SCHEMA_VERSION = 1;
 export const READ_ONLY_POLICY_ERROR_CODE = "JUMPYBRAIN_REMOTE_TARGET_READ_ONLY";
+export const READ_ONLY_COMMANDS_ERROR_CODE = "JUMPYBRAIN_READ_ONLY_COMMANDS";
 
 export interface RemoteAccessPolicyConfig {
   schemaVersion: 1;
   remoteTargets: Array<{ origin: string; access: "read-only" }>;
+  /** Present only when this device blocks every state-changing CLI command, for any target. */
+  commands?: "read-only";
 }
 
 export interface RemoteAccessPolicyEnvironment {
   JUMPYBRAIN_CLI_CONFIG?: string;
+  /** `1`/`true` turns read-only command mode on for this process; it can never turn the configured mode off. */
+  JUMPYBRAIN_READ_ONLY_COMMANDS?: string;
 }
 
 /**
@@ -48,6 +53,47 @@ export function normalizeRemoteTargetOrigin(value: string): string {
 
 const READ_COMMANDS = new Set(["status", "tree", "overview", "search", "recall", "show", "expand"]);
 const MEMORY_RECIPE_PREFIX = "memory:";
+
+/**
+ * Device-local read-only command mode. Rejects every state-changing command,
+ * for local and remote targets alike, before credentials, stdin/files, network
+ * or backend work. Observational commands never read the policy here, so their
+ * behavior is unchanged. An unreadable policy fails closed for mutations.
+ * Defense in depth only: a reader key is the server's authority.
+ */
+export async function enforceReadOnlyCommandMode(
+  args: ParsedCliArgs,
+  options: { env?: RemoteAccessPolicyEnvironment; home?: string } = {},
+): Promise<void> {
+  if (isObservationalInvocation(args)) return;
+  const env = options.env ?? process.env;
+  const requested = env.JUMPYBRAIN_READ_ONLY_COMMANDS?.trim().toLowerCase();
+  if (requested === "1" || requested === "true") throw readOnlyCommandsError("the JUMPYBRAIN_READ_ONLY_COMMANDS environment variable");
+  if (requested && requested !== "0" && requested !== "false") {
+    throw new Error("JUMPYBRAIN_READ_ONLY_COMMANDS must be 1, true, 0 or false. State-changing commands fail closed until it is corrected or unset.");
+  }
+  const configPath = remoteAccessPolicyConfigPath(options);
+  if ((await loadRemoteAccessPolicy(configPath))?.commands === "read-only") throw readOnlyCommandsError(configPath);
+}
+
+/**
+ * Commands that change no brain, server access, device setting or installation.
+ * An explicit allowlist: anything unclassified counts as state-changing.
+ */
+export function isObservationalInvocation(args: ParsedCliArgs): boolean {
+  const command = args._[0] ?? "";
+  const operation = args._[1] ?? "";
+  // `feedback` sends only the caller's explicit message to support and touches no memory.
+  if (["", "help", "--help", "version", "-v", "instructions", "agent-hint", "doctor", "feedback"].includes(command)) return true;
+  // Replacing the installed software is a change; its preview is not.
+  if (command === "update" && !(args.id || args["if-match"] || args.root || args["target-url"] || args["remote-url"])) return args["dry-run"] === true;
+  if (command === "connections") return ["list", "test"].includes(operation);
+  if (command === "project") return operation === "status";
+  if (command === "identity") return args.name === undefined;
+  if (command === "backend") return ["status", "list"].includes(operation);
+  if (command === "extensions") return ["list", "check"].includes(operation);
+  return isReadInvocation(args);
+}
 
 export async function enforceRemoteAccessPolicy(
   args: ParsedCliArgs,
@@ -97,7 +143,9 @@ export async function loadRemoteAccessPolicy(configPath: string): Promise<Remote
 
 export function validateRemoteAccessPolicyConfig(value: unknown): RemoteAccessPolicyConfig {
   if (!isRecord(value)) throw new Error("config must be a JSON object");
-  assertExactKeys(value, ["schemaVersion", "remoteTargets"], "config");
+  const { commands, ...required } = value;
+  assertExactKeys(required, ["schemaVersion", "remoteTargets"], "config");
+  if (commands !== undefined && commands !== "read-only") throw new Error("commands must be \"read-only\" when present");
   if (value.schemaVersion !== CLI_CONFIG_SCHEMA_VERSION) {
     throw new Error(`schemaVersion ${JSON.stringify(value.schemaVersion)} is unsupported`);
   }
@@ -115,7 +163,7 @@ export function validateRemoteAccessPolicyConfig(value: unknown): RemoteAccessPo
     return { origin, access: "read-only" as const };
   });
 
-  return { schemaVersion: CLI_CONFIG_SCHEMA_VERSION, remoteTargets };
+  return { schemaVersion: CLI_CONFIG_SCHEMA_VERSION, remoteTargets, ...(commands ? { commands } : {}) };
 }
 
 export function isReadInvocation(args: ParsedCliArgs): boolean {
@@ -157,8 +205,16 @@ function readOnlyPolicyError(origin: string): Error {
   ].join("\n"));
 }
 
+function readOnlyCommandsError(source: string): Error {
+  return Object.assign(new Error([
+    `${READ_ONLY_COMMANDS_ERROR_CODE}: this CLI is in read-only command mode (${source}); state-changing commands are blocked for every target.`,
+    "Reading stays available: status, tree, search, recall, expand, show, dream windows and list operations.",
+    "This local guard is defense in depth, not authorization: give this client a reader key so the server enforces it.",
+  ].join("\n")), { code: "read_only_commands" });
+}
+
 function invalidConfigError(configPath: string, reason: string, cause?: unknown): Error {
-  return new Error(`Invalid jumpyBrain CLI policy config at ${configPath}: ${reason}. Remote commands fail closed until the config is repaired or removed.`, { cause });
+  return new Error(`Invalid jumpyBrain CLI policy config at ${configPath}: ${reason}. Remote commands fail closed until the config is repaired or removed, as do state-changing commands.`, { cause });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -169,6 +225,6 @@ function assertExactKeys(value: Record<string, unknown>, expected: string[], lab
   const keys = Object.keys(value).sort();
   const wanted = [...expected].sort();
   if (keys.length !== wanted.length || keys.some((key, index) => key !== wanted[index])) {
-    throw new Error(`${label} must contain exactly ${wanted.join(", ")}`);
+    throw new Error(`${label} must contain exactly ${wanted.join(", ")}${label === "config" ? " (commands is optional)" : ""}`);
   }
 }

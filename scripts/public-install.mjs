@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
 import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
 import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
-import { atomicJSON, cliShim, preflight, selectEngineWithSource, discoverRelease, installRelease } from "./install-support.mjs";
+import { atomicJSON, cliShim, preflight, selectEngineWithSource, discoverRelease, installRelease, filesystemReport, observeFilesystem, formatFilesystem } from "./install-support.mjs";
 import { classifyManifest, classifyVerification, DEFAULT_REPO, incompatibleRuntimeError, INSTALLER_NAME, MANIFEST_VERSION, migrationBlockers, migrationCommand, runtimeCapabilities, sourcePolicy } from "./install-compatibility.mjs";
 import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
 
@@ -19,6 +19,7 @@ let unlock = async () => {};
 let selectedQmd;
 let installationHome;
 let selectedRelease;
+let retainedRollback;
 const pendingSoftware = [];
 let resultReport = { schemaVersion: 1, state: "blocked", checks: {}, remainingActions: [] };
 const jsonOutput = process.argv.includes("--json");
@@ -44,6 +45,8 @@ async function main(argv = process.argv.slice(2)) {
     if (!options.dryRun) {
       for (const { generation, versions } of pendingSoftware) finishSoftware(generation, { home, root: installRoot, owner: process.pid, versions });
       resultReport.storage = maintainSoftware({ home, root: installRoot, owner: process.pid });
+      // Printed last so the report reflects everything this run left on disk.
+      if (resultReport.filesystem) console.log(`\n${formatFilesystem(observeFilesystem(resultReport.filesystem, "applied", { rollback: retainedRollback }))}`);
     }
   } finally { await unlock(); }
   if (jsonOutput) process.stdout.write(JSON.stringify(resultReport) + "\n");
@@ -82,11 +85,16 @@ async function installManaged({ options, home, cwd, installRoot }) {
   const integrations = previousManifest?.integrationMode ?? options.integrations;
   const manifestSource = source === "release" ? DEFAULT_REPO : await normalizeInstallSource(source);
   const remoteOnly = options.remoteOnly || previousManifest?.remoteOnly === true;
+  // Conflicting modes stop here: before preflight, locks, engine selection or any write.
+  const conflict = message => Object.assign(new Error(`${message} Nothing was changed.`), { blockers: [message] });
+  if (previousManifest && options.remoteOnly && previousManifest.remoteOnly !== true) throw conflict(`The installation at ${installRoot} is a local installation with its own brain; --remote-only cannot convert it. Use a separate --install-root for a remote-only CLI, or uninstall this one first.`);
+  if (previousManifest?.remoteOnly === true && options.withApp) throw conflict(`The installation at ${installRoot} is remote-only and has no local engine or brain, so the Mac app cannot be added to it. Use a separate local installation for the app.`);
+  if (!previousManifest && remoteOnly && options.provided.has("memory-root")) throw conflict("--remote-only creates no local brain, so --memory-root cannot be combined with it.");
   options.remoteOnly = remoteOnly;
   if (existsSync(path.join(home, "Applications/jumpyBrain.app")) && previousManifest?.desktopPort && options.appPort && options.appPort !== previousManifest.desktopPort) throw new Error("The existing app port is preserved. Do not change it during setup.");
   // A source build option never applies to a release runtime, whose dependencies are always installed from its lockfile.
   for (const key of ["skipBuild", "skipQmdInstall", "skipInitialIndex"]) if (!(migratingToRelease && key === "skipBuild")) options[key] ||= Boolean(previousManifest?.installerOptions?.[key]);
-  if (remoteOnly && (integrations !== "none" || options.withApp)) throw new Error("--remote-only requires --integrations none and cannot include --with-app.");
+  if (remoteOnly && (integrations !== "none" || options.withApp)) throw conflict("--remote-only requires --integrations none and cannot include --with-app.");
   const physicalMemory = await physicalPath(memoryRoot);
   for (const directory of [appDir, binDir, path.join(installRoot, "engines")]) {
     const protectedDir = await physicalPath(directory);
@@ -119,6 +127,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     }
   }
   await preflight({ options, installRoot, memoryRoot, source, home });
+  const rootExisted = existsSync(installRoot);
   if (!options.dryRun) {
     unlock = await lockInstallation(installRoot);
     const lockedManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
@@ -135,6 +144,15 @@ async function installManaged({ options, home, cwd, installRoot }) {
   resultReport.release = selectedRelease || null;
   if (resultReport.compatibility) resultReport.compatibility.candidateVersion = options.reuseApp ? resultReport.compatibility.installedVersion : selectedRelease?.version ?? null;
   resultReport.state = options.dryRun ? "planned" : "failed";
+  // The compiled CLI bundles its WebSocket client; esbuild only compiles desktop extensions.
+  const dependencies = options.reuseApp ? "reused" : options.skipBuild ? "source" : remoteOnly && source === "release" ? "omitted" : "installed";
+  const reportFilesystem = ({ policy, integrations: planned, existing }) => {
+    resultReport.filesystem = filesystemReport({ dryRun: options.dryRun, home, installRoot, appDir, cliPath, cliConfigPath, manifestPath, memoryRoot, remoteOnly,
+      existing, reuseApp: options.reuseApp, policy, engine, integrations: planned, skipInitialIndex: options.skipInitialIndex, withApp: options.withApp, dependencies, source,
+      agentDirs: [home, ...(scope === "project" ? [cwd] : [])].flatMap(base => [".claude", ".agents", ".pi", ".codex"].map(name => path.join(base, name))),
+      bootstrapDir: process.env.JUMPYBRAIN_BOOTSTRAP_DIR || undefined, rootExisted });
+    resultReport.commandMode = policy.readOnlyCommands ? "read-only" : "read-write";
+  };
 
   const summary = {
     installRoot,
@@ -166,13 +184,15 @@ async function installManaged({ options, home, cwd, installRoot }) {
       cliPath,
       cliConfigPath,
       memoryRoot,
+      dependencies,
+      reportFilesystem,
     });
     return;
   }
 
   log(`${options.dryRun ? "Dry run: planning jumpyBrain installation" : "Installing jumpyBrain"} (${scope})`);
   log(`Install root: ${installRoot}`);
-  log(`Memory root: ${memoryRoot}`);
+  log(remoteOnly ? "Memory root: none (remote-only)" : `Memory root: ${memoryRoot}`);
   const policyPlan = await planRemoteAccessPolicy(cliConfigPath, options);
   summary.cliPolicy = policyPlan.description;
   logPolicyPlan(policyPlan);
@@ -181,6 +201,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
   if (!previousManifest) for (const item of integrationPlan.install) {
     if (existsSync(item.path)) throw new Error(`An integration already exists at ${item.path}. Preserve it or select --integrations none; it will not be overwritten.`);
   }
+  reportFilesystem({ policy: policyPlan, integrations: integrationPlan.install, existing: false });
   const now = new Date().toISOString();
   const manifest = {
     version: MANIFEST_VERSION, installer: INSTALLER_NAME, state: "installing",
@@ -197,7 +218,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
   if (!options.dryRun) {
     await atomicJSON(manifestPath, manifest);
     await mkdir(installRoot, { recursive: true });
-    await installApp({ source, ref, appDir, skipBuild: options.skipBuild });
+    await installApp({ source, ref, appDir, skipBuild: options.skipBuild, dependencies });
     await mkdir(binDir, { recursive: true });
     await writeCliShim({ cliPath, appDir, cliConfigPath });
     await writeRemoteAccessPolicy(policyPlan);
@@ -229,6 +250,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
   if (summary.integrations.length && !options.dryRun) resultReport.remainingActions.push("Restart/reload any already-running assistant to activate its integration; file presence does not prove activation.");
 
   if (!options.dryRun) resultReport.state = resultReport.remainingActions.length ? "pending_user_action" : "ready";
+  summary.remoteOnly = remoteOnly;
   printSummary(summary);
 }
 
@@ -273,12 +295,14 @@ async function updateExistingInstall({
   cliPath,
   cliConfigPath,
   memoryRoot,
+  dependencies,
+  reportFilesystem,
 }) {
   assertPreservedInstallSettings(options, { scope, integrations, memoryRoot }, home);
 
   log("Existing managed installation detected");
   log(`Install root: ${installRoot}`);
-  log(`Memory root (preserved): ${memoryRoot}`);
+  log(options.remoteOnly ? "Memory root: none (remote-only)" : `Memory root (preserved): ${memoryRoot}`);
   const companion = companionUpdatePlan({ installRoot, home });
   log(companion
     ? "Updating shared runtime, CLI, and installed macOS companion; memory and agent integrations are preserved"
@@ -289,13 +313,15 @@ async function updateExistingInstall({
   }
   const policyPlan = await planRemoteAccessPolicy(cliConfigPath, options);
   logPolicyPlan(policyPlan);
+  reportFilesystem({ policy: policyPlan, integrations: (previousManifest.integrations || []).filter(item => item && typeof item.path === "string"), existing: true });
 
   if (options.dryRun) {
     resultReport.state = "planned";
-    console.log("\njumpyBrain update dry run complete.");
+    console.log("\njumpyBrain update dry run complete. No changes made.");
     console.log(`CLI: ${cliPath}`);
-    console.log(`Memory preserved: ${memoryRoot}`);
+    console.log(options.remoteOnly ? "Remote-only: no local brain or search engine." : `Memory preserved: ${memoryRoot}`);
     console.log(`CLI policy: ${policyPlan.description}`);
+    console.log(`\n${formatFilesystem(resultReport.filesystem)}`);
     return;
   }
 
@@ -308,7 +334,7 @@ async function updateExistingInstall({
   };
   // A reused runtime must prove the current readiness contract before its shim/manifest change.
   if (options.reuseApp) await verifyRuntime(appDir, "installed");
-  else await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion, beforePublish: stagingDir => verifyRuntime(stagingDir, "candidate") });
+  else await installApp({ source, ref, appDir, skipBuild: options.skipBuild, dependencies, companion, beforePublish: stagingDir => verifyRuntime(stagingDir, "candidate") });
   await mkdir(binDir, { recursive: true });
   await writeCliShim({ cliPath, appDir, cliConfigPath });
   await writeRemoteAccessPolicy(policyPlan);
@@ -350,7 +376,7 @@ async function updateExistingInstall({
 
   console.log("\njumpyBrain update complete.");
   console.log(`CLI: ${cliPath}`);
-  console.log(`Memory preserved: ${memoryRoot}`);
+  console.log(options.remoteOnly ? "Remote-only: no local brain or search engine." : `Memory preserved: ${memoryRoot}`);
   console.log(`CLI policy: ${policyPlan.description}`);
   console.log("Untouched managed integrations refreshed; customized, missing and untracked files preserved.");
 }
@@ -389,6 +415,8 @@ function parseArgs(argv) {
     else if (token === "--install-root") options.installRoot = requiredValue(argv, ++index, token);
     else if (token === "--read-only-target") options.readOnlyTargets.push(requiredValue(argv, ++index, token));
     else if (token === "--allow-write-target") options.allowWriteTargets.push(requiredValue(argv, ++index, token));
+    else if (token === "--read-only-commands") options.readOnlyCommands = true;
+    else if (token === "--allow-write-commands") options.allowWriteCommands = true;
     else if (token === "--home") options.home = requiredValue(argv, ++index, token);
     else if (token === "--cwd") options.cwd = requiredValue(argv, ++index, token);
     else throw new Error(`Unknown option ${token}.\n\n${usage()}`);
@@ -398,6 +426,7 @@ function parseArgs(argv) {
   if (!["auto", "all", "none"].includes(options.integrations)) throw new Error("--integrations must be auto, all, or none.");
   if (options.appPort !== undefined && (!options.withApp || !Number.isInteger(options.appPort) || options.appPort < 1024 || options.appPort > 65535)) throw new Error("--app-port requires --with-app and a port from 1024 to 65535.");
   if (options.remoteOnly && !options.provided.has("integrations")) options.integrations = "none";
+  if (options.remoteOnly && (options.integrations !== "none" || options.withApp)) throw new Error("--remote-only requires --integrations none and cannot include --with-app.");
   assertCompatiblePolicyFlags(options);
   return options;
 }
@@ -415,7 +444,7 @@ function usage() {
     "Options:",
     "  --with-app                  Also install and verify the Mac app using this brain",
     "  --app-port <port>           Local Mac helper port (default: 3787; existing setting preserved)",
-    "  --remote-only               Install CLI without a local engine or brain (integrations none)",
+    "  --remote-only               Install CLI without a local engine, brain or dependencies (integrations none)",
     "  --json                      Emit one structured result; progress goes to stderr",
     "  --scope global|project       Install global memory/integrations or project-local ones (default: global)",
     "  --memory-root <path>         Override memory root",
@@ -425,7 +454,9 @@ function usage() {
     "  --install-root <path>        Install app/shims under this directory (default: ~/.jumpybrain)",
     "  --read-only-target <url>     Mark a remote target read-only (repeatable)",
     "  --allow-write-target <url>   Remove a remote target read-only policy (repeatable)",
-    "  --dry-run                   Print planned actions without writing files",
+    "  --read-only-commands        Block every state-changing CLI command on this device (local guard)",
+    "  --allow-write-commands      Remove the read-only command mode",
+    "  --dry-run                   Print the exact filesystem plan without writing files",
     "  --yes                       Reserved for non-interactive future prompts",
   ].join("\n");
 }
@@ -439,7 +470,7 @@ function ensureNodeVersion() {
   if (!Number.isInteger(major) || major < 22) throw new Error(`Node >=22 is required. Current Node is ${process.version}. Install a recent Node first, then rerun the installer.`);
 }
 
-async function installApp({ source, ref, appDir, skipBuild, companion, beforePublish }) {
+async function installApp({ source, ref, appDir, skipBuild, dependencies, companion, beforePublish }) {
   await mkdir(path.dirname(appDir), { recursive: true });
   // Only delete scratch directories created by THIS invocation. Legacy fixed
   // app.installing/app.previous paths may contain user-configured preserved data.
@@ -474,7 +505,9 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
       }
     }
 
-    if (!skipBuild) {
+    if (dependencies === "omitted") {
+      log("Remote-only: using the compiled package as is; no dependencies are installed and npm is not needed.");
+    } else if (!skipBuild) {
       log("Installing dependencies");
       if (source === "release" && !existsSync(path.join(stagingDir, "package-lock.json"))) throw new Error("This release predates reproducible installer assets. Use an explicit trusted --source until a compatible release is published.");
       run("npm", source === "release" ? ["ci", "--omit=dev", "--no-audit", "--no-fund"] : ["ci", "--no-audit", "--no-fund"], { cwd: stagingDir });
@@ -520,6 +553,7 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
     }
     if (existsSync(backupDir)) {
       if (generation) pendingSoftware.push({ generation, versions: { cli: await readInstalledVersion(backupDir) } });
+      retainedRollback = backupDir;
       log(`Previous runtime retained for verified rollback: ${backupDir}`);
     } else await rm(backupContainer, { recursive: true, force: true });
   } catch (error) {
@@ -552,24 +586,33 @@ async function writeCliShim({ cliPath, appDir, cliConfigPath }) {
 async function planRemoteAccessPolicy(cliConfigPath, options) {
   const additions = new Set(options.readOnlyTargets.map(normalizeRemoteTargetOrigin));
   const removals = new Set(options.allowWriteTargets.map(normalizeRemoteTargetOrigin));
-  const explicit = additions.size > 0 || removals.size > 0;
+  const explicit = additions.size > 0 || removals.size > 0 || options.readOnlyCommands || options.allowWriteCommands;
   if (!explicit) {
-    return { configPath: cliConfigPath, config: null, write: false, description: existsSync(cliConfigPath) ? `preserved at ${cliConfigPath}` : "not configured" };
+    // Report an existing command mode without rewriting or failing on the preserved file.
+    let readOnlyCommands = false;
+    try { readOnlyCommands = JSON.parse(await readFile(cliConfigPath, "utf8"))?.commands === "read-only"; } catch {}
+    return { configPath: cliConfigPath, config: null, write: false, readOnlyCommands, description: existsSync(cliConfigPath) ? `preserved at ${cliConfigPath}${readOnlyCommands ? " (read-only commands)" : ""}` : "not configured" };
   }
 
   const current = existsSync(cliConfigPath) ? await readPolicyConfig(cliConfigPath) : { schemaVersion: 1, remoteTargets: [] };
   const origins = new Set(current.remoteTargets.map((entry) => entry.origin));
   for (const origin of additions) origins.add(origin);
   for (const origin of removals) origins.delete(origin);
+  const readOnlyCommands = options.readOnlyCommands ? true : options.allowWriteCommands ? false : current.commands === "read-only";
+  // The command mode key is written only when on, so existing policy files keep their exact shape.
   const config = {
     schemaVersion: 1,
     remoteTargets: [...origins].sort().map((origin) => ({ origin, access: "read-only" })),
+    ...(readOnlyCommands ? { commands: "read-only" } : {}),
   };
   const description = [
     additions.size > 0 ? `read-only ${[...additions].join(", ")}` : "",
     removals.size > 0 ? `write enabled ${[...removals].join(", ")}` : "",
+    options.readOnlyCommands ? "read-only commands for every target" : "",
+    options.allowWriteCommands ? "state-changing commands allowed" : "",
   ].filter(Boolean).join("; ");
-  return { configPath: cliConfigPath, config, write: origins.size > 0, remove: origins.size === 0 && existsSync(cliConfigPath), description };
+  const keep = origins.size > 0 || readOnlyCommands;
+  return { configPath: cliConfigPath, config, write: keep, remove: !keep && existsSync(cliConfigPath), readOnlyCommands, description };
 }
 
 async function writeRemoteAccessPolicy(plan) {
@@ -596,7 +639,8 @@ async function readPolicyConfig(configPath) {
     throw new Error(`Cannot safely update CLI policy: ${configPath} is not valid JSON. Refusing to overwrite it.`, { cause: error });
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Cannot safely update CLI policy: ${configPath} must contain an object.`);
-  if (value.schemaVersion !== 1 || !Array.isArray(value.remoteTargets) || Object.keys(value).sort().join(",") !== "remoteTargets,schemaVersion") {
+  const { commands, ...required } = value;
+  if (value.schemaVersion !== 1 || !Array.isArray(value.remoteTargets) || Object.keys(required).sort().join(",") !== "remoteTargets,schemaVersion" || (commands !== undefined && commands !== "read-only")) {
     throw new Error(`Cannot safely update CLI policy: ${configPath} has an unsupported or ambiguous schema. Refusing to overwrite it.`);
   }
   const seen = new Set();
@@ -609,7 +653,7 @@ async function readPolicyConfig(configPath) {
     seen.add(origin);
     return { origin, access: "read-only" };
   });
-  return { schemaVersion: 1, remoteTargets };
+  return { schemaVersion: 1, remoteTargets, ...(commands ? { commands } : {}) };
 }
 
 function assertCompatiblePolicyFlags(options) {
@@ -618,6 +662,7 @@ function assertCompatiblePolicyFlags(options) {
   for (const origin of additions) {
     if (removals.has(origin)) throw new Error(`Remote target ${origin} appears in both --read-only-target and --allow-write-target.`);
   }
+  if (options.readOnlyCommands && options.allowWriteCommands) throw new Error("--read-only-commands and --allow-write-commands cannot be combined.");
 }
 
 function logPolicyPlan(plan) {
@@ -741,6 +786,17 @@ const renderTemplate = renderIntegration;
 
 function printSummary(summary) {
   console.log(summary.dryRun ? "\njumpyBrain install dry run complete. No changes made." : "\njumpyBrain install complete.");
+  if (summary.dryRun) console.log(`\n${formatFilesystem(resultReport.filesystem)}\n`);
+  if (summary.remoteOnly) {
+    console.log(`CLI: ${summary.cliPath}`);
+    console.log(`CLI policy: ${summary.cliPolicy}`);
+    console.log(`Remote-only: no local brain, search engine or agent integrations${resultReport.filesystem.runtimeDependencies === "omitted" ? ", and no dependencies" : ""}.`);
+    console.log(summary.dryRun ? "\nAfter installing, read a shared brain with (the key comes from JUMPYBRAIN_API_KEY or ~/.config/jumpybrain/.env):" : "\nRead a shared brain with (the key comes from JUMPYBRAIN_API_KEY or ~/.config/jumpybrain/.env):");
+    console.log(`${shellQuote(summary.cliPath)} recall --target-url https://your-server.example --topic "what should I know?" --limit 5`);
+    console.log("\nTip: add the CLI bin directory to PATH if desired:");
+    console.log(`export PATH=${shellQuote(summary.binDir)}:"$PATH"`);
+    return;
+  }
   console.log(`Memory root: ${summary.memoryRoot}`);
   console.log(`CLI: ${summary.cliPath}`);
   console.log(`CLI policy: ${summary.cliPolicy}`);
@@ -847,6 +903,8 @@ function log(message) {
 }
 
 main().catch((error) => {
+  observeFilesystem(resultReport.filesystem, "interrupted", { rollback: retainedRollback });
+  if (!jsonOutput && resultReport.filesystem?.mode === "interrupted") console.error(`${formatFilesystem(resultReport.filesystem)}\n`);
   if (jsonOutput) process.stdout.write(JSON.stringify({ ...resultReport, error: error.message, blockers: error.blockers || [] }) + "\n");
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
