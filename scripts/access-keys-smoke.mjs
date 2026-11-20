@@ -107,8 +107,14 @@ try {
     await hosted.locator("#access-keys-close").click();
     await connectAs(bobKey);
     await openHosted();
-    await hosted.waitForFunction(() => /reader key named “Bob”/.test(document.getElementById("access-keys-intro").textContent));
-    assert.equal(await hosted.locator("#access-keys-form").isHidden(), true);
+    await hosted.waitForFunction(() => /^Reader · key “Bob”/.test(document.getElementById("access-effective-summary").textContent));
+    assert.match(await text(hosted, "access-keys-intro"), /Only an admin key can create or revoke keys.*then connect with that key/);
+    assert.deepEqual(await hosted.locator("#access-effective-list li").evaluateAll(items => items.map(item => item.dataset.capability + ":" + item.dataset.allowed)), ["read:true", "write:false", "manage_access:false"]);
+    // Key creation stays visible and explains itself; nothing about it is usable.
+    assert.equal(await hosted.locator("#access-keys-form").isVisible(), true);
+    assert.equal(await hosted.locator("#access-keys-name").isDisabled(), true);
+    assert.match(await text(hosted, "access-keys-role-hint"), /needs an admin key\. Yours has reader access/);
+    assert.equal(await hosted.locator("#access-keys-list").isHidden(), true);
     assert.equal(await hosted.evaluate(() => connectionStatus), "connected", "a non-admin never calls the admin route");
     await hosted.locator("#access-keys-close").click();
   });
@@ -132,28 +138,32 @@ try {
   await check("app: a local brain explains that no keys are needed", async () => {
     await settings.goto(gateway.url + "/settings?section=access#companion=" + controlKey); await ready();
     await settings.waitForFunction(() => /needs no access keys/.test(document.getElementById("access-keys-intro").textContent));
+    assert.match(await text(settings, "access-effective-summary"), /^Full access\./);
     assert.equal(await settings.locator("#access-keys-form").isHidden(), true);
     assert.equal(await text(settings, "settings-section-title"), "Access keys");
     await shot(settings, "app-local");
   });
-  await check("app: a remote brain without editing approval lists keys but cannot change them", async () => {
-    const saved = await native("/companion/profiles", { profile: { name: "Team brain", kind: "remote", url: remote.url, key: adaKey }, revision: gateway.state().revision });
+  await check("app: a remote brain reached with a reader key shows its role and offers no key changes", async () => {
+    const saved = await native("/companion/profiles", { profile: { name: "Team brain", kind: "remote", url: remote.url, key: bobKey }, revision: gateway.state().revision });
     remoteId = saved.profiles.find(profile => profile.kind === "remote").id;
     await native("/companion/switch", { id: remoteId });
     await settings.waitForURL(url => url.searchParams.get("brain") === remoteId); await ready();
     await settings.locator('[data-settings-section="access"]').click();
-    await settings.locator("#access-keys-list .access-key").first().waitFor();
-    assert.match(await text(settings, "access-keys-message"), /Editing is turned off/);
+    await settings.waitForFunction(() => /^Reader · key “Bob”/.test(document.getElementById("access-effective-summary").textContent));
+    assert.match(await text(settings, "access-keys-intro"), /then update the key under Brains/);
     assert.equal(await settings.locator("#access-keys-name").isDisabled(), true);
-    assert.equal(await activeRow(settings, "Bob").getByRole("button").isDisabled(), true);
+    assert.equal(await settings.locator("#access-keys-list").isHidden(), true);
+    assert.equal(await settings.locator("#access-keys-message").isHidden(), true, "no device approval is mentioned");
   });
-  await check("app: with editing approval an admin creates and revokes keys; leaving drops the secret", async () => {
+  await check("app: an admin key creates and revokes keys with no device approval; leaving drops the secret", async () => {
     const profile = gateway.state().profiles.find(item => item.id === remoteId);
-    await native("/companion/profiles", { profile: { id: remoteId, name: profile.name, kind: "remote", url: remote.url, allowWrites: true }, revision: gateway.state().revision });
-    // The approval change starts a new generation; open tabs reload to Settings for that brain.
+    await native("/companion/profiles", { profile: { id: remoteId, name: profile.name, kind: "remote", url: remote.url, key: adaKey }, revision: gateway.state().revision });
+    // The key change starts a new generation; open tabs reload to Settings for that brain.
     await settings.waitForFunction(generation => companionRegistered && !companionFrozen && companionState.generation === generation, gateway.state().generation);
     await settings.locator('[data-settings-section="access"]').click();
-    await settings.locator("#access-keys-form").waitFor();
+    await settings.locator("#access-keys-list .access-key").first().waitFor();
+    assert.match(await text(settings, "access-effective-summary"), /^Admin · key “Ada”/);
+    assert.equal(await settings.locator("#access-keys-name").isDisabled(), false);
     assert.match(await text(settings, "access-keys-intro"), new RegExp(new URL(remote.url).host));
     const token = await createKey(settings, "Laptop agent", "writer");
     await shot(settings, "app-new-key");

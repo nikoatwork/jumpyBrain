@@ -101,6 +101,10 @@ async function readState(directory) {
     try { state = JSON.parse(buffer.subarray(0, size).toString("utf8")); }
     catch { fail("INVALID_STATE"); }
     validateState(state);
+    // Older builds stored a device write flag. The server role now decides, so the
+    // flag is dropped from memory here and from disk on the next deliberate save.
+    // Reading never rewrites the file: keys, IDs and the selection stay as they were.
+    for (const profile of state.profiles) delete profile[LEGACY_PERMISSION];
     const roots = new Set();
     for (const profile of state.profiles.filter((item) => item.kind === "local")) {
       const root = await realpath(profile.root).catch(() => profile.root);
@@ -125,6 +129,8 @@ function remoteOrigin(value) {
   if (!url.hostname || url.username || url.password || url.search || url.hash || url.pathname !== "/") fail("INVALID_URL");
   return url.origin;
 }
+// Pre-role profile files carry `allowWrites`; current ones do not. Both are valid on disk.
+const LEGACY_PERMISSION = "allowWrites";
 function validateState(state) {
   const invalid = () => fail("INVALID_STATE");
   if (!fields(state, ["version", "revision", "activeId", "profiles"]) || Object.keys(state).length !== 4
@@ -132,15 +138,18 @@ function validateState(state) {
     || !Array.isArray(state.profiles) || state.profiles.length > MAX_PROFILES) invalid();
   const ids = new Set(), destinations = new Set(), references = new Set();
   for (const profile of state.profiles) {
-    if (!fields(profile, ["id", "name", "kind", "root", "url", "credentialRef", "allowWrites"])
+    if (!fields(profile, ["id", "name", "kind", "root", "url", "credentialRef", LEGACY_PERMISSION])
       || typeof profile.id !== "string" || !UUID.test(profile.id) || ids.has(profile.id) || !text(profile.name, 128)
-      || profile.name !== profile.name.trim() || typeof profile.allowWrites !== "boolean") invalid();
+      || profile.name !== profile.name.trim()) invalid();
+    const legacy = LEGACY_PERMISSION in profile;
+    if (legacy && typeof profile[LEGACY_PERMISSION] !== "boolean") invalid();
+    const count = Object.keys(profile).length - (legacy ? 1 : 0);
     let destination;
     if (profile.kind === "local") {
-      if (Object.keys(profile).length !== 5 || !absolute(profile.root) || "url" in profile || "credentialRef" in profile) invalid();
+      if (count !== 4 || !absolute(profile.root) || "url" in profile || "credentialRef" in profile) invalid();
       destination = `local:${profile.root}`;
     } else if (profile.kind === "remote") {
-      if (Object.keys(profile).length !== 6 || "root" in profile || typeof profile.credentialRef !== "string"
+      if (count !== 5 || "root" in profile || typeof profile.credentialRef !== "string"
         || !REFERENCE.test(profile.credentialRef) || references.has(profile.credentialRef)) invalid();
       try { if (remoteOrigin(profile.url) !== profile.url) invalid(); } catch { invalid(); }
       destination = `remote:${profile.url}`;
@@ -192,7 +201,7 @@ export class ConnectionStore {
           if (initialRoot !== undefined) {
             const root = await localRoot(initialRoot, true);
             const id = randomUUID();
-            state.profiles.push({ id, name: "Local brain", kind: "local", root, allowWrites: true });
+            state.profiles.push({ id, name: "Local brain", kind: "local", root });
             state.activeId = id;
           }
           await store.#persist(state, null);
@@ -279,10 +288,11 @@ export class ConnectionStore {
     return this.#mutate(async () => {
       this.#expected(expectedRevision);
       const state = await this.#current(expectedRevision);
-      if (!fields(request, ["id", "name", "kind", "root", "url", "key", "allowWrites"])
+      // An older caller may still send the removed write flag: accept a boolean and ignore it.
+      if (!fields(request, ["id", "name", "kind", "root", "url", "key", LEGACY_PERMISSION])
         || !text(request.name, 128) || !request.name.trim()
         || !["local", "remote"].includes(request.kind)
-        || (request.allowWrites !== undefined && typeof request.allowWrites !== "boolean")) fail("INVALID_INPUT");
+        || (request[LEGACY_PERMISSION] !== undefined && typeof request[LEGACY_PERMISSION] !== "boolean")) fail("INVALID_INPUT");
       const previous = request.id === undefined ? undefined : state.profiles.find((profile) => profile.id === request.id);
       if (request.id !== undefined && !previous) fail("NOT_FOUND");
       if (!previous && state.profiles.length >= MAX_PROFILES) fail("PROFILE_LIMIT");
@@ -299,7 +309,6 @@ export class ConnectionStore {
       // A profile ID is also a browser-link destination identity. Replacing its
       // destination must never make an old bookmark valid on a different brain.
       if (previous && !sameDestination) profile.id = randomUUID();
-      profile.allowWrites = request.allowWrites ?? (sameDestination ? previous.allowWrites : profile.kind === "local");
       for (const other of state.profiles) {
         if (other.id === profile.id || other.kind !== profile.kind) continue;
         if (profile.kind === "remote" && other.url === profile.url) fail("DUPLICATE_DESTINATION");

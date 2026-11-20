@@ -86,18 +86,20 @@ test('authenticated loopback protocol shares canonical files and enforces hash/m
     const response=await fetch(server.url+route,{method,headers:{Authorization:'Bearer fixture','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});assert.ok(response.status>=400);assert.equal((await response.text()).includes(root),false);
   }
 });
-test('Mac gateway uses the selected root and remote writes require profile approval',async t=>{
+test('Mac gateway uses the selected root and remote writes follow the key\'s server role',async t=>{
   const root=await fixture(t), remoteRoot=await fixture(t), support=path.join(root,'support');await mkdir(support,{mode:0o700});
   const server=await startJumpyBrainHttpServer({root:remoteRoot,apiKeys:['fixture'],port:0,host:'127.0.0.1',autoIndex:false});
   t.boardResources.push(server);
-  const gateway=await startCompanionGateway({runtimeRoot:path.resolve('.'),directory:support,initialRoot:root,port:0,controlKey:'b'.repeat(64),credentials:{get:async()=> 'fixture',set:async()=>{},delete:async()=>{}}});
+  // The saved connection uses a reader key issued by that server.
+  const remoteKey=(await (await fetch(server.url+'/access',{method:'POST',headers:{Authorization:'Bearer fixture','Content-Type':'application/json'},body:JSON.stringify({name:'Reader',role:'reader'})})).json()).token;
+  const gateway=await startCompanionGateway({runtimeRoot:path.resolve('.'),directory:support,initialRoot:root,port:0,controlKey:'b'.repeat(64),credentials:{get:async()=>remoteKey,set:async()=>{},delete:async()=>{}}});
   t.boardResources.push(gateway);
   const request=async(route,method='GET',body,extra={})=>fetch(gateway.url+route,{method,headers:{Authorization:'Bearer '+'b'.repeat(64),'X-Companion-Generation':String(gateway.state().generation),'Content-Type':'application/json',...extra},...(body?{body:JSON.stringify(body)}:{})});
   const initial=gateway.state(), value=board();assert.equal((await request('/memories/all/boards','POST',value)).status,200);
   assert.equal((await readBoard(root,value.id)).board.name,value.name);
   assert.equal((await request('/companion/collections')).status,405,'legacy store is removed');
   assert.equal((await request('/memories/all/boards','GET',undefined,{'X-Companion-Generation':String(initial.generation-1)})).status,409);
-  const added=await request('/companion/profiles','POST',{revision:initial.revision,profile:{name:'Shared',kind:'remote',url:server.url,key:'fixture',allowWrites:false}});
+  const added=await request('/companion/profiles','POST',{revision:initial.revision,profile:{name:'Shared',kind:'remote',url:server.url,key:remoteKey}});
   const profile=(await added.json()).profiles.find(p=>p.kind==='remote');await request('/companion/switch','POST',{id:profile.id});
   assert.equal((await request('/memories/all/boards','POST',board())).status,403);assert.deepEqual(await listBoards(remoteRoot),{boards:[],hashes:{}});
   const remoteBoard=await saveBoard(remoteRoot,board('Remote board'));

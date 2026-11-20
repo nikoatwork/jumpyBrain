@@ -93,7 +93,7 @@ when a supported variant exists.
 
 Budgets in `scripts/package-budget.mjs` are 3.3 MB compressed, 9.1 MB unpacked,
 7.5 MB under `dist/`, and 780 files (decimal units). Existing editor tests retain
-186 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+186.5 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer; `test/drawings.test.js` holds the lazy drawing editor to
 4.2 MB on disk and a 245 KB gzip entry. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
@@ -456,6 +456,14 @@ Open-note attention outcome reporting (2026-11-18) adds receipt checks and reply
 classification. Merged with page backlinks, the bundle is 185,861 gzip bytes,
 leaving 139 under the 186,000 ceiling. The next editor addition needs its own
 measured review.
+
+Server-role access (2026-11-20) replaces the access-key controller's device
+approval handling with the server's named capability sets and the Your access
+summary: a net 492 gzip bytes (186,353 total, 185,861 before, macOS ARM64, Node
+26.7.0). The three capability rows and their wording are server-rendered, which
+saved 56 bytes; shorter wording saved another 56. The reviewed ceiling rises to
+**186,500 bytes**, leaving 147. The next editor addition needs its own measured
+review.
 
 Measured and not adopted: a newer syntax target (0 bytes), dropping `console`
 calls (41), removing the in-bundle Lucide notice (559, needed for the licence)

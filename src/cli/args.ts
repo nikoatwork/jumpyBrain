@@ -78,7 +78,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     instructions: { values: ["topic"] },
     "agent-hint": { values: ["topic"] },
     doctor: { values: ["root", "probe-query"], booleans: ["check"] },
-    connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "url", "key-env", "revision"], remove: ["id", "revision"], select: ["id", "revision"], test: ["id"] }[argv[1] ?? ""] ?? [])], booleans: argv[1] === "add" ? ["key-stdin", "allow-writes"] : [] },
+    connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "url", "key-env", "revision"], remove: ["id", "revision"], select: ["id", "revision"], test: ["id"] }[argv[1] ?? ""] ?? [])], booleans: argv[1] === "add" ? ["key-stdin", "allow-writes" /* removed option: still parsed so older scripts keep working; ignored */] : [] },
     attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
     status: { values: [...targets, "directory"], booleans: ["all"] },
     index: { values: [...targets, "semantic-model", "model-file"], booleans: ["rebuild", "lexical", "setup-semantic", "download-model"] },
@@ -140,7 +140,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
       const remote = args.url !== undefined;
       if (remote === (args.root !== undefined)) throw new Error("connections add needs exactly one of --root <existing-brain> or --url <origin>.");
       if (remote && (args["key-stdin"] === true) === (args["key-env"] !== undefined)) throw new Error("A remote connection needs exactly one of --key-stdin or --key-env <VARIABLE>; keys are never accepted as arguments.");
-      if (!remote && (args["key-stdin"] || args["key-env"] !== undefined || args["allow-writes"])) throw new Error("--key-stdin, --key-env and --allow-writes apply only to a remote --url connection.");
+      if (!remote && (args["key-stdin"] || args["key-env"] !== undefined || args["allow-writes"])) throw new Error("--key-stdin and --key-env apply only to a remote --url connection.");
       if (args["key-env"] !== undefined && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(args["key-env"]))) throw new Error("--key-env needs an environment variable name such as JUMPYBRAIN_API_KEY.");
     }
     for (const key of action === "list" ? [] : action === "add" ? ["name", "revision"] : action === "test" ? ["id"] : ["id", "revision"]) stringArg(args, key);

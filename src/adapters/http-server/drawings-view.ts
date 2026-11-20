@@ -122,7 +122,8 @@ function createDrawingsUI(host) {
     element("drawings-list-state").textContent = status;
     element("drawings-list-state").hidden = !status;
     element("drawings-list-retry").hidden = !connected || listStatus !== "error";
-    const reason = !connected ? "Connect to create a drawing." : readOnly() ? "This connection is read only." : "";
+    const explains = connected && readOnly() && Boolean(host.explainReadOnly);
+    const reason = !connected ? "Connect to create a drawing." : readOnly() && !explains ? "This connection is read only." : "";
     element("new-drawing").disabled = Boolean(reason) || creating || listStatus === "loading";
     element("drawing-create-reason").textContent = reason;
     element("drawing-create-reason").hidden = !reason;
@@ -372,7 +373,7 @@ function createDrawingsUI(host) {
   async function create() {
     if (creating) return;
     if (!host.connected()) { host.message("Connect before creating a drawing.", true); return; }
-    if (readOnly()) { host.message("This brain is read only.", true); return; }
+    if (readOnly()) { if (!host.explainReadOnly?.("Creating a drawing")) host.message("This brain is read only.", true); return; }
     const scope = host.scope();
     creating = true; renderList();
     try {

@@ -45,7 +45,7 @@ try {
     localFactory:options=>startJumpyBrainHttpServer({...options,autoIndex:false}),
     credentials:{get:async ref=>keys.get(ref),set:async(ref,value)=>keys.set(ref,value),delete:async ref=>keys.delete(ref)}});
   const localId=gateway.state().activeId;
-  await gateway.store.save({kind:'remote',name:'Older remote',url:proxyUrl,key,allowWrites:true},gateway.store.snapshot().revision);
+  await gateway.store.save({kind:'remote',name:'Older remote',url:proxyUrl,key},gateway.store.snapshot().revision);
   const remoteId=gateway.store.snapshot().profiles.find(p=>p.kind==='remote').id;
   browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
   const page=await browser.newPage();page.setDefaultTimeout(15000);
@@ -103,16 +103,20 @@ try {
     assert.equal(await compatibility.isVisible(),false,'status '+status+' is not unsupported');
   }
   mode=200;await page.evaluate(()=>boardsUI.refresh());
-  // A 405 on the collection read is unsupported too, including read-only clients.
+  // A 405 on the collection read is unsupported too, including for a reader key.
   const s=gateway.state(), p=s.profiles.find(p=>p.id===remoteId);
-  const changed=fetch(gateway.url+'/companion/profiles',{method:'POST',headers:{Authorization:'Bearer '+control,'Content-Type':'application/json'},body:JSON.stringify({revision:s.revision,profile:{id:p.id,name:p.name,kind:p.kind,url:p.url,allowWrites:false}})});
+  const readerKey=(await (await fetch(remote.url+'/access',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({name:'Reader',role:'reader'})})).json()).token;
+  const changed=fetch(gateway.url+'/companion/profiles',{method:'POST',headers:{Authorization:'Bearer '+control,'Content-Type':'application/json'},body:JSON.stringify({revision:s.revision,profile:{id:p.id,name:p.name,kind:p.kind,url:p.url,key:readerKey}})});
   assert.equal((await changed).status,200);await page.waitForFunction(()=>companionRegistered&&companionReadOnly());
   mode=405;await page.evaluate(()=>boardsUI.refresh());await compatibility.waitFor({state:'visible'});
   assert.equal(await page.locator('#new-board').isDisabled(),true);
   mode=200;await compatibility.getByRole('button',{name:'Check again'}).click();
   await page.waitForFunction(()=>document.getElementById('sidebar-boards-compatibility').hidden);
-  assert.equal(await page.locator('#new-board').isDisabled(),true,'recovering support does not grant write permission');
-  assert.equal(boardWrites,1,'read-only refresh never writes a board');
+  // Recovered support does not grant a reader anything: creation explains instead of writing.
+  assert.equal(await page.locator('#new-board').isDisabled(),false);
+  await page.locator('#new-board').click();await page.locator('#app-toast').waitFor({state:'visible'});
+  assert.match(await page.locator('#toast-message').textContent(),/Creating a board needs a writer or admin key/);
+  assert.equal(boardWrites,1,'a reader never writes a board');
   assert.deepEqual(errors,[]);
   console.log('PASS: old remote 404/405, notes usable, no unsupported writes, update recovery, transient/auth/document/write failure separation, read-only policy, local/remote scope reset.');
 } finally {

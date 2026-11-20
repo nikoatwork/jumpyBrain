@@ -488,6 +488,8 @@ const drawingsUI = createDrawingsUI({
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) + ":" + String(companionState?.activeId) : "hosted"),
   connected: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   readOnly: () => companionMode && companionReadOnly(),
+  // A role restriction keeps creation available so that choosing it explains why.
+  explainReadOnly: (action) => { if (!companionMode || !companionAccessBlocked()) return false; companionExplainAccess(action); return true; },
   scopeUrl: (url) => companionMode ? companionScopeUrl(url) : url,
   navigate: (destination) => navigation.navigate(destination),
   replaceUrl: (destination) => {
@@ -512,9 +514,9 @@ const accessKeys = JumpyBrainBrowser.installAccessKeys({
       const profile = companionState?.profiles?.find((item) => item.id === companionState.activeId);
       const usable = Boolean(profile) && companionRegistered && !companionFrozen && !companionSessionFailed;
       return { kind: !usable ? "none" : profile.kind === "local" ? "local" : "remote", address: profile?.url || "",
-        canChange: profile?.allowWrites === true, scope: JSON.stringify([companionState?.generation, companionState?.activeId]) };
+        scope: JSON.stringify([companionState?.generation, companionState?.activeId]) };
     }
-    return { kind: connectionStatus === "connected" ? "hosted" : "none", address: location.origin, canChange: true, scope: String(credentialRevision) };
+    return { kind: connectionStatus === "connected" ? "hosted" : "none", address: location.origin, scope: String(credentialRevision) };
   },
   confirm: (text) => confirm(text),
   copy: (text) => navigator.clipboard.writeText(text),
@@ -576,6 +578,7 @@ function syncCompanionExtensions() {
       currentDocument: () => state.view === "note" && state.editor?.state.loaded
         ? { id: state.editor.state.documentId, title: (state.editor.state.title || state.editor.state.savedTitle || "Untitled").slice(0, 512) } : null,
       writable: () => !companionReadOnly(),
+      readOnlyReason: () => companionAccessBlocked() ? companionAccessExplanation("This extension command") + " See Settings → Access keys." : "",
       openNote: async id => {
         if (!isValidMemoryDocumentId(id) || companionFrozen || companionSessionFailed) return false;
         return navigation.navigate(companionScopeUrl("/?note=" + encodeURIComponent(id)));

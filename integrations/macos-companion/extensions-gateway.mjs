@@ -11,7 +11,10 @@ const document = value => value === null || (exact(value, ['id', 'title']) && id
 // Scope transitions are observed once by the host, never asserted by an editor tab.
 const eventTypes = ['document.changed', 'document.saved', 'theme.changed'];
 
-export function createExtensionGateway({ host, coordinator, active, targetFetch, jsonBody, json }) {
+// `requireCapability(profile, capability, signal)` rejects unless the brain's role grants it.
+// Without one, every extension write is refused.
+const refuseWrites = async () => fail('access_unconfirmed', 'This brain did not confirm what your access key may do, so the change was not sent.', 403);
+export function createExtensionGateway({ host, coordinator, active, targetFetch, requireCapability = refuseWrites, jsonBody, json }) {
   const sessions = new Set();
   let managing = false;
   let notifiedGeneration;
@@ -48,10 +51,13 @@ export function createExtensionGateway({ host, coordinator, active, targetFetch,
     const operation = (route, options = {}, write = false) => {
       // Admission is synchronous, before any await or detached continuation can escape.
       check();
-      if (write && (!allowWrites || !profile?.allowWrites)) fail('write_not_authorized', 'Explicit command and brain editing approval are required.', 403);
+      // `allowWrites` is the user's approval of this one command. Whether the brain
+      // accepts a change is the role check below and then the server's own decision.
+      if (write && !allowWrites) fail('write_not_authorized', 'Extension writes need an explicitly approved command.', 403);
       const release = coordinator.enter(generation, tabId, auth.native);
       const pending = (async () => {
         try {
+          if (write) await requireCapability(profile, 'write', session.controller.signal);
           const packet = await targetFetch(profile, route, { ...options, signal: session.controller.signal });
           check();
           let result;

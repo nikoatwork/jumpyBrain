@@ -58,7 +58,7 @@ test("seeds privately once; snapshots/get are clones; touches neither canonical 
   assert.equal(snapshot.revision, 0);
   assert.equal(snapshot.profiles.length, 1);
   assert.equal(snapshot.activeId, snapshot.profiles[0].id);
-  assert.deepEqual(snapshot.profiles[0], { id: snapshot.activeId, name: "Local brain", kind: "local", root: f.memory, allowWrites: true });
+  assert.deepEqual(snapshot.profiles[0], { id: snapshot.activeId, name: "Local brain", kind: "local", root: f.memory });
   snapshot.profiles[0].name = "poison";
   snapshot.profiles.push({ key: "secret" });
   const profile = f.store.get(snapshot.activeId);
@@ -115,7 +115,7 @@ test("empty stores activate their first profile, and local creation requires exi
   const state = await save(f, { name: " Main ", kind: "local", root: f.memory });
   assert.equal(state.activeId, state.profiles[0].id);
   assert.equal(state.profiles[0].name, "Main");
-  assert.equal(state.profiles[0].allowWrites, true);
+  assert.equal("allowWrites" in state.profiles[0], false);
 });
 
 test("local roots resolve aliases and dot segments; reject missing, non-directory, symlink and hardlink markers", async (t) => {
@@ -130,7 +130,7 @@ test("local roots resolve aliases and dot segments; reject missing, non-director
   await symlink(other.root, aliasOther);
   const saved = await save(f, { ...other, root: aliasOther, allowWrites: false });
   assert.equal(saved.profiles[1].root, other.root);
-  assert.equal(saved.profiles[1].allowWrites, false);
+  assert.equal("allowWrites" in saved.profiles[1], false, "an older caller's write flag is accepted and not stored");
   const bad = path.join(f.root, "bad");
   await mkdir(bad);
   await rejectsCode(save(f, { name: "Missing marker", kind: "local", root: bad }), "INVALID_ROOT");
@@ -160,7 +160,7 @@ test("normalizes HTTPS origins/default ports and only permits literal HTTP loopb
     const state = await save(f, remote(input));
     const profile = state.profiles.at(-1);
     assert.equal(profile.url, output);
-    assert.equal(profile.allowWrites, false);
+    assert.deepEqual(Object.keys(profile).sort(), ["credentialRef", "id", "kind", "name", "url"]);
     assert.equal(profile.key, undefined);
     assert.match(profile.credentialRef, /^jumpybrain-companion:/);
   }
@@ -177,7 +177,7 @@ test("normalizes HTTPS origins/default ports and only permits literal HTTP loopb
   ]) await rejectsCode(save(f, remote(url)), "INVALID_URL");
 });
 
-test("permissions are target-specific; remote destination changes require new keys and reset write approval", async (t) => {
+test("profiles store no write permission; remote destination changes require new keys", async (t) => {
   const f = await fixture(t);
   await save(f, remote("https://one.example", { allowWrites: true }));
   let profile = f.store.snapshot().profiles[1];
@@ -185,13 +185,12 @@ test("permissions are target-specific; remote destination changes require new ke
   await save(f, { id, name: "Renamed", kind: "remote", url: profile.url });
   profile = f.store.get(id);
   assert.equal(profile.credentialRef, credentialRef);
-  assert.equal(profile.allowWrites, true);
+  assert.equal(JSON.stringify(await disk(f)).includes("allowWrites"), false);
   await rejectsCode(save(f, { id, name: "Changed", kind: "remote", url: "https://two.example" }), "MISSING_CREDENTIAL");
   await save(f, remote("https://two.example", { id }));
   assert.equal(f.store.get(id), undefined, "old destination IDs must not resolve after replacement");
   profile = f.store.snapshot().profiles[1];
   assert.notEqual(profile.id, id);
-  assert.equal(profile.allowWrites, false);
   assert.notEqual(profile.credentialRef, credentialRef);
   assert.equal(f.credentials.items.has(credentialRef), false);
   const priorRef = profile.credentialRef;
@@ -203,7 +202,6 @@ test("permissions are target-specific; remote destination changes require new ke
   profile = f.store.snapshot().profiles[1];
   assert.equal(f.store.snapshot().activeId, profile.id);
   assert.equal(profile.kind, "local");
-  assert.equal(profile.allowWrites, true);
   assert.equal(profile.credentialRef, undefined);
   assert.equal(f.credentials.items.has(priorRef), false);
   await rejectsCode(save(f, { ...remote(), allowWrites: "true" }), "INVALID_INPUT");
@@ -353,13 +351,13 @@ test("schema corruption fails closed without defaults, rewriting, credentials ca
   for (const change of [
     { id: "../bad" }, { name: "" }, { name: "not trimmed " }, { name: "x".repeat(129) },
     { kind: "unknown" }, { root: "relative" }, { root: f.memory + "/../memory" },
-    { allowWrites: "true" }, { allowWrites: undefined }, { key: "secret-echo" },
+    { allowWrites: "true" }, { allowWrites: null }, { allowWrites: 1 }, { key: "secret-echo" },
     { url: "https://brain.example" }, { credentialRef: "secret-echo" },
   ]) variants.push(JSON.stringify({ ...valid, profiles: [{ ...valid.profiles[0], ...change }, valid.profiles[1]] }));
   for (const change of [
     { credentialRef: "plaintext-secret-echo" }, { credentialRef: undefined },
     { url: "https://BRAIN.EXAMPLE:443/" }, { url: "http://unsafe.example" },
-    { url: "https://brain.example?secret-echo" }, { root: f.memory }, { key: "secret-echo" },
+    { url: "https://brain.example?secret-echo" }, { root: f.memory }, { key: "secret-echo" }, { allowWrites: "false" },
   ]) variants.push(JSON.stringify({ ...valid, profiles: [valid.profiles[0], { ...valid.profiles[1], ...change }] }));
   const calls = f.credentials.calls.length;
   for (const content of variants) {
@@ -505,4 +503,45 @@ test("external revision changes during Keychain set abort persistence and remove
   assert.deepEqual(await disk(f), changed);
   assert.deepEqual([...f.credentials.items.keys()], [original.credentialRef]);
   assert.deepEqual(await readdir(f.directory), ["connections.json"]);
+});
+
+test("pre-role profile files open as they are: keys, IDs and selection kept, the write flag ignored and dropped on the next save", async (t) => {
+  const f = await fixture(t);
+  await save(f, remote("https://admin.example"));
+  await save(f, remote("https://reader.example"));
+  await f.store.setActive(f.store.snapshot().profiles[1].id);
+  const current = await disk(f);
+  // The shape older builds wrote: every profile carries the device write flag.
+  const legacy = { ...current, profiles: current.profiles.map((profile, index) => ({ ...profile, allowWrites: index === 0 })) };
+  assert.equal(legacy.profiles[1].allowWrites, false, "an admin connection restricted on the old device");
+  const bytes = JSON.stringify(legacy, null, 2) + "\n";
+  await writeFile(f.filename, bytes, { mode: 0o600 });
+  const keys = new Map(f.credentials.items);
+  const calls = f.credentials.calls.length;
+
+  const reopened = await ConnectionStore.open({ directory: f.directory, initialRoot: f.memory, credentials: f.credentials });
+  const opened = reopened.snapshot();
+  assert.deepEqual(opened, current, "the same connections, without the flag");
+  assert.equal(opened.activeId, legacy.activeId);
+  assert.deepEqual(opened.profiles.map((profile) => profile.credentialRef), legacy.profiles.map((profile) => profile.credentialRef));
+  assert.equal(await readFile(f.filename, "utf8"), bytes, "opening never rewrites an old file");
+  assert.equal(f.credentials.calls.length, calls, "opening never touches keys");
+  await reopened.setActive(opened.activeId);
+  assert.equal(await readFile(f.filename, "utf8"), bytes, "selecting the active connection again is not a save");
+
+  const remoteProfile = opened.profiles[1];
+  const renamed = await reopened.save({ id: remoteProfile.id, name: "Renamed", kind: "remote", url: remoteProfile.url }, opened.revision);
+  assert.equal(renamed.profiles[1].credentialRef, remoteProfile.credentialRef);
+  assert.equal(renamed.profiles[1].id, remoteProfile.id);
+  const written = await readFile(f.filename, "utf8");
+  assert.equal(written.includes("allowWrites"), false, "the next deliberate save drops the flag from disk");
+  assert.deepEqual(JSON.parse(written), renamed);
+  assert.deepEqual(new Map(f.credentials.items), keys, "no key was removed or replaced");
+  assert.equal(f.credentials.calls.slice(calls).some(([action]) => action !== "get"), false);
+
+  // A file may be half migrated by hand; each profile is judged on its own.
+  const mixed = structuredClone(renamed);
+  mixed.profiles[2].allowWrites = true;
+  await writeFile(f.filename, JSON.stringify(mixed), { mode: 0o600 });
+  assert.deepEqual((await ConnectionStore.open({ directory: f.directory, credentials: f.credentials })).snapshot(), renamed);
 });

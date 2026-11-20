@@ -773,7 +773,7 @@ const referenceCreation = JumpyBrainBrowser.createReferenceCreation({
   getSession: () => String(state.noteToken) + ":" + credentialRevision + ":" + (companionMode ? String(companionState?.generation) : ""),
   // A preparing switch may drain already saved work against its old target.
   isEnabled: () => companionMode && companionRegistered && !companionSessionFailed
-    && companionState?.active?.allowWrites === true && Boolean(state.editor?.state.loaded),
+    && companionCan("write") && Boolean(state.editor?.state.loaded),
   ensure: (title, signal) => graphJson("/memories/all/ensure-title", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }), signal,
   }),
@@ -862,7 +862,7 @@ async function activatePageReference(title) {
     referenceMessage(Number(error.status) === 401 || Number(error.status) === 403
       ? "Connect with an access key to open this reference. Your draft is retained."
       : error.outcome === "missing" ? (typeof companionMode !== "undefined" && companionMode && companionReadOnly()
-        ? "No page has this title. This brain is read only; creating a page requires editing permission. Your draft is retained."
+        ? "No page has this title. Your access to this brain cannot create pages; see Settings → Access keys. Your draft is retained."
         : "No page has this title. Your draft is retained.")
       : error.outcome === "ambiguous" ? "Several pages share this title. Your draft is retained."
       : "This reference could not be opened. It may have changed or be unavailable. Your draft is retained.", true);
@@ -1031,9 +1031,11 @@ function renderNoteSearch(search) {
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
   $("search-refresh-index").hidden = !search.stale;
   const reindexReadOnly = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
-  $("search-refresh-index").disabled = searchIndexRefreshing || reindexReadOnly;
+  // A role restriction leaves the control available: using it explains the restriction.
+  const reindexExplains = reindexReadOnly && companionAccessBlocked();
+  $("search-refresh-index").disabled = searchIndexRefreshing || (reindexReadOnly && !reindexExplains);
   $("search-refresh-index").setAttribute("aria-busy", String(searchIndexRefreshing));
-  $("search-refresh-index").title = reindexReadOnly ? "Reindexing is unavailable for a read-only brain" : searchIndexRefreshing ? "Reindexing memory…" : "Reindex memory";
+  $("search-refresh-index").title = reindexExplains ? companionAccessExplanation("Reindexing") : reindexReadOnly ? "Reindexing is unavailable right now" : searchIndexRefreshing ? "Reindexing memory…" : "Reindex memory";
   $("search-retry").hidden = search.status !== "error";
   $("search-connect").hidden = search.status !== "auth";
 }
@@ -1696,7 +1698,8 @@ function syncEditorUi(editorState) {
   $("open-note-graph").disabled = editorState.navigationPending;
   if (companionMode && typeof boardsUI !== "undefined") boardsUI.syncNote();
   $("delete-note").hidden = !editorState.loaded;
-  $("delete-note").disabled = editorState.navigationPending || companionLocked;
+  // Stays available under a role restriction so that choosing it explains why.
+  $("delete-note").disabled = editorState.navigationPending || (companionLocked && !(companionMode && companionAccessBlocked()));
   $("note-retry").disabled = editorState.navigationPending;
   $("note-editor").hidden = !editorState.loaded;
   $("note-name").hidden = !editorState.loaded;
@@ -1756,7 +1759,7 @@ const noteCapture = createNoteCapture({
 });
 let newNoteId = null;
 async function newNote() {
-  if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
+  if (typeof companionMode !== "undefined" && companionMode && companionDenied("Creating a note")) return;
   if (creatingNote || documentActions.isOpen() || documentActions.isBusy() || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   creatingNote = true;
   for (const id of ["new-note", "home-new"]) $(id).disabled = true;
@@ -1790,10 +1793,25 @@ async function newNote() {
     $("new-note").title = "Retry new note · " + newShortcut;
   } finally {
     creatingNote = false;
-    for (const id of ["new-note", "home-new"]) $(id).disabled = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
+    for (const id of ["new-note", "home-new"]) $(id).disabled = typeof companionMode !== "undefined" && companionMode && companionReadOnly() && !companionAccessBlocked();
   }
 }
 for (const id of ["new-note", "home-new"]) $(id).addEventListener("click", (event) => { if (event.detail < 2) newNote(); });
+// A view-only key leaves the note readable. Trying to change it says why, at most once
+// every few seconds, and points to Settings; nothing else in the note view shows the role.
+let editingDeniedAt = 0;
+function explainEditingDenied(event) {
+  if (typeof companionMode === "undefined" || !companionMode || !companionAccessBlocked() || state.view !== "note" || !state.editor?.state.loaded) return;
+  // A read-only editor takes no keyboard focus: typing after clicking into its text arrives at the page.
+  const inNote = node => Boolean(node) && ($("note-editor").contains(node) || node === $("note-name"));
+  if (!inNote(event.target) && !(event.target === document.body && inNote(getSelection()?.anchorNode))) return;
+  if (event.type === "keydown" && (event.metaKey || event.ctrlKey || event.altKey || event.isComposing || !(event.key.length === 1 || ["Backspace", "Delete", "Enter"].includes(event.key)))) return;
+  if (Date.now() - editingDeniedAt < 8000) return;
+  editingDeniedAt = Date.now();
+  companionExplainAccess("Editing this note");
+}
+for (const type of ["keydown", "paste", "cut", "drop"]) document.addEventListener(type, explainEditingDenied);
+$("delete-note").addEventListener("click", () => { if (typeof companionMode !== "undefined" && companionMode && companionAccessBlocked()) companionExplainAccess("Deleting this note"); });
 
 function openReferenceSearch() {
   if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
@@ -1833,7 +1851,7 @@ function insertPageReference(result) {
 export const documentActionsScript = String.raw`
 let searchIndexRefreshing = false;
 $("search-refresh-index").addEventListener("click", async () => {
-  if (searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionReadOnly())) return;
+  if (searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionDenied("Reindexing"))) return;
   searchIndexRefreshing = true;
   const revision = credentialRevision;
   renderNoteSearch(noteSearch.state);

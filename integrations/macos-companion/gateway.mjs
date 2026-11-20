@@ -126,13 +126,14 @@ export async function appCredentials(runtimeRoot, native, options = {}) {
   return { setDiagnosticReporter: (reporter) => native.setDiagnosticReporter?.(reporter), get: file.get, set: file.set, delete: file.delete, selectFolder: () => native.selectFolder(), close: () => native.close() };
 }
 
+// `write` marks a mutation. `capability` (default: write for mutations, none for reads)
+// names what the target's role must grant; the target server remains the authority.
 function allowedMemoryRoute(method, pathname) {
   if (method === 'GET' && pathname === '/capabilities') return { write: false };
-  // Key management for the active brain. The server requires an admin key; issuing and
-  // revoking also need this device's editing approval for that brain.
-  if (method === 'GET' && pathname === '/access') return { write: false };
-  if (method === 'POST' && pathname === '/access') return { write: true };
-  if (method === 'DELETE' && /^\/access\/[0-9a-f-]{36}$/.test(pathname)) return { write: true };
+  // Key management for the active brain needs the manage_access capability (an admin key).
+  if (method === 'GET' && pathname === '/access') return { write: false, capability: 'manage_access' };
+  if (method === 'POST' && pathname === '/access') return { write: true, capability: 'manage_access' };
+  if (method === 'DELETE' && /^\/access\/[0-9a-f-]{36}$/.test(pathname)) return { write: true, capability: 'manage_access' };
   if (method === 'POST' && pathname === '/memories/all/files/operations') return { write: true };
   if (method === 'GET' && /^\/memories\/all\/boards(?:\/[0-9a-f-]+(?:\/status)?)?$/.test(pathname)) return { write: false };
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };
@@ -180,6 +181,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   credentials.setDiagnosticReporter?.((event) => diagnostics.record(event));
   let supportPending = null, supportAt = 0, supportCache = null, supportScope = null;
   const importedEvents = new Set();
+  const { ACCESS_CAPABILITIES, roleCapabilities } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/access-control/index.js')).href);
   const { ensureRootBackend } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/backend-host/index.js')).href);
   const { readBackendDescriptor, readBackendLease, processAlive } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/backend-host/index.js')).href);
   const localStart = localFactory || (async options => {
@@ -299,8 +301,57 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       failure(controller.signal.aborted ? 'target_timeout' : 'offline', controller.signal.aborted ? 'Brain request timed out.' : 'The selected brain is unavailable.', controller.signal.aborted ? 504 : 503);
     } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', abort); controllers.delete(controller); }
   };
+  // Effective access. A local folder belongs to this device's user. A remote brain's
+  // role comes only from its server (`/capabilities`), never from profile data. The
+  // result is advisory: it explains and denies early, but every forwarded request is
+  // still authorized by the server from the credential itself. Unknown fails closed.
+  const LOCAL_ACCESS = Object.freeze({ source: 'local', role: 'admin', capabilities: Object.freeze([...ACCESS_CAPABILITIES]) });
+  const unknownAccess = (reason) => ({ source: 'server', role: null, capabilities: [], reason });
+  const accessCache = new Map(); let accessGeneration = -1;
+  const ACCESS_MAX_AGE = 30000;
+  const resolveAccess = async (profile, signal, deadline = 4000) => {
+    if (!profile) return null;
+    if (profile.kind === 'local') return LOCAL_ACCESS;
+    const generation = coordinator.generation;
+    if (generation !== accessGeneration) { accessCache.clear(); accessGeneration = generation; }
+    // A changed key gets a new credential reference, so it never inherits a cached role.
+    const key = profile.id + ':' + profile.credentialRef, cached = accessCache.get(key);
+    if (cached && Date.now() - cached.at <= ACCESS_MAX_AGE) return cached.access;
+    let access;
+    try {
+      const response = await targetFetch(profile, '/capabilities', { signal }, deadline);
+      let packet = null; try { packet = JSON.parse(response.body); } catch {}
+      const role = packet?.principal?.role, granted = roleCapabilities(role);
+      if ([401, 403].includes(response.status)) access = unknownAccess('authentication_failed');
+      else if (response.status !== 200 || !object(packet) || !granted.length) access = unknownAccess(response.status >= 500 ? 'offline' : 'unsupported');
+      else {
+        // Prefer the server's own statement of this key's set; older servers send only the role.
+        const stated = Array.isArray(packet.capabilities) ? ACCESS_CAPABILITIES.filter((name) => packet.capabilities.includes(name)) : [...granted];
+        const name = typeof packet.principal.name === 'string' ? packet.principal.name.replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 100) : '';
+        access = { source: 'server', role, capabilities: stated, ...(name ? { name } : {}) };
+      }
+    } catch (error) {
+      access = unknownAccess(['credential_unavailable', 'backend_version_mismatch'].includes(error?.code) ? error.code : 'offline');
+    }
+    // Only a confirmed role is remembered, and only for the brain it was confirmed on.
+    if (access.role && generation === coordinator.generation && accessGeneration === generation) accessCache.set(key, { access, at: Date.now() });
+    return access;
+  };
+  const requireCapability = async (profile, capability, signal) => {
+    // A change waits longer for the role than the status probe does: a slow server is not a refusal.
+    const access = await resolveAccess(profile, signal, 15000);
+    if (access?.capabilities.includes(capability)) return;
+    if (!access) failure('offline', 'No brain is selected.', 503);
+    if (!access.role) {
+      if (access.reason === 'offline') failure('offline', 'The selected brain is unavailable, so its access could not be confirmed.', 503);
+      if (access.reason === 'credential_unavailable') failure('credential_unavailable', 'This connection has no usable access key. Re-enter the key in Settings.', 503);
+      failure('access_unconfirmed', 'This brain did not confirm what your access key may do, so the change was not sent. Review access in Settings.', 403);
+    }
+    if (capability === 'manage_access') failure('admin_required', 'Managing access keys needs an admin key for this brain. Review access in Settings.', 403);
+    failure('read_only', 'Your access key for this brain has ' + access.role + ' access, which cannot make changes. Review access in Settings.', 403);
+  };
   const extensionHost = await createExtensionHost({ directory: path.join(directory, 'extensions'), safeMode: safeMode || readinessOnly });
-  const extensions = createExtensionGateway({ host: extensionHost, coordinator, active, targetFetch, jsonBody, json });
+  const extensions = createExtensionGateway({ host: extensionHost, coordinator, active, targetFetch, requireCapability, jsonBody, json });
   const testProfile = async (profile) => {
     // Inactive local testing is an observational marker check; never switch/start a second engine.
     if (profile?.kind === 'local' && profile.id !== store.snapshot().activeId) {
@@ -314,19 +365,36 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       return response.status === 200 && packet.memory === 'all' ? 'connected' : 'offline';
     } catch (error) { return ['credential_unavailable', 'backend_version_mismatch'].includes(error.code) ? error.code : 'offline'; }
   };
+  // Health plus the role that goes with it. Anything short of a connected server leaves a
+  // remote role unknown, named by the reason.
+  const probeProfile = async (profile) => {
+    const next = await testProfile(profile);
+    if (!profile || profile.kind === 'local') return { health: next, access: profile ? LOCAL_ACCESS : null };
+    if (next === 'connected') return { health: next, access: await resolveAccess(profile) };
+    // A failed check also forgets any role confirmed earlier, so the next change is checked afresh.
+    accessCache.delete(profile.id + ':' + profile.credentialRef);
+    return { health: next, access: unknownAccess(next) };
+  };
+  const accessScope = (profile) => coordinator.generation + ':' + profile.id + ':' + (profile.credentialRef || '');
+  let access = null, accessFor = null;
   const refreshHealth = async () => {
     if (readinessOnly || coordinator.pending || stopping) return;
     if (!healthPending && Date.now() - healthAt > 2000) {
-      const id = store.snapshot().activeId, generation = coordinator.generation;
-      healthPending = testProfile(active()).then((next) => {
-        if (id === store.snapshot().activeId && generation === coordinator.generation) { health = next; healthAt = Date.now(); }
+      const profile = active(), id = store.snapshot().activeId, generation = coordinator.generation;
+      healthPending = probeProfile(profile).then((next) => {
+        if (id === store.snapshot().activeId && generation === coordinator.generation) {
+          health = next.health; healthAt = Date.now();
+          access = next.access; accessFor = profile ? accessScope(profile) : null;
+        }
       }).finally(() => { healthPending = null; });
     }
     await healthPending;
   };
+  const activeAccess = (profile) => !profile ? null : profile.kind === 'local' ? LOCAL_ACCESS
+    : accessFor === accessScope(profile) && access ? access : unknownAccess('checking');
   const state = () => {
     const snapshot = store.snapshot(); const profile = active();
-    return { ...snapshot, identity: displayIdentity, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
+    return { ...snapshot, identity: displayIdentity, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), access: activeAccess(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
       target: profile?.kind === 'remote' ? profile.url : null };
   };
   const change = async (operation) => {
@@ -348,6 +416,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const remoteAddition = (profile) => object(profile) && profile.kind === 'remote'
     && Object.keys(profile).every((key) => ['name','kind','url','key','allowWrites'].includes(key))
     && typeof profile.name === 'string' && typeof profile.url === 'string' && typeof profile.key === 'string'
+    // The removed write flag is still accepted from older CLIs; the store ignores it.
     && (profile.allowWrites === undefined || typeof profile.allowWrites === 'boolean');
   const checkRevision = (revision) => {
     if (!Number.isSafeInteger(revision) || revision < 0 || revision !== store.snapshot().revision) failure('REVISION_CONFLICT', 'Connections changed. List connections and retry deliberately.', 409);
@@ -361,7 +430,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       await healthPending;
       await targetTail;
       await store.setActive(id, revision); // Commit selected identity before attempting its availability.
-      health = 'offline'; healthAt = 0;
+      health = 'offline'; healthAt = 0; access = null; accessFor = null;
       try { await stopLocal(); } catch { /* Selection remains committed and safely offline. */ }
     });
     void extensions.scopeChanged();
@@ -515,14 +584,15 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
             await change(async () => {
               const current = active(); const input = body.profile;
               const changesActiveTarget = current && input.id === current.id && (input.kind !== current.kind || input.root !== current.root || input.url !== current.url
-                || input.key !== undefined || (input.allowWrites !== undefined && input.allowWrites !== current.allowWrites));
+                || input.key !== undefined);
               if (changesActiveTarget) {
-                // Key repair and permission changes on the only/offline profile
-                // use exactly the same save barrier as selecting another brain.
+                // Key repair on the only/offline profile uses exactly the same save
+                // barrier as selecting another brain. A replaced key can carry another
+                // role, so open tabs restart in a new generation.
                 await coordinator.switch(input.id, async () => {
                   await healthPending; await targetTail;
                   await store.save(input, body.revision);
-                  health = 'offline'; healthAt = 0;
+                  health = 'offline'; healthAt = 0; access = null; accessFor = null;
                   try { await stopLocal(); } catch {}
                 });
                 void extensions.scopeChanged();
@@ -539,7 +609,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
             const profile = store.get(body.id); if (!profile) failure('not_found', 'Connection not found.', 404);
             // Pin the selected engine while test runs; inactive remotes do not change it.
             const finish = coordinator.enter(coordinator.generation, null, true);
-            try { json(response, 200, { health: await testProfile(profile) }); } finally { finish(); }
+            try { json(response, 200, await probeProfile(profile)); } finally { finish(); }
             return;
           }
           case '/companion/select-folder':
@@ -554,7 +624,10 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       const finish = coordinator.enter(generation, request.headers['x-companion-tab'], auth.native);
       try {
         const profile = active();
-        if (policy.write && !profile?.allowWrites) failure('write_not_authorized', 'This brain is read only. Explicit editing approval is required in Settings.', 403);
+        // Deny early when this profile's role is known to lack the capability, or cannot
+        // be confirmed. Passing this check grants nothing: the request below carries the
+        // credential and the server authorizes it again.
+        if (policy.write || policy.capability) await requireCapability(profile, policy.capability ?? 'write');
         const body = ['POST','PUT','PATCH','DELETE'].includes(request.method) ? await bytes(request, policy.maxBody ?? MAX_BODY) : undefined;
         const headers = {};
         for (const name of ['content-type','if-match','idempotency-key']) if (request.headers[name]) headers[name] = request.headers[name];
@@ -590,7 +663,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     const operation = handler(request, response).catch(() => { response.destroy(); });
     requests.add(operation); void operation.finally(() => requests.delete(operation));
   });
-  live = attachCompanionLive({server, authenticate, coordinator, active, destination: resolveDestination, destinationCurrent, invalidateDestination, origin: () => origin});
+  live = attachCompanionLive({server, authenticate, coordinator, active, destination: resolveDestination, destinationCurrent, invalidateDestination, origin: () => origin, roleCapabilities});
   server.requestTimeout = 30000; server.headersTimeout = 15000;
   try {
     await new Promise((resolve, reject) => {

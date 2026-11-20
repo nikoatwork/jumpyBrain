@@ -154,26 +154,33 @@ test('remote connections from the CLI: key from a variable or stdin, one stored 
   assert.equal(gateway.store.snapshot().revision, 0);
   let state = await f.run('add', '--name', 'Team', '--url', origin, '--key-env', 'JUMPYBRAIN_API_KEY', '--revision=0');
   const team = state.profiles.find(p => p.kind === 'remote');
-  assert.deepEqual([team.name, team.url, team.allowWrites], ['Team', origin, false]);
+  assert.deepEqual([team.name, team.url, 'allowWrites' in team], ['Team', origin, false]);
   assert.equal(JSON.stringify(state).includes('team-key-fixture'), false);
   const file = await readFile(envFile, 'utf8');
   assert.equal(file.match(/team-key-fixture-0123456789/g).length, 1, 'the key is referenced, not copied');
   assert.match(file, /^JUMPYBRAIN_KEYREF_[0-9A-F_]+=JUMPYBRAIN_API_KEY$/m);
   const tested = await f.run('test', '--id', team.id);
   assert.deepEqual([tested.id, tested.kind, tested.health], [team.id, 'remote', 'connected']);
+  // Effective access is the server's answer for the saved key, never a device setting.
+  assert.deepEqual(tested.access, { source: 'server', role: 'admin', capabilities: ['read', 'write', 'manage_access'], name: 'Brain operator' });
+  assert.equal('allowWrites' in tested, false);
   // The CLI's own target resolution follows the app connection's reference.
   const status = JSON.parse((await f.cli(['status', '--target-url', origin, '--json'])).stdout);
   assert.deepEqual([status.target.credential.source, status.target.credential.variable], ['app-connection', 'JUMPYBRAIN_API_KEY']);
-  // Stdin key, writes allowed, wrong key: saved as its own copy; test reports rejection without printing it.
+  // Stdin key, the removed --allow-writes flag (accepted, ignored, noted), wrong key: saved as its own copy; test reports rejection without printing it.
   const alias = origin.replace('127.0.0.1', 'localhost');
   const added = exec(process.execPath, [path.join(repo, 'dist/cli.js'), 'connections', 'add', '--name', 'Wrong', '--url', alias, '--key-stdin', '--allow-writes', '--revision=1', '--directory', f.support, '--json'], { cwd: f.temp, env: f.env, timeout: 10000 });
   added.child.stdin.end('wrong-key-fixture-abcdef\n');
-  state = JSON.parse((await added).stdout);
+  const addedOutput = await added;
+  state = JSON.parse(addedOutput.stdout);
+  assert.match(addedOutput.stderr, /--allow-writes is no longer needed and is ignored.*key's role on the server/);
   const wrong = state.profiles.find(p => p.url === alias);
-  assert.equal(wrong.allowWrites, true);
+  assert.equal('allowWrites' in wrong, false);
+  assert.equal((await readFile(path.join(f.support, 'connections.json'), 'utf8')).includes('allowWrites'), false);
   assert.match(await readFile(envFile, 'utf8'), /^JUMPYBRAIN_KEY_[0-9A-F_]+=wrong-key-fixture-abcdef$/m);
   const text = await f.cli(['connections', 'test', '--id', wrong.id, '--directory', f.support]);
-  assert.match(text.stdout, /Wrong \(remote, .*\): the server rejected the saved key/);
+  assert.match(text.stdout, /Wrong \(remote, .*\): the server rejected the saved key, access not confirmed/);
+  assert.match((await f.cli(['connections', 'test', '--id', team.id, '--directory', f.support])).stdout, /Team \(remote, .*\): connected, admin access \(read, write, manage_access\)/);
   assert.equal(text.stdout.includes('wrong-key-fixture'), false);
   await assert.rejects(f.run('test', '--id', 'missing'), e => /Connection not found/.test(e.stderr));
   state = await f.run('remove', '--id', wrong.id, '--revision=2');
@@ -191,7 +198,7 @@ test('remote connections from the CLI: key from a variable or stdin, one stored 
   await assert.rejects(readdir(f.roots[1]), { code: 'ENOENT' });
 });
 
-test('status --all: CLI target and key source, app connections with health and write permission, missing local folders', async t => {
+test('status --all: CLI target and key source, app connections with health and effective access, missing local folders', async t => {
   const f = await fixture(t);
   const envFile = path.join(f.temp, 'config', '.env');
   await mkdir(path.dirname(envFile), { recursive: true, mode: 0o700 });
@@ -220,12 +227,15 @@ test('status --all: CLI target and key source, app connections with health and w
   assert.deepEqual([overview.cli.kind, overview.cli.url, overview.cli.health, overview.cli.credential.variable], ['remote', origin, 'connected', 'JUMPYBRAIN_API_KEY']);
   assert.equal(overview.app.running, true);
   const byName = Object.fromEntries(overview.app.profiles.map(p => [p.name, p]));
-  assert.deepEqual([byName.Team.kind, byName.Team.health, byName.Team.allowWrites, byName.Team.active], ['remote', 'connected', false, false]);
+  assert.deepEqual([byName.Team.kind, byName.Team.health, byName.Team.access.role, byName.Team.access.capabilities, byName.Team.active], ['remote', 'connected', 'admin', ['read', 'write', 'manage_access'], false]);
+  assert.equal(JSON.stringify(overview).includes('allowWrites'), false);
   assert.deepEqual([byName.Gone.available, byName.Gone.health], [false, 'offline']);
   assert.deepEqual(overview.staleLocalRoots.map(s => s.name), ['Gone']);
   const text = (await f.cli(['status', '--all', '--directory', f.support, '--target-url', origin])).stdout;
   assert.match(text, /CLI target:\n  remote .* connected\n  key: JUMPYBRAIN_API_KEY via app-connection/);
-  assert.match(text, /Team \[remote\] .*: connected, read only/);
+  assert.match(text, /Team \[remote\] .*: connected, admin access \(read, write, manage_access\)/);
+  assert.match(text, /\* .* \[local\] .*: \w+, local folder \(full access, no server role\)/);
+  assert.doesNotMatch(text, /read only|writes allowed/);
   assert.match(text, /Warning: "Gone" points at .*, which is missing/);
   assert.equal(text.includes('overview-key-0123456789') || JSON.stringify(overview).includes('overview-key-0123456789'), false);
   await assert.rejects(readdir(f.roots[1]), { code: 'ENOENT' });

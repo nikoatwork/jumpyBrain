@@ -76,7 +76,7 @@ try {
   assert.equal(await welcome.completed, true);
   await until('document.getElementById("remote-key").value === ""');
   const state = await companionControl(f);
-  assert.equal(state.active.kind, 'remote'); assert.equal(state.active.allowWrites, false);
+  assert.equal(state.active.kind, 'remote'); assert.equal('allowWrites' in state.active, false);
   assert.equal(state.profiles.filter(p => p.kind === 'remote').length, 1);
   assert.equal(await js('JSON.stringify({...localStorage,...sessionStorage}).includes("fictional-access-key")'), false);
   await close();

@@ -40,7 +40,7 @@ async function main() {
   await save(path.join(userData, 'desktop-setup.json'), { version: 1 });
   const cli = path.join(resources, 'runtime/dist/cli.js'), env = { ...process.env, JUMPYBRAIN_QMD_BIN: config.JB_EVAL_QMD }; delete env.ELECTRON_RUN_AS_NODE;
   await exec(native.node, [cli, 'init', '--root', memory, '--json'], { env });
-  await save(path.join(support, 'connections.json'), { version: 1, revision: 0, activeId: localId, profiles: [{ id: localId, name: 'Eval local brain', kind: 'local', root: memory, allowWrites: true }, remote] });
+  await save(path.join(support, 'connections.json'), { version: 1, revision: 0, activeId: localId, profiles: [{ id: localId, name: 'Eval local brain', kind: 'local', root: memory }, remote] });
   await exec('/usr/libexec/PlistBuddy', ['-c', 'Set :CFBundleIdentifier ' + bundleId, path.join(app, 'Contents/Info.plist')]);
   await exec('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', app]);
   await exec('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);

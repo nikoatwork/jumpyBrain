@@ -3,6 +3,7 @@
 import { prepareDropdown } from "./browser-dropdown.js";
 
 type Role = "reader" | "writer" | "admin";
+type Capability = "read" | "write" | "manage_access";
 interface Credential { id: string; name: string; role: Role; createdAt: string; revokedAt?: string }
 interface Principal { id: string; name: string; role: Role }
 export interface AccessKeysContext {
@@ -10,8 +11,6 @@ export interface AccessKeysContext {
   kind: "local" | "remote" | "hosted" | "none";
   /** Address other people connect to. */
   address: string;
-  /** False when this device has not approved changes to the brain. */
-  canChange: boolean;
   /** Changes whenever the brain or credential changes; late replies for an old scope are dropped. */
   scope: string;
 }
@@ -23,6 +22,16 @@ const ROLE_HINT: Record<Role, string> = {
   admin: "Can do everything a writer can, and create or revoke keys.",
 };
 const role = (value: unknown): value is Role => value === "reader" || value === "writer" || value === "admin";
+// Presentation only. The server states a key's set in `/capabilities`; this copy of the
+// fixed role sets covers servers that predate that field. The server decides every request.
+const CAPABILITIES: readonly Capability[] = ["read", "write", "manage_access"];
+const ROLE_CAPABILITIES: Record<Role, readonly Capability[]> = { reader: ["read"], writer: ["read", "write"], admin: ["read", "write", "manage_access"] };
+/** The named capabilities a `/capabilities` packet grants; an unknown role grants none. */
+export function effectiveCapabilities(packet: any): Capability[] {
+  const who = packet?.principal;
+  if (!who || !role(who.role)) return [];
+  return Array.isArray(packet.capabilities) ? CAPABILITIES.filter(name => packet.capabilities.includes(name)) : [...ROLE_CAPABILITIES[who.role as Role]];
+}
 const validCredential = (value: any): value is Credential => Boolean(value) && typeof value.id === "string" && typeof value.name === "string"
   && role(value.role) && typeof value.createdAt === "string" && (value.revokedAt === undefined || typeof value.revokedAt === "string");
 
@@ -36,7 +45,8 @@ export function accessKeyInvite(address: string, token: string): string {
 
 export function accessKeyErrorText(error: unknown, action: string): string {
   const code = (error as { code?: unknown } | null)?.code;
-  if (code === "write_not_authorized") return "Editing is turned off for this brain on this device. Allow editing under Brains, then try again.";
+  if (code === "read_only") return "Your key has reader access, which cannot make changes.";
+  if (code === "access_unconfirmed") return "The server did not confirm your key’s role, so nothing was changed.";
   if (code === "admin_required") return "This needs an admin key for this brain.";
   if (code === "cannot_revoke_current") return "You are using this key. Connect with another admin key to revoke it.";
   if (code === "credential_limit") return "This brain has reached its access key limit. Ask the person who runs the server to tidy up old keys.";
@@ -60,8 +70,11 @@ export function installAccessKeys(options: {
   const create = element<HTMLButtonElement>("access-keys-create");
   const created = element("access-keys-new"), secret = element<HTMLInputElement>("access-keys-secret");
   const list = element("access-keys-list"), revoked = element<HTMLDetailsElement>("access-keys-revoked"), revokedList = element("access-keys-revoked-list");
+  const effective = element("access-effective"), effectiveSummary = element("access-effective-summary"), effectiveList = element("access-effective-list");
   let sequence = 0, loadedScope: string | null = null, busy = false;
   let principal: Principal | null = null, credentials: Credential[] = [], issued: { name: string; token: string; address: string } | null = null;
+  // null: nothing to show yet. Otherwise what the server (or this device, for a local folder) grants.
+  let granted: Capability[] | null = null, grantedSummary = "";
   prepareDropdown(roleSelect);
 
   const say = (text: string, error = false) => { message.textContent = text; message.dataset.error = String(error); message.hidden = !text; };
@@ -85,27 +98,42 @@ export function installAccessKeys(options: {
     }
     return item;
   }
+  function renderEffective() {
+    effective.hidden = granted === null;
+    effectiveSummary.textContent = grantedSummary;
+    // The rows and their wording are server-rendered (access-keys-view.ts).
+    for (const item of Array.from(effectiveList.children) as HTMLElement[]) {
+      const allowed = Boolean(granted?.includes(item.dataset.capability as Capability));
+      item.dataset.allowed = String(allowed);
+      item.firstElementChild!.textContent = allowed ? "Allowed" : "Not allowed";
+    }
+  }
   function render() {
     const context = options.context();
-    const admin = principal?.role === "admin" && (context.kind === "remote" || context.kind === "hosted");
-    form.hidden = !admin; list.hidden = !admin;
+    renderEffective();
+    const served = context.kind === "remote" || context.kind === "hosted";
+    const admin = served && Boolean(granted?.includes("manage_access"));
+    const canChange = admin;
+    // Key creation stays visible to every signed-in key; without admin access it explains itself.
+    form.hidden = !served || !principal; list.hidden = !admin;
     created.hidden = !issued;
     if (issued) {
       element("access-keys-new-title").textContent = "New key for “" + issued.name + "”";
       secret.value = issued.token;
     } else secret.value = "";
-    name.disabled = roleSelect.disabled = busy || !context.canChange;
-    create.disabled = busy || !context.canChange || !name.value.trim();
-    roleHint.textContent = ROLE_HINT[role(roleSelect.value) ? roleSelect.value : "writer"];
+    name.disabled = roleSelect.disabled = busy || !canChange;
+    create.disabled = busy || !canChange || !name.value.trim();
+    roleHint.textContent = canChange || !principal ? ROLE_HINT[role(roleSelect.value) ? roleSelect.value : "writer"]
+      : "Creating and revoking keys needs an admin key. Yours has " + principal.role + " access.";
     const active = credentials.filter(item => !item.revokedAt), old = credentials.filter(item => item.revokedAt);
-    list.replaceChildren(...active.map(item => row(item, context.canChange)));
+    list.replaceChildren(...active.map(item => row(item, canChange)));
     if (admin && !active.length) { const empty = document.createElement("li"); empty.className = "access-key-empty"; empty.textContent = "No keys yet. Create one for each person and agent."; list.append(empty); }
     revoked.hidden = !admin || !old.length;
     element("access-keys-revoked-label").textContent = "Revoked keys (" + old.length + ")";
     revokedList.replaceChildren(...old.map(item => row(item, false)));
   }
   function reset() {
-    sequence++; loadedScope = null; busy = false; principal = null; credentials = []; issued = null;
+    sequence++; loadedScope = null; busy = false; principal = null; credentials = []; issued = null; granted = null; grantedSummary = "";
     name.value = ""; roleSelect.value = "writer"; prepareDropdown(roleSelect); intro.textContent = ""; say(""); render();
   }
   async function refresh(force = false) {
@@ -117,19 +145,25 @@ export function installAccessKeys(options: {
     if (context.kind === "none") { intro.textContent = "Connect to a brain to see its access keys."; return; }
     if (context.kind === "local") {
       loadedScope = context.scope;
+      granted = [...CAPABILITIES]; grantedSummary = "Full access. This brain is a folder on this device, so no server role applies.";
+      renderEffective();
       intro.textContent = "This brain is a folder on this device. The app and the CLI open it directly, so it needs no access keys. Keys are for a brain you run on a server and share with other people or agents.";
       return;
     }
     intro.textContent = "Loading…";
+    const whereToChange = context.kind === "remote" ? "then update the key under Brains" : "then connect with that key";
+    let confirmed = false;
     try {
       const capabilities = await options.request("/capabilities");
       if (!current()) return;
       const who = capabilities?.principal;
       if (!who || typeof who.id !== "string" || typeof who.name !== "string" || !role(who.role)) throw Object.assign(new Error("unsupported"), { code: "not_found" });
-      principal = who;
-      if (who.role !== "admin") {
+      principal = who; confirmed = true;
+      granted = effectiveCapabilities(capabilities);
+      grantedSummary = ROLE_LABEL[who.role as Role] + " · key “" + who.name + "”. Set by the server from this key’s role, not on this device.";
+      if (!granted.includes("manage_access")) {
         loadedScope = context.scope;
-        intro.textContent = "You are connected with a " + ROLE_LABEL[who.role as Role].toLowerCase() + " key named “" + who.name + "”. Only an admin can create or revoke keys. Ask the person who runs this brain.";
+        intro.textContent = "Only an admin key can create or revoke keys. For different access, ask the person who runs this brain for another key, " + whereToChange + ".";
         render(); return;
       }
       const packet = await options.request("/access");
@@ -141,12 +175,15 @@ export function installAccessKeys(options: {
       intro.textContent = (context.kind === "remote" ? "You are managing the server at " + context.address + " from this device. Its keys are kept on the server, not here, and changes apply there right away. Give each person and agent their own key."
         : "Give each person and agent their own key for " + context.address + ".") + " A key works in the app, the browser and the CLI, and you can revoke it at any time."
         + (who.id.startsWith("bootstrap:") ? " You are using the server’s setup key: create an admin key for yourself and keep the setup key for recovery." : "");
-      if (!context.canChange) say("Editing is turned off for this brain on this device. Allow editing under Brains to create or revoke keys.");
       render();
     } catch (error) {
       if (!current()) return;
       // Remember the failure for this scope; reopening the view retries.
-      loadedScope = context.scope; principal = null; credentials = []; intro.textContent = ""; render();
+      // An unconfirmed role is shown as no access: nothing here suggests a change would work.
+      loadedScope = context.scope; credentials = []; intro.textContent = "";
+      // A role confirmed earlier is not carried over: a forced reload starts from nothing.
+      if (!confirmed) { principal = null; granted = []; grantedSummary = "Not confirmed. Changes are paused until the server reports this key’s role."; }
+      render();
       say(accessKeyErrorText(error, "load access keys"), true);
     }
   }

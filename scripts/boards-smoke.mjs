@@ -254,7 +254,9 @@ try{
  // A real scope switch cancels search; read-only targets allow viewing only.
  const localId=gateway.state().activeId;
  remote=await startJumpyBrainHttpServer({root,apiKeys:['board-fixture-key'],port:0,autoIndex:false});
- await gateway.store.save({kind:'remote',name:'Read-only board brain',url:remote.url,allowWrites:false,key:'board-fixture-key'},gateway.store.snapshot().revision);
+ // View-only because the key has the server's reader role.
+ const readerKey=(await (await fetch(remote.url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + 'board-fixture-key', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
+ await gateway.store.save({kind:'remote',name:'Read-only board brain',url:remote.url,key:readerKey},gateway.store.snapshot().revision);
  const remoteId=gateway.store.snapshot().profiles.find(p=>p.kind==='remote').id;
  let releaseScopeSearch,scopeSearchStarted;const scopeGate=new Promise(r=>releaseScopeSearch=r),scopeStarted=new Promise(r=>scopeSearchStarted=r);
  await page.route('**/memories/all/search',async route=>{scopeSearchStarted();await scopeGate;try{await route.continue();}catch{}});
@@ -266,8 +268,12 @@ try{
  const sharedActive=(await listBoards(root)).boards.filter(b=>!b.archived).length;
  await page.waitForFunction(count=>document.querySelectorAll('#sidebar-boards > li').length===count,sharedActive);
  assert.equal(await page.locator('#sidebar-boards > li').count(),sharedActive,'two connections to the same brain share canonical boards');
- assert.equal(await page.locator('#new-board').isDisabled(),true);
- assert.equal(await page.locator('#settings-new-board').isDisabled(),true);
+ // Creation stays available under a role restriction: choosing it explains and points to Settings.
+ assert.equal(await page.locator('#new-board').isDisabled(),false);
+ await page.locator('#new-board').click();await page.locator('#app-toast').waitFor({state:'visible'});
+ assert.match(await page.locator('#toast-message').textContent(),/Creating a board needs a writer or admin key/);
+ assert.equal(await page.locator('#toast-action').textContent(),'Open Settings');await page.locator('#toast-close').click();
+ assert.equal((await listBoards(root)).boards.filter(b=>!b.archived).length,sharedActive,'the reader created no board');
  await page.evaluate(id=>navigation.navigate('/?note='+id),existingId);await page.locator('#note-editor').waitFor({state:'visible'});
  assert.equal(await page.locator('#copy-note-file-path').isHidden(),true,'remote brains never copy the previous local root');
  assert.equal(await page.locator('#note-board-memberships button').count(),2,'read-only remote notes still show memberships');

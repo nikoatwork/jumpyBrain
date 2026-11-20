@@ -78,8 +78,7 @@ ${boardsMarkup}
           <div class="field"><label class="field-label" for="companion-url">Memory server URL</label><input id="companion-url" type="url" disabled placeholder="https://memory.example.com" autocomplete="off" /></div>
           <div class="field"><label class="field-label" for="companion-key">Access key</label><input id="companion-key" type="password" disabled autocomplete="new-password" aria-describedby="companion-key-help" />
           <p id="companion-key-help" class="field-help">Saved in ~/.config/jumpybrain/.env (private to you) and shared with the jumpyBrain CLI.</p></div>
-          <div class="field"><label class="check"><input id="companion-writes" type="checkbox" aria-describedby="companion-writes-help" /> Allow editing on this remote brain</label>
-          <p id="companion-writes-help" class="field-help">Off by default: you can browse and search. Enable to create, edit and delete notes, and refresh search from this app. Your server access key must also permit these changes.</p></div>
+          <p id="companion-role-help" class="field-help">What you can do on this brain is set by the key’s role on the server: reader, writer or admin. After connecting, see Settings → Access keys.</p>
         </div>
         <div class="field"><label class="field-label" for="companion-name">Name (optional)</label><input id="companion-name" maxlength="120" autocomplete="off" placeholder="Use the folder or server name" /></div>
         <p id="companion-form-error" class="status-text" data-error="true" role="alert" tabindex="-1" hidden></p>
@@ -134,10 +133,11 @@ let companionStarting = false;
 let companionRendered = false;
 let companionEditId = null;
 let companionEditRevision = null;
-let companionRemoteDestination = "";
 let companionActionBusy = false;
 let companionIndexRefreshing = false;
 const companionHealth = new Map();
+const companionTestedAccess = new Map();
+let companionAccessNoticeCount = 0;
 const companionAcknowledged = new Set();
 `;
 
@@ -201,13 +201,49 @@ function companionMessage(text, error = false) {
 }
 function companionDreamTarget() {
   if (companionState?.active?.kind !== "remote") throw new Error("Dream handoff is unavailable for local companion folders. Use the CLI with an explicitly chosen local memory root; the companion gateway is not an agent endpoint.");
-  if (companionState.active.allowWrites !== true) throw new Error("This remote brain is read only. Dream handoff requires explicit target-specific write approval in Settings.");
+  if (!companionCan("write")) throw new Error(companionAccessExplanation("Dream handoff") + " See Settings → Access keys.");
   return companionState.active.url;
+}
+// What the active brain's role permits, as last reported by the app. A remote role is
+// the server's; unknown, offline or unrecognized roles grant nothing. This only drives
+// presentation: the server authorizes every request again.
+function companionCan(capability) {
+  const access = companionState?.access;
+  return Boolean(companionState?.active) && Array.isArray(access?.capabilities) && access.capabilities.includes(capability);
 }
 function companionReadOnly() {
   const active = companionState?.active;
   return companionFrozen || companionSessionFailed || !companionRegistered || !active
-    || active.allowWrites !== true;
+    || !companionCan("write");
+}
+// True when the session itself is usable and only the key's role withholds the capability.
+function companionAccessBlocked(capability = "write") {
+  return Boolean(companionState?.active) && companionRegistered && !companionFrozen && !companionSessionFailed && !companionCan(capability);
+}
+function companionRoleLabel(access) {
+  return ({ reader: "Reader", writer: "Writer", admin: "Admin" })[access?.role] || "";
+}
+function companionAccessLabel(access) {
+  if (!access) return "";
+  if (access.source === "local") return "Full access";
+  return access.role ? companionRoleLabel(access) + " access" : access.reason === "checking" ? "Checking access…" : "Access not confirmed";
+}
+function companionAccessExplanation(action, capability = "write") {
+  const active = companionState?.active, access = companionState?.access;
+  const name = "“" + (active?.name || "This brain") + "”";
+  if (!access?.role) return action + " is paused: the app could not confirm what your access key may do on " + name + ".";
+  return action + " needs " + (capability === "manage_access" ? "an admin key" : "a writer or admin key") + ". Your key for " + name + " has " + access.role + " access.";
+}
+function companionOpenAccessSettings() { systemMessages.clear("companion-access"); return navigation.navigate("/settings?section=access"); }
+function companionExplainAccess(action, capability = "write") {
+  systemMessages.dispatch({ source: "companion-access", text: companionAccessExplanation(action, capability), severity: "warning",
+    revision: String(++companionAccessNoticeCount), duration: 12000, action: { label: "Open Settings", run: companionOpenAccessSettings } });
+}
+// Call when the user starts a change. True means stop; a role restriction is explained.
+function companionDenied(action, capability = "write") {
+  if (capability === "write" ? !companionReadOnly() : companionCan(capability)) return false;
+  if (companionAccessBlocked(capability)) companionExplainAccess(action, capability);
+  return true;
 }
 function companionScopeUrl(value) {
   const url = new URL(value, location.origin);
@@ -252,10 +288,6 @@ function companionConnectionNotice(profile, health) {
       : "Cannot open “" + profile.name + "”. Check that its memory folder is available, then test the connection in Settings.",
     action: "Connection settings", field: profile.kind === "remote" ? "companion-url" : "companion-root",
   };
-  if (profile.kind === "remote" && profile.allowWrites !== true) return {
-    text: "Editing is off for “" + profile.name + "” in this app. You can browse and search. Enable editing in connection settings to create or change notes.",
-    action: "Review editing access", field: "companion-writes",
-  };
   return { text: "", action: "", field: "companion-name" };
 }
 function renderCompanionAccess() {
@@ -278,8 +310,7 @@ function renderCompanionConnection() {
     : ["Not tested", "unknown", "checking", "starting"].includes(health) ? "checking" : "unavailable";
   if ($("companion-active")) {
     const status = $("companion-active");
-    const label = (active?.name || "Companion session") + " · " + companionHealthLabel(health)
-      + (active?.kind === "remote" && active.allowWrites !== true ? " · read only" : "");
+    const label = (active?.name || "Companion session") + " · " + companionHealthLabel(health);
     const profiles = companionState?.profiles || [];
     const signature = JSON.stringify(profiles.map(profile => [profile.id, profile.name]));
     if (companionBrainSelect.dataset.signature !== signature) {
@@ -294,8 +325,7 @@ function renderCompanionConnection() {
     companionBrainSelect.disabled = companionActionBusy || companionFrozen || companionSessionFailed || !companionRegistered;
     companionActiveName.textContent = active?.name || "Companion session";
     companionActiveName.hidden = profiles.length > 1;
-    companionActiveHealth.textContent = (health === "connected" ? "" : companionHealthLabel(health))
-      + (active?.kind === "remote" && active.allowWrites !== true ? (health === "connected" ? "" : " · ") + "read only" : "");
+    companionActiveHealth.textContent = health === "connected" ? "" : companionHealthLabel(health);
     companionActiveHealth.hidden = !companionActiveHealth.textContent;
     status.dataset.state = displayState;
     status.setAttribute("aria-label", label);
@@ -328,7 +358,7 @@ function companionLock(value) {
   // The settings card is modal; keep the app behind it inert while it is open.
   document.querySelector(".app-nav").inert = preparing || state.view === "settings";
   $("graph-header").inert = preparing;
-  for (const id of ["new-note", "home-new"]) $(id).disabled = creatingNote || companionReadOnly();
+  for (const id of ["new-note", "home-new"]) $(id).disabled = creatingNote || (companionReadOnly() && !companionAccessBlocked());
   $("companion-fields").disabled = companionActionBusy || companionFrozen;
   if (state.editor) syncEditorUi(state.editor.state);
   else richEditor.setReadOnly(companionReadOnly());
@@ -581,7 +611,6 @@ function companionClearForm() {
   $("companion-form").reset();
   companionEditId = null;
   companionEditRevision = null;
-  companionRemoteDestination = "";
   $("companion-kind").disabled = false;
   $("companion-editor-heading").textContent = "Add connection";
   $("companion-add").open = false;
@@ -628,20 +657,25 @@ function companionCanRefreshIndex() {
   return !companionReadOnly() && !companionActionBusy && companionState?.phase === "idle"
     && companionHealthText(companionState.health) === "connected";
 }
+// A role restriction keeps the control available so it can say why.
+function companionIndexExplains() {
+  return companionAccessBlocked() && !companionActionBusy && companionState?.phase === "idle";
+}
 function renderCompanionIndex() {
   const active = companionState?.active;
-  $("companion-refresh-index").disabled = !companionCanRefreshIndex();
+  $("companion-refresh-index").disabled = !companionCanRefreshIndex() && !companionIndexExplains();
   $("companion-refresh-index").setAttribute("aria-label", companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index");
   $("companion-refresh-index").setAttribute("aria-busy", String(companionIndexRefreshing));
   const label = companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index";
   const reason = !active ? "Connect to a brain first."
-    : active.allowWrites !== true ? "This brain is read only."
     : companionSessionFailed ? "Reconnect the companion session first."
-    : companionHealthText(companionState.health) !== "connected" ? "Connect to this brain first." : "";
+    : companionHealthText(companionState.health) !== "connected" ? "Connect to this brain first."
+    : !companionCan("write") ? companionAccessExplanation("Refreshing the search index") : "";
   $("companion-refresh-index").setAttribute("aria-description", (active?.name || "") + (reason ? " · " + reason : ""));
   $("companion-refresh-index").title = label + (active ? " · " + active.name : "") + (reason ? " · " + reason : "");
 }
 async function companionRefreshIndex() {
+  if (companionIndexExplains()) { companionExplainAccess("Refreshing the search index"); return; }
   if (!companionCanRefreshIndex()) return;
   await companionAction(async () => {
     companionIndexRefreshing = true;
@@ -651,7 +685,7 @@ async function companionRefreshIndex() {
       await graphJson("/memories/all/index", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       systemMessages.dispatch({ source: "search-index", text: "Search index refreshed. Edits made during the refresh may need another refresh.", severity: "success" });
     } catch {
-      systemMessages.dispatch({ source: "search-index", text: "Search refresh could not be confirmed. Check this brain’s connection and editing permission before trying again.", severity: "error" });
+      systemMessages.dispatch({ source: "search-index", text: "Search refresh could not be confirmed. Check this brain’s connection and your access in Settings before trying again.", severity: "error" });
     } finally {
       companionIndexRefreshing = false;
     }
@@ -665,8 +699,8 @@ function renderCompanionSettings() {
   if (!companionState) return;
   const list = $("companion-profiles");
   // Avoid destroying focused profile buttons on every background poll.
-  const signature = JSON.stringify([companionState.profiles, companionState.activeId, companionState.health,
-    companionState.phase, companionActionBusy, companionSessionFailed, [...companionHealth]]);
+  const signature = JSON.stringify([companionState.profiles, companionState.activeId, companionState.health, companionState.access,
+    companionState.phase, companionActionBusy, companionSessionFailed, [...companionHealth], [...companionTestedAccess]]);
   if (list.dataset.signature === signature) return;
   list.dataset.signature = signature;
   list.replaceChildren();
@@ -693,8 +727,10 @@ function renderCompanionSettings() {
     destination.textContent = profile.kind === "local" ? profile.root : profile.url;
     destination.title = destination.textContent;
     detail.append(destination);
+    // Effective access is shown here, in Settings, and nowhere else in the app.
+    const profileAccess = profile.kind !== "remote" ? null : isActive ? (companionSessionFailed ? null : companionState.access) : companionTestedAccess.get(profile.id);
     const statusText = [!["connected", "Not tested"].includes(health) ? companionHealthLabel(health) : "",
-      profile.kind === "remote" && profile.allowWrites !== true ? "Read only" : ""].filter(Boolean).join(" · ");
+      profileAccess && (profileAccess.role || health === "connected") ? companionAccessLabel(profileAccess) : ""].filter(Boolean).join(" · ");
     if (statusText) {
       const caption = document.createElement("span"); caption.className = "companion-profile-status";
       caption.textContent = statusText; detail.append(caption);
@@ -713,7 +749,8 @@ function renderCompanionSettings() {
       companionMessage("Checking " + profile.name + "…");
       const result = await companionControl("test", { id: profile.id });
       companionHealth.set(profile.id, result.health);
-      companionMessage(profile.name + ": " + companionHealthLabel(result.health));
+      if (result.access) companionTestedAccess.set(profile.id, result.access); else companionTestedAccess.delete(profile.id);
+      companionMessage(profile.name + ": " + companionHealthLabel(result.health) + (result.access?.role && profile.kind === "remote" ? " · " + companionAccessLabel(result.access) : ""));
     }));
     button("Remove", '${browserIcons.remove}', () => companionAction(async () => {
       if (!confirm("Remove connection “" + profile.name + "”? Memory files and server authorization are not deleted.")) return;
@@ -737,8 +774,6 @@ async function companionEditConnection(id, field = null) {
   $("companion-name").value = profile.name;
   $("companion-kind").value = profile.kind; $("companion-kind").disabled = true;
   $("companion-root").value = profile.root || ""; $("companion-url").value = profile.url || "";
-  companionRemoteDestination = profile.url || "";
-  $("companion-writes").checked = profile.allowWrites === true;
   $("companion-editor-heading").textContent = "Edit connection"; $("companion-add").open = true; companionFormKind();
   $("companion-form").scrollIntoView({ block: "nearest" });
   $(field).focus();
@@ -750,14 +785,6 @@ async function companionSwitchBrain(id) {
     companionApplyState(await companionControl("switch", { id }));
   });
 }
-function companionRemoteDestinationChanged() {
-  const value = $("companion-url").value.trim();
-  let destination = value;
-  try { destination = new URL(value).origin; } catch { /* Invalid input will be rejected by the host. */ }
-  if (destination !== companionRemoteDestination) $("companion-writes").checked = false;
-  companionRemoteDestination = destination;
-}
-$("companion-url").addEventListener("input", companionRemoteDestinationChanged);
 $("companion-kind").addEventListener("change", companionFormKind);
 $("companion-cancel").addEventListener("click", companionClearForm);
 $("companion-folder").addEventListener("click", () => companionAction(async () => {
@@ -774,7 +801,6 @@ $("companion-form").addEventListener("submit", (event) => {
     if (kind === "local") profile.root = $("companion-root").value.trim();
     else {
       profile.url = $("companion-url").value.trim();
-      profile.allowWrites = $("companion-writes").checked === true;
       const key = $("companion-key").value;
       if (key) profile.key = key; // Blank edits keep the saved key; never echo a key back.
     }

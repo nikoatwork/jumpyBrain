@@ -158,8 +158,10 @@ try {
   const keys = new Map();
   gateway = await startCompanionGateway({ runtimeRoot: process.cwd(), directory, initialRoot: root, port: 0, controlKey,
     credentials: { get: async ref => keys.get(ref), set: async (ref, value) => keys.set(ref, value), delete: async ref => keys.delete(ref) } });
-  await gateway.store.save({ kind: 'remote', name: 'Sleep fixture', url: server.url, allowWrites: false, key }, gateway.store.snapshot().revision);
-  await gateway.store.save({ kind: 'remote', name: 'Garden fixture', url: otherServer.url, allowWrites: false, key }, gateway.store.snapshot().revision);
+  // View-only because each key has its server's reader role.
+  const readerKey = async url => (await (await fetch(url + '/access', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Reader', role: 'reader' }) })).json()).token;
+  await gateway.store.save({ kind: 'remote', name: 'Sleep fixture', url: server.url, key: await readerKey(server.url) }, gateway.store.snapshot().revision);
+  await gateway.store.save({ kind: 'remote', name: 'Garden fixture', url: otherServer.url, key: await readerKey(otherServer.url) }, gateway.store.snapshot().revision);
   const a = gateway.store.snapshot().profiles.find(p => p.name === 'Sleep fixture');
   const b = gateway.store.snapshot().profiles.find(p => p.name === 'Garden fixture');
   const response = await fetch(gateway.url + '/companion/switch', { method: 'POST', headers: { Authorization: 'Bearer ' + controlKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id }) });

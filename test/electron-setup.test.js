@@ -82,12 +82,12 @@ test('remote onboarding persists keys through the gateway, checks connectivity a
   const input = { url: 'https://brain.example.com/', key: 'fixture-key' };
   await assert.rejects(activateRemoteBrain(connection, input), /key didn’t work/);
   let state = await companionControl(connection);
-  assert.equal(state.profiles.length, 1); assert.equal(state.profiles[0].allowWrites, false);
+  assert.equal(state.profiles.length, 1); assert.equal('allowWrites' in state.profiles[0], false);
   assert.equal(JSON.stringify(state).includes('fixture-key'), false);
   health = 200;
   state = await activateRemoteBrain(connection, input);
   assert.equal(state.profiles.length, 1); assert.equal(state.active.kind, 'remote');
-  assert.equal(state.active.allowWrites, false);
+  assert.equal('allowWrites' in state.active, false, 'onboarding sets no device permission; the server role decides');
   assert.equal((await readFile(path.join(support, 'connections.json'), 'utf8')).includes('fixture-key'), false);
   for (const url of ['http://example.com', 'https://brain.example.com/path', 'https://user:password@brain.example.com', 'http://2130706433']) {
     await assert.rejects(activateRemoteBrain(connection, { ...input, url }));

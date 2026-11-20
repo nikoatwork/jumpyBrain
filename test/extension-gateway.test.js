@@ -2,23 +2,28 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EventEmitter } from 'node:events';
 import { createExtensionGateway } from '../integrations/macos-companion/extensions-gateway.mjs';
-import { SwitchCoordinator } from '../integrations/macos-companion/switch-coordinator.mjs';
+import { ControlError, SwitchCoordinator } from '../integrations/macos-companion/switch-coordinator.mjs';
 
 const documentId = 'mem_a0000000-0000-4000-8000-000000000001';
 const hash = 'sha256:' + 'a'.repeat(64);
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-function fixture({ invoke, emit, targetFetch, allowWrites = true } = {}) {
+function fixture({ invoke, emit, targetFetch, canWrite = true, withRoleCheck = true } = {}) {
   const coordinator = new SwitchCoordinator({ timeoutMs: 1000 });
   coordinator.register('tab', coordinator.generation);
-  const profile = { id: 'brain-a', allowWrites };
-  const calls = [];
+  const profile = { id: 'brain-a' };
+  const calls = [], roleChecks = [];
   const host = {
     snapshot: () => ({ apiVersion: 1, revision: 'rev', safeMode: false, extensions: [{ id: 'fixture', status: 'active', revision: 'rev', ui: '/companion/extensions/assets/fixture/rev.js' }] }),
     invoke: invoke ?? (async () => undefined), emit: emit ?? (async () => {}),
     asset: async (id, revision) => { if (id !== 'fixture' || revision !== 'rev') throw new Error('stale'); return '/* prepared */'; },
     reload: async () => host.snapshot(), setEnabled: async () => host.snapshot(), remove: async () => host.snapshot(), dispose: async () => {},
   };
-  const adapter = createExtensionGateway({ host, coordinator, active: () => profile,
+  // Stands in for the gateway's role check: the brain's server role, never profile data.
+  const requireCapability = async (target, capability) => {
+    roleChecks.push([target.id, capability]);
+    if (!canWrite) throw new ControlError('read_only', 'Your access key for this brain has reader access, which cannot make changes.', 403);
+  };
+  const adapter = createExtensionGateway({ host, coordinator, active: () => profile, ...(withRoleCheck ? { requireCapability } : {}),
     targetFetch: targetFetch ?? (async (...args) => { calls.push(args); return { status: 200, body: Buffer.from('{}') }; }),
     jsonBody: async request => request.body,
     json: (response, status, packet) => { response.statusCode = status; response.packet = packet; response.writableEnded = true; },
@@ -30,7 +35,7 @@ function fixture({ invoke, emit, targetFetch, allowWrites = true } = {}) {
     return { req, response, operation };
   }
   const run = (commandId = 'run', extra = {}) => request('/companion/extensions/invoke', { extensionId: 'fixture', commandId, ...extra });
-  return { adapter, coordinator, profile, calls, host, request, run };
+  return { adapter, coordinator, profile, calls, roleChecks, host, request, run };
 }
 
 test('descriptors and management require current admission, including native generation; assets require an active revision', async () => {
@@ -77,22 +82,27 @@ test('memory wrappers normalize canonical search handles and preserve read/hash/
   await assert.rejects(context.memory.read(documentId), /cancelled/); assert.equal(f.coordinator.inFlight, 0);
 });
 
-test('read-only target and observational events cannot inherit command write approval; validation precedes transport', async () => {
-  for (const allowWrites of [true, false]) {
+test('a non-writing role and observational events cannot inherit command write approval; validation precedes transport', async () => {
+  // Either an unapproved command on a writable brain, or an approved command on a brain whose role cannot write.
+  for (const [canWrite, withRoleCheck] of [[true, true], [false, true], [true, false]]) {
     let calls = 0;
-    const f = fixture({ allowWrites, targetFetch: async () => { calls++; throw new Error('unexpected transport'); },
+    const approved = !canWrite || !withRoleCheck;
+    const f = fixture({ canWrite, withRoleCheck, targetFetch: async () => { calls++; throw new Error('unexpected transport'); },
       invoke: async (_e, _c, _i, context) => {
         await assert.rejects(context.memory.search({ query: 'query', limit: 51 }), /limit/);
         await assert.rejects(context.memory.update({ id: documentId, content: 'body', ifMatch: 'stale' }), /prior sha256/);
-        await assert.rejects(context.memory.create({ type: 'note', body: 'body', idempotencyKey: 'key' }), /approval/);
+        await assert.rejects(context.memory.create({ type: 'note', body: 'body', idempotencyKey: 'key' }),
+          !approved ? /approved command/ : withRoleCheck ? /reader access/ : /did not confirm/);
       }, emit: async (_event, context) => {
         assert.equal(context.allowWrites, false);
-        await assert.rejects(context.memory.update({ id: documentId, content: 'body', ifMatch: hash }), /approval/);
+        await assert.rejects(context.memory.update({ id: documentId, content: 'body', ifMatch: hash }), /approved command/);
       },
     });
-    await f.run('run', { allowWrites: !allowWrites }).operation;
+    await f.run('run', { allowWrites: approved }).operation;
     await f.request('/companion/extensions/event', { event: { type: 'document.saved' } }).operation;
     assert.equal(calls, 0);
+    assert.deepEqual(f.roleChecks, approved && withRoleCheck ? [['brain-a', 'write']] : [], 'the role is asked only for an approved write');
+    assert.equal(f.coordinator.inFlight, 0, 'a refused write leaves no admission behind');
   }
 });
 
