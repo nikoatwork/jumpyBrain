@@ -72,10 +72,10 @@ const boardsUI = (() => {
   const sidebarUI=createBoardsSidebar({host:$('sidebar-boards'),boards:()=>bound===scope()?packet.boards:[],names,pageStates,
     scope:()=>{const active=companionState?.active;return companionRegistered&&active?JSON.stringify([companionState.activeId,active.kind,active.root||active.url]):'';},
     selected:()=>({board:selected,note:state.view==='note'?new URL(location.href).searchParams.get('note'):null}),
-    disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,
+    disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:()=>!accessOffered(),
     navigate:navigateSidebar,settle:id=>change(rows=>{rows.find(b=>b.id===id).archived=true;}),
     changed:()=>{settingsUI.render();void titles(scope(),sequence);}});
-  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>support!=='supported'||busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,sidebar:sidebarUI,scope,change,open:id=>navigation.navigate('/?board='+id)});
+  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>support!=='supported'||busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:()=>!accessOffered(),denied:()=>accessDenied('Changing this board'),sidebar:sidebarUI,scope,change,open:id=>navigation.navigate('/?board='+id)});
   // kind: 'icon' (ghost icon button, glyph set by caller), 'plain' (transparent text row) or default (secondary).
   const button = (text, run, label, kind) => { const b=document.createElement('button');b.type='button';b.className=kind==='icon'?'icon-button':kind==='plain'?'quiet-button quiet-button--plain':'quiet-button';b.textContent=text;if(label){b.setAttribute('aria-label',label);if(kind==='icon')b.title=label;}b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
@@ -105,9 +105,9 @@ const boardsUI = (() => {
     sidebarUI.render();if(support!=='unsupported')settingsUI.render();
     compatibility.hidden=support!=='unsupported';
     if(support==='unsupported'){compatibilityMessage(compatibility);compatibilityMessage($('settings-boards-list'));}
-    $('note-add-to-board').disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope();
-    // A role restriction leaves creation available so that choosing it explains why.
-    for(const id of ['new-board','settings-new-board'])$(id).disabled=support!=='supported'||(companionReadOnly()&&!companionAccessBlocked())||busy||formBusy||companionFrozen||!scope()||bound!==scope();
+    // A role restriction leaves board controls available so that using one explains why.
+    $('note-add-to-board').disabled=support!=='supported'||!accessOffered()||busy||formBusy||companionFrozen||!scope();
+    for(const id of ['new-board','settings-new-board'])$(id).disabled=support!=='supported'||!accessOffered()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
     const board=packet.boards.find(b=>b.id===selected), columns=$('board-columns');
     const available=board&&!board.archived;
     if(composer&&(!available||composer.boardId!==selected||composer.scope!==scope()))dismissComposer(false);
@@ -133,13 +133,13 @@ const boardsUI = (() => {
       el.ondragover=e=>{e.preventDefault();el.classList.add('drag-over')};el.ondragleave=()=>el.classList.remove('drag-over');el.ondrop=e=>{e.preventDefault();el.classList.remove('drag-over');const id=e.dataTransfer.getData('text/plain');if(board.columns.some(c=>c.pages.includes(id)))move(id,e.target.closest('[data-board-page]')?.dataset.boardPage);};
       const cards=el.querySelector('.board-cards');cards.replaceChildren();
       for(const id of column.pages){
-        const card=document.createElement('div');card.className='board-card card card--raised';card.dataset.boardPage=id;card.draggable=!companionReadOnly()&&!busy&&!formBusy;card.ondragstart=e=>e.dataTransfer.setData('text/plain',id);
+        const card=document.createElement('div');card.className='board-card card card--raised';card.dataset.boardPage=id;card.draggable=accessOffered()&&!busy&&!formBusy;card.ondragstart=e=>{if(accessDenied('Moving this card'))e.preventDefault();else e.dataTransfer.setData('text/plain',id);};
         const open=button('',()=>navigation.navigate('/?note='+id),names.get(id)||'Loading page…','plain');
         const title=document.createElement('span');title.className='board-card-title';title.textContent=names.get(id)||'Loading page…';
         const preview=document.createElement('span');preview.className='board-card-preview';preview.textContent=previews.get(id)||'';preview.hidden=!preview.textContent;preview.id='board-preview-'+id;
         if(preview.textContent)open.setAttribute('aria-describedby',preview.id);
         open.setAttribute('aria-keyshortcuts','Alt+ArrowLeft Alt+ArrowRight');open.title='Open note · Alt+←/→ moves between columns';
-        open.onkeydown=e=>{if(companionReadOnly()||!e.altKey||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const target=index+(e.key==='ArrowRight'?1:-1);if(target<0||target>=board.columns.length)return;
+        open.onkeydown=e=>{if(!e.altKey||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();if(accessDenied('Moving this card'))return;const target=index+(e.key==='ArrowRight'?1:-1);if(target<0||target>=board.columns.length)return;
           change(rows=>{const b=rows.find(b=>b.id===selected);for(const c of b.columns)c.pages=c.pages.filter(p=>p!==id);b.columns[target].pages.push(id);});};
         open.append(title,preview);card.append(open);
         const actions=document.createElement('div');actions.className='board-card-actions row-actions';
@@ -148,7 +148,7 @@ const boardsUI = (() => {
         actions.append(up,remove);card.append(actions);cards.append(card);
       }
     });
-    for(const control of document.querySelectorAll('#boards-view button,#boards-view select'))control.disabled=busy||formBusy||companionFrozen||!scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link')&&!control.closest('.board-card')?.firstElementChild?.isSameNode(control));
+    for(const control of document.querySelectorAll('#boards-view button,#boards-view select'))control.disabled=busy||formBusy||companionFrozen||!scope()||(!accessOffered()&&!control.classList.contains('sidebar-page-link')&&!control.closest('.board-card')?.firstElementChild?.isSameNode(control));
     if(rename)rename.input.readOnly=busy||formBusy||companionFrozen;
     if(composer)renderComposer(composer);
   }
@@ -157,10 +157,10 @@ const boardsUI = (() => {
     if(rename&&rename.index===index&&rename.boardId===selected)return;
     let title=host.querySelector('button');
     if(!title){host.replaceChildren();title=button(name,()=>startRename(host,index),'Rename '+(index===null?'board':'column'),'plain');title.classList.add('board-title-button');host.append(title);}
-    title.textContent=name;title.disabled=companionReadOnly()||!enabled||busy||formBusy||companionFrozen;title.title=name;
+    title.textContent=name;title.disabled=!accessOffered()||!enabled||busy||formBusy||companionFrozen;title.title=name;
   }
   function startRename(host,index) {
-    if(companionReadOnly()||busy||formBusy||companionFrozen||rename)return;
+    if(busy||formBusy||companionFrozen||rename||accessDenied(index===null?'Renaming this board':'Renaming this column'))return;
     const board=packet.boards.find(b=>b.id===selected&&!b.archived);if(!board)return;
     const previous=index===null?board.name:board.columns[index].name,input=document.createElement('input');
     input.className='board-rename-input';input.maxLength=100;input.value=previous;input.setAttribute('aria-label',index===null?'Board name':'Column name');
@@ -202,7 +202,8 @@ const boardsUI = (() => {
     if(current())render();
   }
   async function change(update){
-    if(support!=='supported'||busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope()||companionReadOnly())return false;
+    // Every board change passes here: a role restriction stops it and says why.
+    if(support!=='supported'||busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope()||accessDenied('Changing this board'))return false;
     const s=scope(), rows=structuredClone(packet.boards);update(rows);
     const changed=rows.filter(board=>JSON.stringify(board)!==JSON.stringify(packet.boards.find(old=>old.id===board.id)));
     const removed=packet.boards.filter(board=>!rows.some(next=>next.id===board.id));
@@ -226,7 +227,7 @@ const boardsUI = (() => {
     if(restore&&current.scope===scope())$('board-columns').children[current.index]?.querySelector('.board-add')?.focus();
   }
   function openComposer(index) {
-    if(support!=='supported'||companionReadOnly())return;
+    if(support!=='supported'||accessDenied('Adding a note to this board'))return;
     if(busy||formBusy||companionFrozen||!scope())return;
     if(composer?.index===index){composer.input.focus();return;}
     dismissComposer(false);
@@ -334,7 +335,7 @@ const boardsUI = (() => {
   }
   $('note-add-to-board').hidden=false;
   $('note-add-to-board').onclick=async()=>{
-    if(support!=='supported'||companionReadOnly())return;
+    if(support!=='supported'||accessDenied('Adding this note to a board'))return;
     const editor=state.editor;
     if(busy||formBusy||companionFrozen||!scope()||state.view!=='note'||!editor?.state.loaded||editor.state.navigationPending||documentActions.isBusy())return;
     noteDestination={id:editor.state.documentId,editor,scope:scope()};
@@ -358,7 +359,7 @@ const boardsUI = (() => {
     else {destinationBoards();$('note-board-message').textContent='Not added. Check your connection or board selection and retry.';}
   };
   const create=async()=>{
-    if(support!=='supported'||companionDenied('Creating a board'))return;
+    if(support!=='supported'||accessDenied('Creating a board'))return;
     if(busy||formBusy||companionFrozen||!scope()||bound!==scope())return;
     const s=scope();
     if(!creation)creation={schemaVersion:1,id:crypto.randomUUID(),name:createBoardName(packet.boards.map(b=>b.name)),archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};

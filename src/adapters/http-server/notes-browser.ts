@@ -90,6 +90,8 @@ ${noteOutlineStyles}
     #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: var(--weight-writing-title) var(--writing-title)/var(--leading-heading) var(--font-writing); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
     .note-writing { position: relative; }
     #note-editor-hint { position: absolute; top: var(--space-2); left: 0; right: 0; margin: 0; pointer-events: none; color: var(--ink-soft); font: var(--writing-text)/var(--writing-leading) var(--font-writing); }
+    /* A read-only note never invites writing, whichever control stays visible beside it. */
+    .note-writing:has(#note-editor[aria-readonly="true"]) #note-editor-hint { display: none; }
     #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: var(--writing-text)/var(--writing-leading) var(--font-writing); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
@@ -1030,12 +1032,11 @@ function renderNoteSearch(search) {
     ? "↑ ↓ to choose · Enter to insert reference" : search.message);
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
   $("search-refresh-index").hidden = !search.stale;
-  const reindexReadOnly = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   // A role restriction leaves the control available: using it explains the restriction.
-  const reindexExplains = reindexReadOnly && companionAccessBlocked();
-  $("search-refresh-index").disabled = searchIndexRefreshing || (reindexReadOnly && !reindexExplains);
+  const reindexReadOnly = !accessWritable(), reindexExplains = accessBlocked();
+  $("search-refresh-index").disabled = searchIndexRefreshing || !accessOffered();
   $("search-refresh-index").setAttribute("aria-busy", String(searchIndexRefreshing));
-  $("search-refresh-index").title = reindexExplains ? companionAccessExplanation("Reindexing") : reindexReadOnly ? "Reindexing is unavailable right now" : searchIndexRefreshing ? "Reindexing memory…" : "Reindex memory";
+  $("search-refresh-index").title = reindexExplains ? accessExplanation("Reindexing") : reindexReadOnly ? "Reindexing is unavailable right now" : searchIndexRefreshing ? "Reindexing memory…" : "Reindex memory";
   $("search-retry").hidden = search.status !== "error";
   $("search-connect").hidden = search.status !== "auth";
 }
@@ -1167,6 +1168,7 @@ async function setConnectionKey(key) {
   activeApiKey = key;
   hostedIdentityChannel?.postMessage({principalId: hostedPrincipalId});
   credentialRevision++;
+  hostedAccess = null; void accessRefresh();
   systemMessages.sync();
   livingSources.sync();
   lifecycleActions?.refresh?.();
@@ -1188,6 +1190,7 @@ if (hostedIdentityChannel) hostedIdentityChannel.onmessage = async (event) => {
   if (event.data?.principalId === hostedPrincipalId) return;
   hostedPrincipalId = event.data?.principalId || null;
   credentialRevision++;
+  hostedAccess = null;
   const editor = state.editor;
   if (editor?.hasPending()) {
     editor.block("Credentials changed in another tab. Copy or recover this private draft before reopening with the new identity.", true);
@@ -1196,6 +1199,7 @@ if (hostedIdentityChannel) hostedIdentityChannel.onmessage = async (event) => {
   editor?.cancel();
   if (hostedPrincipalId) activeApiKey = "browser-session";
   else activeApiKey = "";
+  void accessRefresh();
   if (state.view === "note") await showNote(new URL(location.href).searchParams.get("note"));
   else if (state.view === "home") recentNotes.load();
   else if (state.view === "graph") loadGraph();
@@ -1274,10 +1278,13 @@ const folderExplorer = JumpyBrainBrowser.installFolderExplorer({
   fetch: (signal) => graphJson("/memories/all/files?includeFolders=1", { signal }),
   navigate: (id) => navigateSidebar("/?note=" + encodeURIComponent(id)),
   operations: {
-    writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
+    // Offered under a role restriction too: starting a change then explains itself.
+    writable: () => Boolean(activeApiKey) && accessOffered(),
+    denied: action => accessDenied(({ create: "Creating a folder", rename: "Renaming this file", move: "Moving this file" })[action]),
     json: graphJson,
     link: id => new URL(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id), location.origin).href,
     deleteFile: async id => {
+      if (accessDenied("Deleting this file")) return;
       if (navigation.isBusy() || creatingNote || state.editor?.state.navigationPending) throw new Error("Finish the current action before deleting files.");
       await lifecycleActions.openDelete(id);
     },
@@ -1327,7 +1334,8 @@ const relatedPages = JumpyBrainBrowser.installRelatedPages({
 const noteWorkspace = JumpyBrainBrowser.installNoteWorkspace({
   document, editor: () => state.view === "note" ? state.editor : null,
   actor: () => browserActor,
-  writable: () => !noteEditingLocked(state.editor?.state),
+  // The Format control stays under a role restriction; its commands explain themselves.
+  writable: () => !noteEditingLocked(state.editor?.state) || accessBlocked(),
 });
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
@@ -1341,11 +1349,11 @@ const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   navigate: navigateSidebar,
   attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
   enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
-  writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions?.isBusy(),
+  writable: () => Boolean(activeApiKey) && accessOffered() && !documentActions?.isBusy(),
   fetchPreview: (id, signal) => readGraphDocument(id, { signal }),
   fetchAttention: (signal) => graphJson("/memories/all/attention", { signal }),
   onAttentionUpdated: () => noteAttention.sync(),
-  onAction: (action, page, anchor) => noteAttention.act(action, page, anchor),
+  onAction: (action, page, anchor) => { if (!accessDenied(action === "snooze" ? "Snoozing this note" : action === "settle" ? "Settling this note" : "Bringing this note back")) noteAttention.act(action, page, anchor); },
 });
 window.addEventListener("popstate", (event) => {
   feedback.close(false);
@@ -1699,7 +1707,7 @@ function syncEditorUi(editorState) {
   if (companionMode && typeof boardsUI !== "undefined") boardsUI.syncNote();
   $("delete-note").hidden = !editorState.loaded;
   // Stays available under a role restriction so that choosing it explains why.
-  $("delete-note").disabled = editorState.navigationPending || (companionLocked && !(companionMode && companionAccessBlocked()));
+  $("delete-note").disabled = editorState.navigationPending || (companionLocked && !accessBlocked());
   $("note-retry").disabled = editorState.navigationPending;
   $("note-editor").hidden = !editorState.loaded;
   $("note-name").hidden = !editorState.loaded;
@@ -1715,7 +1723,8 @@ function syncEditorUi(editorState) {
   $("note-save-error").dataset.error = String(!needsReview);
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
   richEditor.setReadOnly(editorState.navigationPending || companionLocked);
-  for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || companionLocked;
+  // Formatting stays available under a role restriction; its commands explain why they do nothing.
+  for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || (companionLocked && !accessBlocked());
   if (editorState.loaded) {
     // Never replace a name its author is typing. Another writer's rename is
     // shown once they leave the field; their next keystroke publishes theirs.
@@ -1759,7 +1768,7 @@ const noteCapture = createNoteCapture({
 });
 let newNoteId = null;
 async function newNote() {
-  if (typeof companionMode !== "undefined" && companionMode && companionDenied("Creating a note")) return;
+  if (accessDenied("Creating a note")) return;
   if (creatingNote || documentActions.isOpen() || documentActions.isBusy() || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   creatingNote = true;
   for (const id of ["new-note", "home-new"]) $(id).disabled = true;
@@ -1793,7 +1802,7 @@ async function newNote() {
     $("new-note").title = "Retry new note · " + newShortcut;
   } finally {
     creatingNote = false;
-    for (const id of ["new-note", "home-new"]) $(id).disabled = typeof companionMode !== "undefined" && companionMode && companionReadOnly() && !companionAccessBlocked();
+    for (const id of ["new-note", "home-new"]) $(id).disabled = !accessOffered();
   }
 }
 for (const id of ["new-note", "home-new"]) $(id).addEventListener("click", (event) => { if (event.detail < 2) newNote(); });
@@ -1801,17 +1810,19 @@ for (const id of ["new-note", "home-new"]) $(id).addEventListener("click", (even
 // every few seconds, and points to Settings; nothing else in the note view shows the role.
 let editingDeniedAt = 0;
 function explainEditingDenied(event) {
-  if (typeof companionMode === "undefined" || !companionMode || !companionAccessBlocked() || state.view !== "note" || !state.editor?.state.loaded) return;
+  if (!accessBlocked() || state.view !== "note" || !state.editor?.state.loaded) return;
   // A read-only editor takes no keyboard focus: typing after clicking into its text arrives at the page.
   const inNote = node => Boolean(node) && ($("note-editor").contains(node) || node === $("note-name"));
   if (!inNote(event.target) && !(event.target === document.body && inNote(getSelection()?.anchorNode))) return;
+  // A disabled task checkbox receives no click; where the browser reports the press, explain that too.
+  if (event.type === "pointerdown" && !event.target.closest?.("[data-task-toggle]")) return;
   if (event.type === "keydown" && (event.metaKey || event.ctrlKey || event.altKey || event.isComposing || !(event.key.length === 1 || ["Backspace", "Delete", "Enter"].includes(event.key)))) return;
   if (Date.now() - editingDeniedAt < 8000) return;
   editingDeniedAt = Date.now();
-  companionExplainAccess("Editing this note");
+  accessExplain("Editing this note");
 }
-for (const type of ["keydown", "paste", "cut", "drop"]) document.addEventListener(type, explainEditingDenied);
-$("delete-note").addEventListener("click", () => { if (typeof companionMode !== "undefined" && companionMode && companionAccessBlocked()) companionExplainAccess("Deleting this note"); });
+for (const type of ["keydown", "paste", "cut", "drop", "pointerdown"]) document.addEventListener(type, explainEditingDenied);
+$("delete-note").addEventListener("click", () => { if (accessBlocked()) accessExplain("Deleting this note"); });
 
 function openReferenceSearch() {
   if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
@@ -1820,7 +1831,7 @@ function openReferenceSearch() {
   if (range) openSearch("insert", range);
 }
 $("format-controls").addEventListener("mousedown", (event) => { if (event.target.closest("button")) event.preventDefault(); });
-for (const button of document.querySelectorAll("[data-format]")) button.addEventListener("click", () => richEditor.format(button.dataset.format));
+for (const button of document.querySelectorAll("[data-format]")) button.addEventListener("click", () => { if (!accessDenied("Formatting this note")) richEditor.format(button.dataset.format); });
 function insertPageReference(result) {
   if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
   const editor = $("note-editor");
@@ -1851,7 +1862,7 @@ function insertPageReference(result) {
 export const documentActionsScript = String.raw`
 let searchIndexRefreshing = false;
 $("search-refresh-index").addEventListener("click", async () => {
-  if (searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionDenied("Reindexing"))) return;
+  if (searchIndexRefreshing || accessDeniedIn($("search-message"), "Reindexing")) return;
   searchIndexRefreshing = true;
   const revision = credentialRevision;
   renderNoteSearch(noteSearch.state);
@@ -1873,7 +1884,7 @@ lifecycleActions = installDocumentActions({
   document, editor: () => state.editor,
   canPublish: editor => !noteEditingLocked(editor.state),
   filePath: editor => companionMode && !companionFrozen && !companionSessionFailed ? currentNoteFilePath(editor) : null,
-  writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
+  writable: () => accessWritable(),
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
   json: graphJson, toast,
   onDeleted: async (id, message) => {
@@ -1891,7 +1902,7 @@ lifecycleActions = installDocumentActions({
 const noteAttention = JumpyBrainBrowser.installNoteAttention({
   settled: (page, focusOrigin) => sidebarPages.settle(page, focusOrigin),
   document, editor: () => state.editor,
-  writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
+  writable: () => Boolean(activeApiKey) && accessWritable(),
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   blocked: () => lifecycleActions.isBusy() || lifecycleActions.isOpen() || navigation.isBusy() || creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen(),
   json: graphJson, toast,

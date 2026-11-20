@@ -331,8 +331,14 @@ try {
   assert.equal(await readonly.locator('#note-editor-hint').isHidden(), true);
   assert.equal(await readonly.locator('#copy-note-draft').isVisible(), true);
   assert.equal(await readonly.locator('#copy-note-file-path').isHidden(), true);
-  assert.equal(await readonly.locator('#toggle-note-format').isHidden(), true);
+  // Format stays available under a role restriction: its commands explain and point to Settings.
+  assert.equal(await readonly.locator('#toggle-note-format').isVisible(), true);
   assert.equal(await readonly.locator('#format-controls').isHidden(), true);
+  await readonly.locator('#toggle-note-format').click();
+  await readonly.locator('#format-controls [data-format="bold"]').click();
+  await readonly.locator('#app-toast').waitFor({ state: 'visible' });
+  assert.match(await readonly.locator('#toast-message').textContent(), /Formatting this note needs a writer or admin key/);
+  assert.equal(await readonly.locator('#note-editor').getAttribute('aria-readonly'), 'true');
   await readonly.locator('#toggle-page-details').click();
   // Delete stays available under a role restriction: choosing it explains and points to Settings.
   assert.equal(await readonly.locator('#delete-note').isDisabled(), false);

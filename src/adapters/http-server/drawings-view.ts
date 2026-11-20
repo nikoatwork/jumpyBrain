@@ -107,7 +107,8 @@ function createDrawingsUI(host) {
   function syncControls() {
     const open = Boolean(current);
     nameInput.readOnly = !open || !writable();
-    element("drawing-delete").disabled = !open || !writable();
+    // Stays available when the connection is read only and the host can say why.
+    element("drawing-delete").disabled = !open || (!writable() && !(readOnly() && host.explainReadOnly));
     element("drawing-copy-mention").disabled = !open;
   }
 
@@ -458,6 +459,9 @@ function createDrawingsUI(host) {
     if (event.key === "Escape" && current) { event.preventDefault(); nameInput.value = current.name; nameInput.blur(); }
   });
   nameInput.addEventListener("blur", rename);
+  nameInput.addEventListener("keydown", (event) => {
+    if (current && nameInput.readOnly && readOnly() && event.key.length === 1 && !event.metaKey && !event.ctrlKey) host.explainReadOnly?.("Renaming this drawing");
+  });
   element("drawing-retry").addEventListener("click", () => { if (current) { current.failed = false; save(); } });
   element("drawing-reload").addEventListener("click", reload);
   element("drawing-overwrite").addEventListener("click", overwrite);
@@ -468,7 +472,8 @@ function createDrawingsUI(host) {
     catch { host.message("Could not copy. Type " + mention + " in a note.", true); }
   });
   element("drawing-delete").addEventListener("click", () => {
-    if (!current || !writable() || !current.hash) return;
+    if (!current || !current.hash) return;
+    if (!writable()) { if (readOnly()) host.explainReadOnly?.("Deleting this drawing"); return; }
     element("drawing-delete-name").textContent = current.name;
     element("drawing-delete-message").textContent = "";
     deleteDialog.showModal(); element("drawing-delete-cancel").focus();

@@ -32,6 +32,27 @@ try {
   page.setDefaultTimeout(12000);
   await page.goto(`${server.url}/#apiKey=${reader.token}`);
   await page.locator("#home-new").waitFor();
+  // Once the page knows the key's role, New note stays available and explains itself
+  // with a Settings action instead of sending a request the server would refuse.
+  await page.waitForFunction(() => hostedAccess?.role === "reader");
+  const creations = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/memories/all/notes")) creations.push(request.url());
+  });
+  assert.equal(await page.locator("#home-new").isDisabled(), false);
+  await page.locator("#home-new").click();
+  await page.locator("#app-toast").waitFor({ state: "visible" });
+  assert.equal(
+    await page.locator("#toast-message").textContent(),
+    "Creating a note needs a writer or admin key. Your key has reader access.",
+  );
+  assert.equal(await page.locator("#toast-action").textContent(), "Open Settings");
+  assert.deepEqual(creations, [], "a known reader sends no creation request");
+  await page.locator("#toast-close").click();
+  results.push("known reader: explained with a Settings action, nothing sent");
+  // Before the role is known (or after it changed on the server) the request is sent,
+  // and the server's refusal is reported as authorization, not as a lost login.
+  await page.evaluate(() => { hostedAccess = null; });
   const rejected = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -56,6 +77,11 @@ try {
       file.endsWith(".md"),
     ).length,
     0,
+  );
+  assert.equal(
+    await page.evaluate(() => connectionStatus),
+    "connected",
+    "a role refusal is not shown as a rejected key",
   );
   results.push("valid reader: honest permission guidance and no creation");
   await page.locator("#open-connection").click();

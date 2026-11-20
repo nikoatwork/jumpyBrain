@@ -1,8 +1,9 @@
 import { browserChevronIcon, browserIcons } from "./browser-icons.js";
 import { media } from "./browser-design-system.js";
 
-// Server-rendered markup and styles for the access-key view. Kept apart from the
-// controller in access-keys.ts so the editor bundle does not carry them twice.
+// Server-rendered access presentation: markup and styles for the access-key view, and the
+// inline role guard at the end of this file. Kept apart from the controller in
+// access-keys.ts so the editor bundle does not carry any of it.
 // The three capability rows are static; the controller only marks each allowed or not.
 const panel = String.raw`
 <div id="access-keys" class="access-keys">
@@ -97,4 +98,97 @@ export const accessKeysStyles = String.raw`
   #access-keys-close { position: absolute; top: var(--space-4); right: var(--space-4); margin: 0; }
   #open-access-keys[hidden] { display: none; }
   @media ${media.compact} { .access-keys-fields { flex-wrap: wrap; } .access-keys-fields input { flex-basis: 100%; } .access-keys-fields .dropdown { flex: 1 1 auto; } }
+`;
+
+// One guard for changes a key's role does not allow, shared by the app (companion) and the
+// hosted browser. It is part of the inline page script, not the editor bundle.
+//
+// Presentation only: the server authorizes every request again. A control for a change
+// stays available (`accessOffered`) while the role is the only obstacle, and the code that
+// starts the change calls `accessDenied(action)`, which explains and offers Settings.
+// Busy, frozen, disconnected and nothing-selected states are not role restrictions: they
+// keep their own disabled state and are never explained here.
+//
+// The explanation is one system message (toast) with the Settings action. Inside a modal
+// dialog, where the toast cannot be reached, `accessDeniedIn` also writes it into the dialog.
+export const accessGuardScript = String.raw`
+// Hosted only: what /capabilities last said about this browser session's key. null means
+// not known yet, which neither grants nor blocks anything here; the server decides.
+let hostedAccess = null;
+let accessNoticeCount = 0, accessRecheckedAt = 0;
+function accessState() { return companionMode ? companionState?.access : hostedAccess; }
+function accessCan(capability = "write") {
+  return companionMode ? companionCan(capability) : Boolean(hostedAccess?.capabilities.includes(capability));
+}
+// True when the session itself is usable and only the key's role withholds the capability.
+function accessBlocked(capability = "write") {
+  return companionMode ? companionAccessBlocked(capability) : connectionStatus === "connected" && Boolean(hostedAccess) && !accessCan(capability);
+}
+// False while a change cannot be made from here.
+function accessWritable() { return companionMode ? !companionReadOnly() : !accessBlocked(); }
+// Whether to offer a control for a change: when it works, or when using it explains why not.
+function accessOffered() { return accessWritable() || accessBlocked(); }
+function accessExplanation(action, capability = "write") {
+  const access = accessState(), brain = companionMode ? "“" + (companionState?.active?.name || "This brain") + "”" : "";
+  if (!access?.role) return action + " is paused: the app could not confirm what your access key may do" + (brain ? " on " + brain : "") + ".";
+  const needs = action + " needs " + (capability === "manage_access" ? "an admin key" : "a writer or admin key") + ". ";
+  // Refused although the role last reported here allows it: claim nothing about the role.
+  if (accessCan(capability)) return needs + "The server refused it for your current key.";
+  return needs + "Your key" + (brain ? " for " + brain : "") + " has " + access.role + " access.";
+}
+// The one place access detail lives: Settings → Access keys in the app, the Access keys dialog when hosted.
+function accessOpenSettings() {
+  systemMessages.clear("access");
+  return companionMode ? navigation.navigate("/settings?section=access") : openAccessKeys();
+}
+function accessExplain(action, capability = "write") {
+  systemMessages.dispatch({ source: "access", text: accessExplanation(action, capability), severity: "warning",
+    revision: String(++accessNoticeCount), duration: 12000, action: { label: "Open Settings", run: accessOpenSettings } });
+}
+// Call when the user starts a change. True means stop; a role restriction is explained.
+function accessDenied(action, capability = "write") {
+  const blocked = accessBlocked(capability);
+  // Hosted with no known role: nothing is refused here, the server answers.
+  if (companionMode ? (capability === "write" ? !companionReadOnly() : companionCan(capability)) : !blocked) return false;
+  if (blocked) accessExplain(action, capability);
+  return true;
+}
+// The toast sits in the workspace, behind any modal dialog. A change started inside one is
+// also explained in that dialog's own status line, naming the way to Settings in words.
+function accessExplanationInline(action, capability = "write") {
+  return accessExplanation(action, capability) + (companionMode ? " See Settings → Access keys." : " See Connection settings → Access keys.");
+}
+function accessDeniedIn(status, action, capability = "write") {
+  if (!accessDenied(action, capability)) return false;
+  if (accessBlocked(capability)) status.textContent = accessExplanationInline(action, capability);
+  return true;
+}
+function accessObserved(packet) {
+  const role = packet?.principal?.role;
+  hostedAccess = typeof role === "string" && Array.isArray(packet.capabilities) ? { role, capabilities: packet.capabilities } : null;
+}
+// Ask again what this key may do, without leaving the page or touching an open note.
+// Hosted: /capabilities. App: the gateway re-checks the server with its health check.
+async function accessRefresh() {
+  try {
+    if (!companionMode) { if (activeApiKey) await graphJson("/capabilities"); return; }
+    if (!companionRegistered || companionSessionFailed) return;
+    const snapshot = await companionControl("state");
+    // A new generation is the poll's to handle; this only brings health and role up to date.
+    if (snapshot.generation === companionState?.generation && companionRegistered && !companionSessionFailed) companionApplyState(snapshot);
+  } catch { /* Unreachable: the connection state reports it. */ }
+}
+// After a refused request. At most one re-check every few seconds: a view that reloads when
+// state arrives must not turn one refusal into a stream of requests.
+function accessRecheck() {
+  if (Date.now() - accessRecheckedAt < 5000) return Promise.resolve();
+  accessRecheckedAt = Date.now();
+  return accessRefresh();
+}
+// The server or the app refused a request over this key's role, so the role shown here
+// was missing or out of date. Bring it up to date, then explain with what is now known.
+function accessRefused(code) {
+  const capability = code === "admin_required" ? "manage_access" : "write";
+  void accessRecheck().then(() => accessExplain(capability === "write" ? "This change" : "Managing access keys", capability));
+}
 `;

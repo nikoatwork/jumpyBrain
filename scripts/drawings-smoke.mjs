@@ -391,7 +391,13 @@ try {
       await idle();
       await ready(page);
       await page.waitForFunction(() => document.getElementById("drawing-state").textContent === "Read only");
-      assert.equal(await page.locator("#drawing-delete").isDisabled(), true);
+      // Delete stays available under a role restriction: choosing it explains and points to Settings.
+      assert.equal(await page.locator("#drawing-delete").isDisabled(), false);
+      await page.locator("#drawing-delete").click();
+      await page.locator("#app-toast").waitFor({ state: "visible" });
+      assert.match(await page.locator("#toast-message").textContent(), /Deleting this drawing needs a writer or admin key/);
+      assert.equal(await page.locator("dialog[open]").count(), 0);
+      await page.locator("#toast-close").click();
       assert.equal(await page.locator("#drawing-name").evaluate((input) => input.readOnly), true);
       assert.equal(await page.locator("#drawings-list").isHidden(), false);
       await page.locator("#drawings-disclosure").click();

@@ -68,6 +68,8 @@ Snapshot: working tree on `94b77fc5` plus this change; `npm ci`, `npm run build`
 
 ## Limits
 
+Follow-up: [blocked actions explain themselves](2026-11-20_tasks-blocked-action-explanations.md) closes the secondary-control, hosted Settings-action and browser-only stale-role limits below, and reports measured results for the three smokes named first.
+
 - Three Chromium smokes stop before the sections changed here, for reasons this change did not introduce; their fixture edits are unverified by a run: `remote-boards-compatibility-smoke` (its HTTP-only proxy does not carry the live socket, so the note stays "connecting"; access was admin and not read-only at the failing assertion), `drawings-smoke` (Chromium "Permissions policy violation: unload" console errors fail its page-error check), `contextual-attribution-smoke` (a popup bounds assertion at line 61).
 - Not run: Electron smokes (`smoke-connections.mjs`, `smoke-simple-onboarding.mjs`, `boards-desktop-smoke.mjs`; Electron dependencies are not installed in this worktree), `related-pages-local-smoke.mjs` (needs a real running app and brain; it now refuses mutating requests in the browser instead of relying on a read-only profile), the experience eval, full `npm test`. No installed app, real brain or shared server was touched.
 - Only the primary actions explain themselves. Folder moves and renames, board card edits, attention changes and formatting controls stay disabled under a role restriction without their own message.

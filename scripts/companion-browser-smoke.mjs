@@ -442,18 +442,26 @@ try {
   // Editing is locked until the live session through the companion bridge opens.
   await editor.waitForFunction(() => state.editor?.state.liveHasOpened && document.querySelector("#note-editor").isContentEditable);
 
-  // A permission change can hide a focused formatting control. Keep focus on a
-  // visible, non-mutating header action, including when the body is read-only.
+  // A role change keeps formatting visible and the focused control in place while the
+  // body turns read-only; using the control explains the role and changes nothing.
   await editor.locator('#toggle-note-format').click();
   await editor.locator('[data-format=bold]').focus();
   const beforePermissionChange = canonical('a');
   accessOverride = readerAccess;
-  await editor.locator('#toggle-note-format').waitFor({ state: 'hidden' });
-  assert.equal(await editor.evaluate(() => document.activeElement.id), 'copy-note-draft');
-  assert.equal(await editor.locator('#format-controls').isHidden(), true);
+  await editor.waitForFunction(() => companionState.access?.role === 'reader' && !document.querySelector('#note-editor').isContentEditable);
+  assert.equal(await editor.locator('#toggle-note-format').isVisible(), true);
+  assert.equal(await editor.locator('#format-controls').isVisible(), true);
+  assert.equal(await editor.evaluate(() => document.activeElement.dataset.format), 'bold');
+  await editor.locator('[data-format=bold]').click();
+  await editor.locator('#app-toast').waitFor({ state: 'visible' });
+  assert.match(await editor.locator('#toast-message').textContent(), /^Formatting this note needs a writer or admin key\./);
+  assert.equal(await editor.locator('#toast-action').textContent(), 'Open Settings');
   assert.equal(canonical('a'), beforePermissionChange);
+  await editor.locator('#toast-close').click();
   accessOverride = null;
-  await editor.locator('#toggle-note-format').waitFor({ state: 'visible' });
+  await editor.waitForFunction(() => companionState.access?.role !== 'reader' && document.querySelector('#note-editor').isContentEditable);
+  await editor.locator('#toggle-note-format').click();
+  assert.equal(await editor.locator('#format-controls').isHidden(), true);
 
   // Settings entry saves first, replaces note navigation, and Back restores this note.
   // Hold the live edit: Settings must wait until the canonical file has it.

@@ -16,7 +16,8 @@ export const boardSettingsStyles = String.raw`
 
 // Brain organization: writes use per-board hashes, scope guards and the selected brain's write permission.
 export const boardSettingsScript = String.raw`
-function createBoardSettings({getBoards,disabled,readOnly=()=>false,scope,change,open,sidebar}) {
+// readOnly hides nothing by itself: it disables controls. denied is asked when a change starts and may explain.
+function createBoardSettings({getBoards,disabled,readOnly=()=>false,denied=()=>false,scope,change,open,sidebar}) {
   const list=$('settings-boards-list');
   let edit=null;
   const action=(label,run,icon,className)=>{
@@ -28,7 +29,7 @@ function createBoardSettings({getBoards,disabled,readOnly=()=>false,scope,change
   const focusRow=id=>(list.querySelector('[data-board-id="'+id+'"] button')||$('settings-new-board')).focus();
   function reset(){edit=null;}
   function start(board,mode){
-    if(disabled()||readOnly()||!board)return;
+    if(disabled()||readOnly()||!board||denied())return;
     edit={id:board.id,mode,scope:scope(),saving:false};render();
     const row=list.querySelector('[data-board-id="'+board.id+'"]');
     (row.querySelector('input')||row.querySelector('button')).focus();row.querySelector('input')?.select();
@@ -98,7 +99,7 @@ function createBoardSettings({getBoards,disabled,readOnly=()=>false,scope,change
     }
   }
   async function toggle(id){
-    if(disabled()||readOnly())return;const b=getBoards().find(b=>b.id===id);if(!b)return;
+    if(disabled()||readOnly()||denied())return;const b=getBoards().find(b=>b.id===id);if(!b)return;
     const archived=!b.archived,s=scope();
     if(await change(rows=>{rows.find(b=>b.id===id).archived=archived;})&&s===scope()){
       list.querySelector('[data-board-id="'+id+'"] [aria-pressed]')?.focus();

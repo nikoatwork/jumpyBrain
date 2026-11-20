@@ -59,11 +59,22 @@ try {
       true,
       "a hosted reader must not be invited to start writing",
     );
+    // Formatting stays visible for a reader; its commands explain the role and offer Settings.
     assert.equal(
-      await page.locator("#toggle-note-format").isHidden(),
+      await page.locator("#toggle-note-format").isVisible(),
       true,
-      "formatting follows the actual note lock",
+      "a blocked action stays visible",
     );
+    await page.locator("#toggle-note-format").click();
+    await page.locator('#format-controls [data-format="bold"]').click();
+    await page.locator("#app-toast").waitFor({ state: "visible" });
+    assert.equal(
+      await page.locator("#toast-message").textContent(),
+      "Formatting this note needs a writer or admin key. Your key has reader access.",
+    );
+    assert.equal(await page.locator("#toast-action").textContent(), "Open Settings");
+    await page.locator("#toast-close").click();
+    await page.locator("#toggle-note-format").click();
     assert.equal(
       await page.locator("#note-save-state").innerText(),
       "Read only",

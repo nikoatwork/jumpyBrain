@@ -7,12 +7,14 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 
 const html = graphPageHtml("fixture", "settings", { companion: true });
 const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+// The shared role guard (accessGuardScript) is part of every shell; a test may replace any of it.
+const accessGuard = ["accessState", "accessCan", "accessBlocked", "accessWritable", "accessOffered", "accessExplanation", "accessExplanationInline", "accessExplain", "accessDenied", "accessDeniedIn"];
 function runtime(names, globals) {
   const context = vm.createContext({ feedback: { close() {}, isOpen: () => false },
     sidebarPages: { sync() {} }, noteAttention: { sync() {} },
     documentActions: { close() {}, isOpen: () => false, isBusy: () => false },
-    feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
-  vm.runInContext(shellFunctions(script, names, context), context);
+    feedbackDiagnostics: createFeedbackDiagnostics(), companionMode: true, accessNoticeCount: 0, ...globals });
+  vm.runInContext(shellFunctions(script, [...names, ...accessGuard.filter(name => !(name in globals) && !names.includes(name))], context), context);
   return context;
 }
 function deferred() {
@@ -23,7 +25,7 @@ function deferred() {
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const id = "mem_a0000000-0000-4000-8000-000000000001";
 
-const accessFunctions = ["companionReadOnly", "companionCan", "companionAccessBlocked", "companionAccessExplanation", "companionAccessLabel", "companionRoleLabel", "companionDenied", "companionExplainAccess"];
+const accessFunctions = ["companionReadOnly", "companionCan", "companionAccessBlocked", "companionAccessLabel", "companionRoleLabel"];
 const reader = { source: "server", role: "reader", capabilities: ["read"], name: "Reviewer" };
 const writer = { source: "server", role: "writer", capabilities: ["read", "write"], name: "Editor" };
 const admin = { source: "server", role: "admin", capabilities: ["read", "write", "manage_access"], name: "Owner" };
@@ -32,10 +34,10 @@ const localAccess = { source: "local", role: "admin", capabilities: ["read", "wr
 test("the reported server role alone decides read-only; missing, unknown and malformed access fail closed", () => {
   const messages = [], visits = [];
   const context = runtime(accessFunctions, {
-    companionFrozen: false, companionSessionFailed: false, companionRegistered: true, companionAccessNoticeCount: 0,
+    companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
     companionState: { active: { kind: "remote", name: "Team" }, access: reader },
     systemMessages: { dispatch: (message) => messages.push(message) },
-    companionOpenAccessSettings: () => visits.push("/settings?section=access"),
+    accessOpenSettings: () => visits.push("/settings?section=access"),
   });
   assert.equal(context.companionReadOnly(), true);
   assert.equal(context.companionAccessBlocked(), true);
@@ -49,7 +51,7 @@ test("the reported server role alone decides read-only; missing, unknown and mal
   assert.equal(context.companionCan("manage_access"), true);
   context.companionState.access = writer;
   assert.equal(context.companionCan("manage_access"), false);
-  assert.equal(context.companionDenied("Creating a key", "manage_access"), true);
+  assert.equal(context.accessDenied("Creating a key", "manage_access"), true);
   assert.match(messages.pop().text, /Creating a key needs an admin key\. Your key for “Team” has writer access\./);
   // Nothing but an explicit capability list grants anything, and the removed device flag grants nothing.
   for (const access of [undefined, null, {}, { role: "admin" }, { role: "admin", capabilities: "write" }, { source: "server", role: null, capabilities: [], reason: "offline" },
@@ -60,21 +62,21 @@ test("the reported server role alone decides read-only; missing, unknown and mal
   }
   assert.equal(context.companionAccessLabel({ source: "server", role: null, capabilities: [], reason: "offline" }), "Access not confirmed");
   assert.equal(context.companionAccessLabel({ source: "server", role: null, capabilities: [], reason: "checking" }), "Checking access…");
-  assert.match(context.companionAccessExplanation("Creating a note"), /Creating a note is paused: the app could not confirm what your access key may do on “Team”\./);
+  assert.match(context.accessExplanation("Creating a note"), /Creating a note is paused: the app could not confirm what your access key may do on “Team”\./);
   // A blocked action explains itself and offers Settings; an allowed one says nothing.
   context.companionState = { active: { kind: "remote", name: "Team" }, access: reader };
-  assert.equal(context.companionDenied("Creating a note"), true);
+  assert.equal(context.accessDenied("Creating a note"), true);
   const explanation = messages.pop();
   assert.equal(explanation.text, "Creating a note needs a writer or admin key. Your key for “Team” has reader access.");
   assert.equal(explanation.action.label, "Open Settings"); explanation.action.run(); assert.deepEqual(visits, ["/settings?section=access"]);
-  assert.equal(context.companionDenied("Creating a note"), true);
+  assert.equal(context.accessDenied("Creating a note"), true);
   assert.notEqual(messages.pop().revision, explanation.revision, "a repeated attempt is explained again");
   context.companionState.access = writer;
-  assert.equal(context.companionDenied("Creating a note"), false); assert.equal(messages.length, 0);
+  assert.equal(context.accessDenied("Creating a note"), false); assert.equal(messages.length, 0);
   // A frozen or failed session is not a role restriction: it blocks without the role explanation.
   context.companionState.access = reader; context.companionSessionFailed = true;
   assert.equal(context.companionReadOnly(), true); assert.equal(context.companionAccessBlocked(), false);
-  assert.equal(context.companionDenied("Creating a note"), true); assert.equal(messages.length, 0);
+  assert.equal(context.accessDenied("Creating a note"), true); assert.equal(messages.length, 0);
   context.companionSessionFailed = false; context.companionState.active = null;
   assert.equal(context.companionReadOnly(), true); assert.equal(context.companionAccessBlocked(), false);
 });
@@ -148,7 +150,7 @@ test("Settings refresh uses fenced memory transport, prevents repeats, and repor
     $: () => fields,
     systemMessages: { dispatch(value) { feedback.textContent = value.text; feedback.dataset.error = String(value.severity === "error"); } },
     companionCanRefreshIndex: () => !context.companionActionBusy,
-    companionIndexExplains: () => explains, companionExplainAccess: (action) => explained.push(action),
+    companionIndexExplains: () => explains, accessExplain: (action) => explained.push(action),
     renderCompanionIndex() {}, renderCompanionSettings() {}, companionMessage() {},
     graphJson: async (...args) => { calls.push(args); return pending.promise; },
   });
@@ -500,7 +502,7 @@ test("note URLs are scoped and mismatched brain links are rejected", () => {
 });
 
 test("Dream uses the actual authorized remote URL, never the gateway/local folder", () => {
-  const context = runtime(["companionDreamTarget", "companionCan", "companionAccessExplanation"], { companionState: { active: { kind: "local", root: "/fixture" } } });
+  const context = runtime(["companionDreamTarget", "companionCan"], { companionState: { active: { kind: "local", root: "/fixture" } } });
   assert.throws(context.companionDreamTarget, /gateway is not an agent endpoint/);
   context.companionState = { active: { kind: "remote", name: "Team", url: "https://fixture.example", allowWrites: true }, access: reader };
   assert.throws(context.companionDreamTarget, /Dream handoff needs a writer or admin key.*reader access.*Settings/);
