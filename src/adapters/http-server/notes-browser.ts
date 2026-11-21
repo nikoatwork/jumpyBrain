@@ -48,16 +48,25 @@ ${noteOutlineStyles}
     .nav-library { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-inline: calc(-1 * var(--space-3)); overflow: hidden; }
     .nav-library > * { flex-shrink: 0; }
     .sidebar-attention-scroll { flex: 1 1 0; min-height: 0; overflow: auto; }
-    .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; padding-top: var(--space-1); }
+    .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; padding-top: var(--space-2); }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
-    .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-2); }
+    .nav-library ul:not(:empty) + ul { margin-top: var(--space-2); }
     .sidebar-empty { padding-inline: var(--space-6); }
     .sidebar-empty:empty { display: none; }
-    /* Sidebar page rows (browser-page-navigation.ts) compose .list-row.list-row--edge.list-row--page; only the pin glyph and settle layout live here. */
+    /* Sidebar page rows (browser-page-navigation.ts) compose .list-row.list-row--edge.list-row--page; editor marks, time groups, pins and settle layout live here. */
+    .sidebar-page-editor[data-editor-kind="agent"] { color: var(--accent); background: var(--accent-wash); }
+    .sidebar-page-editor[data-editor-kind="human"] { color: var(--ink-soft); background: color-mix(in srgb, var(--ink) 9%, transparent); }
+    #sidebar-settled .sidebar-page-title { color: var(--ink-faint); font-size: var(--text-ui); }
+    #sidebar-settled .sidebar-page-editor { opacity: var(--opacity-muted); }
+    #sidebar-settled .list-row--page { --row-height: var(--control-compact); }
+    /* Time-group captions are decorative (alt text ""); each row's age already states the time. */
+    .sidebar-page[data-group] { margin-top: var(--space-6); }
+    .sidebar-page[data-group]::before { content: attr(data-group) / ""; position: absolute; left: var(--space-5); bottom: 100%; padding-bottom: var(--space-1); color: var(--ink-faint); font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); pointer-events: none; }
     .sidebar-page-pin[aria-pressed="true"] svg path:last-child, .sidebar-page-pin-mark svg path:last-child { fill: currentColor; }
-    .sidebar-page-pin-mark { position: absolute; left: var(--space-1); top: calc(var(--space-3) + var(--space-1)); display: flex; color: var(--ink-faint); }
+    /* The Pinned caption marks pins on desktop; the marker keeps its accessible name and shows on narrow chips. */
+    .sidebar-page-pin-mark { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); color: var(--ink-faint); }
     .sidebar-page-pin-mark svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
-    .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; }
+    .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; min-height: 0; }
     #sidebar-resize { position: absolute; z-index: 1; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; touch-action: none; -webkit-app-region: no-drag; }
     #sidebar-resize:hover, #sidebar-resize:focus-visible { background: var(--line-strong); }
     @media ${media.narrow} { #sidebar-resize { display: none; } }
@@ -246,7 +255,9 @@ ${referencePresentationStyles}
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { --row-inset: 0px; flex: 0 0 auto; max-width: 190px; }
       .sidebar-page .sidebar-page-actions { right: var(--space-1); }
-      .sidebar-page + .sidebar-page { margin-top: 0; }
+      .sidebar-page[data-group] { margin-top: 0; }
+      .sidebar-page[data-group]::before { display: none; }
+      .sidebar-page-pin-mark { left: var(--space-1); top: 50%; width: auto; height: auto; display: flex; overflow: visible; clip-path: none; transform: translateY(-50%); }
       .sidebar-page > .sidebar-page-link { padding-inline: var(--space-2); }
       .sidebar-page.is-pinned > .sidebar-page-link { padding-left: calc(var(--space-2) + var(--icon-size-sm) + var(--space-1)); }
       .sidebar-empty { padding-inline: var(--space-1); }

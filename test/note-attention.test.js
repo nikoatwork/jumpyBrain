@@ -190,7 +190,9 @@ test('settlement fingerprints detect raw edits without timestamp updates or read
   const settled = await patchCanonicalMemoryDocumentAttention(root, id(1), { ifMatch: original.contentHash, mutation: { action: 'settle' } });
   assert.equal(currentMemoryEditor(settled.content).kind, 'agent', 'settling preserves declared last editor');
   assert.equal(settled.recognition.editor.kind, 'agent', 'the confirmed attention response retains saved-version context');
-  assert.deepEqual((await attentionServerMemory({ root })).settled.map(n => n.id), [id(1)]);
+  const settledPacket = await attentionServerMemory({ root });
+  assert.deepEqual(settledPacket.settled.map(n => n.id), [id(1)]);
+  assert.deepEqual(settledPacket.settled[0].editor, { kind: 'agent', name: 'Mistral' }, 'sidebar rows carry the verified last editor');
   const noop = await replaceCanonicalMemoryDocumentById(root, id(1), settled.content, { ifMatch: settled.contentHash });
   assert.equal(noop.unchanged, true);
   assert.equal((await attentionServerMemory({ root })).notes.length, 0, 'exact no-op stays settled');
@@ -199,6 +201,7 @@ test('settlement fingerprints detect raw edits without timestamp updates or read
   const packet = await attentionServerMemory({ root });
   assert.deepEqual(packet.notes.map(n => n.id), [id(1)]);
   assert.deepEqual(packet.settled, []);
+  assert.equal(packet.notes[0].editor, undefined, 'raw edits make the sidebar editor unknown');
   assert.equal(await readFile(path.join(root, file), 'utf8'), external, 'reads never repair Markdown');
   assert.equal(currentMemoryEditor(external), undefined, 'untracked edits do not inherit agent attribution');
   const current = await readCanonicalMemoryDocumentById(root, id(1));
@@ -209,6 +212,7 @@ test('settlement fingerprints detect raw edits without timestamp updates or read
   const saved = await readCanonicalMemoryDocumentById(root, id(1));
   assert.equal(saved.frontmatter.attention_at, undefined);
   assert.equal(currentMemoryEditor(saved.content).kind, 'human');
+  assert.equal((await listMemoryAttention(root)).notes[0].editor?.kind, 'human', 'a supported write replaces the listed editor');
 });
 
 test('active and settled shelves are independently bounded after eligibility filtering', async t => {

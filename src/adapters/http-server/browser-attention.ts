@@ -1,6 +1,7 @@
+import type { MemoryActor } from "../../types.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id-format.js";
 
-export interface AttentionPage { id: string; title: string; sourceVersion?: string; file?: string; attentionAt?: string; preview?: string; updatedAt?: string }
+export interface AttentionPage { id: string; title: string; sourceVersion?: string; file?: string; attentionAt?: string; preview?: string; updatedAt?: string; createdAt?: string; editor?: MemoryActor }
 export interface AttentionPacket { notes: AttentionPage[]; settled?: AttentionPage[]; total?: number; settledTotal?: number; nextWakeAt?: string }
 export interface AttentionListState { status: "idle" | "loading" | "ready" | "error"; notes: AttentionPage[]; settled: AttentionPage[]; total: number; settledTotal: number; message: string }
 

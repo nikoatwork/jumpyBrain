@@ -4,7 +4,7 @@ import { recognitionDay } from "../../core/search-recognition.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
 import { readablePreview, resultEditContext } from "./search-presentation.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
-import { browserPinIcon } from "./browser-icons.js";
+import { browserEditorIcons, browserPinIcon } from "./browser-icons.js";
 import { media, motion } from "./browser-design-system.js";
 
 type Page = { id: string; title: string; preview?: string; updatedAt?: string; editor?: MemoryActor };
@@ -35,6 +35,22 @@ export function sidebarPageAge(page: { updatedAt?: string; createdAt?: string; a
   }
   const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt }, now);
   return edited;
+}
+
+/** Visual time group for an active sidebar row, from the same recency the list is sorted by. */
+export function sidebarPageGroup(page: { attentionAt?: string; updatedAt?: string; createdAt?: string }, now = new Date()): "Today" | "This week" | "Earlier" {
+  const raw = page.attentionAt ?? page.updatedAt ?? page.createdAt ?? "";
+  // Date-only metadata names a local calendar day, not UTC midnight.
+  const at = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw + "T00:00").getTime() : Date.parse(raw);
+  if (!Number.isFinite(at)) return "Earlier";
+  if (new Date(at).toDateString() === now.toDateString()) return "Today";
+  return now.getTime() - at < 7 * 86_400_000 ? "This week" : "Earlier";
+}
+
+/** Accessible label for the declared last editor; undefined when unknown. */
+export function sidebarEditorLabel(editor?: MemoryActor): string | undefined {
+  if (editor?.kind !== "human" && editor?.kind !== "agent") return undefined;
+  return "Last edited by " + (editor.kind === "agent" ? "an agent" : "a person") + (editor.name ? " · " + editor.name : "");
 }
 
 // Device-local navigation metadata, never canonical memory or an access credential.
@@ -186,7 +202,10 @@ export function installPageNavigation(options: {
         .map(page => {
           const source = { ...page, ...allNotes.find(note => note.id === page.id) };
           const merged = { ...source, ...previews.get(page.id) };
-          return { ...merged, ageLabel: sidebarPageAge(merged, new Date(), source) };
+          const pinned = section === "recent" && snapshot.pinned.some(pin => pin.id === page.id);
+          // Captions follow the attention sort; without attention data only pins are grouped.
+          const group = section === "settled" ? "" : pinned ? "Pinned" : attention ? sidebarPageGroup(source) : snapshot.pinned.length ? "Recent" : "";
+          return { ...merged, group, ageLabel: sidebarPageAge(merged, new Date(), source) };
         });
       for (const page of pages) if (options.fetchPreview && !attentionPreviews && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
         && !(previews.get(page.id)?.live && page.id === selected) && !previews.get(page.id)?.pending && (!previews.get(page.id)?.failed || Date.now() - previews.get(page.id)!.fetchedAt >= 10_000) && (page.sourceVersion ? page.sourceVersion !== previews.get(page.id)?.previewVersion : Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000)) {
@@ -211,9 +230,10 @@ export function installPageNavigation(options: {
           title.className = "sidebar-page-title list-row-title";
           const preview = document.createElement("span"); preview.className = "sidebar-page-preview list-row-preview";
           const age = document.createElement("span"); age.className = "sidebar-page-age list-row-meta";
+          const editor = document.createElement("span"); editor.className = "sidebar-page-editor list-row-lead";
           const pinMark = document.createElement("span"); pinMark.className = "sidebar-page-pin-mark";
           pinMark.innerHTML = browserPinIcon; pinMark.setAttribute("role", "img"); pinMark.setAttribute("aria-label", "Pinned");
-          link.append(pinMark, title, preview, age);
+          link.append(editor, pinMark, title, preview, age);
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
@@ -239,10 +259,16 @@ export function installPageNavigation(options: {
           row.append(link, actions); list.append(row);
         }
       }
+      let group = "";
       for (const link of list.querySelectorAll<HTMLElement>("[data-page-link]")) {
         const page = pages.find(page => page.id === link.dataset.pageLink);
         if (page) {
-          link.title = page.title;
+          // A CSS caption (hidden from assistive tech) opens each time group; ages carry the same facts.
+          const row = link.parentElement!;
+          if (page.group && page.group !== group) row.dataset.group = page.group; else delete row.dataset.group;
+          group = page.group;
+          const previewText = readablePreview(page.preview || "", page.title);
+          link.title = previewText ? page.title + "\n" + previewText : page.title;
           link.setAttribute("href", options.href(page.id));
           link.querySelector(".sidebar-page-title")!.textContent = page.title;
           const pinned = snapshot.pinned.some(pin => pin.id === page.id);
@@ -255,7 +281,12 @@ export function installPageNavigation(options: {
             button.setAttribute("aria-label", button.title);
           }
           const preview = link.querySelector(".sidebar-page-preview");
-          if (preview) preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
+          if (preview) preview.textContent = previewText || "No preview text";
+          const editor = link.querySelector<HTMLElement>(".sidebar-page-editor")!;
+          const editorLabel = sidebarEditorLabel(page.editor), editorKind = editorLabel ? page.editor!.kind : "";
+          if (editor.dataset.editorKind !== editorKind) { editor.dataset.editorKind = editorKind; editor.innerHTML = editorKind ? browserEditorIcons[editorKind as "human" | "agent"] : ""; }
+          if (editorLabel) { editor.setAttribute("role", "img"); editor.setAttribute("aria-label", editorLabel); editor.title = editorLabel; }
+          else { editor.removeAttribute("role"); editor.removeAttribute("aria-label"); editor.removeAttribute("title"); }
           const age = link.querySelector<HTMLElement>(".sidebar-page-age");
           const { ageLabel } = page;
           if (age) { age.textContent = ageLabel.label; age.title = ageLabel.details; age.setAttribute("aria-label", ageLabel.details); }

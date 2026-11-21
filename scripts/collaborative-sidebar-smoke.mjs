@@ -46,7 +46,12 @@ try {
   assert.equal(await page.locator('#sidebar-recent > li').first().evaluate(el => el.classList.contains('is-pinned') ? 'true' : 'false'), 'true');
   await page.locator('#sidebar-settled-section summary').click();
   const agent = page.locator(`#sidebar-settled [data-page-link="${id(2)}"]`); await agent.waitFor();
-  assert.equal(await page.locator('.sidebar-page-editor').count(), 0);
+  const editorMark = n => page.locator(`[data-page-link="${id(n)}"] .sidebar-page-editor`);
+  assert.equal(await editorMark(2).getAttribute('data-editor-kind'), 'agent');
+  assert.equal(await editorMark(2).getAttribute('aria-label'), 'Last edited by an agent · Mistral');
+  assert.equal(await editorMark(1).getAttribute('data-editor-kind'), 'human');
+  assert.equal(await editorMark(3).getAttribute('data-editor-kind'), '', 'undeclared editors show no mark');
+  assert.equal(await editorMark(3).getAttribute('role'), null);
   await page.locator(`#sidebar-settled [data-page-link="${id(2)}"]`).focus();
   await page.locator(`#sidebar-settled [data-page-action="${id(2)}:reactivate"]`).focus(); await page.keyboard.press("Enter");
   await page.locator(`#sidebar-recent [data-page-link="${id(2)}"]`).waitFor();
@@ -69,6 +74,8 @@ try {
   assert.equal(await editorMarkdown(page), body, 'background sidebar updates preserve body');
   assert.deepEqual(await editorSelection(page), caret, 'background sidebar updates preserve caret');
   assert.equal(await readFile(path.join(root, 'notes', '2.md'), 'utf8'), original.replace('Collaborative page 2.', 'Untracked external contribution.'));
+  assert.equal(await editorMark(2).getAttribute('data-editor-kind'), '', 'untracked raw edits drop the agent mark');
+  assert.equal(await editorMark(1).getAttribute('data-editor-kind'), 'agent', 'a supported write replaces the mark');
   // A browser content save reopens a settled page and records the human editor.
   await page.locator(`#sidebar-recent [data-page-link="${id(2)}"]`).click();
   await page.waitForFunction(id => state.editor?.state.documentId === id && state.editor.state.loaded, id(2));
@@ -79,6 +86,7 @@ try {
   await page.waitForFunction(() => state.editor.state.saveStatus === 'saved' && !state.editor.state.dirty);
   await page.locator(`#sidebar-recent [data-page-link="${id(2)}"]`).waitFor();
   assert.equal((await json(doc(2))).frontmatter.attention_at, undefined);
+  await page.waitForFunction(id => document.querySelector(`[data-page-link="${id}"] .sidebar-page-editor`)?.dataset.editorKind === 'human', id(2));
   // Drain the live publisher's debounced sidebar reload before measuring idle polling.
   const publicationRefresh = page.waitForResponse(response => response.url().includes('/memories/all/attention'));
   await page.clock.fastForward(1000); await publicationRefresh;

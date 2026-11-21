@@ -132,7 +132,10 @@ try {
   // Page lists scroll independently inside .nav-library; the footer stays below that region.
   const library = await page.locator(".nav-library").boundingBox();
   assert.ok(graph.y >= library.y + library.height, "Graph sits below the page lists");
+  // One-line rows fit this fixture at 850px; a short window still has to scroll the list in place.
+  await page.setViewportSize({ width: 1280, height: 480 });
   assert.equal(await page.locator(".sidebar-attention-scroll").evaluate(el => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto"), true, "long page lists scroll within the sidebar");
+  await page.setViewportSize({ width: 1280, height: 850 });
   const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
   if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
   for (const theme of ["light", "dark"]) {

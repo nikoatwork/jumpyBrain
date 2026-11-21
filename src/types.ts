@@ -857,6 +857,8 @@ export interface DreamWindow extends MemoryDocumentTargetMetadata {
 export interface MemoryAttentionNote {
   id: string; title: string; file: string; updatedAt?: string; createdAt?: string;
   attentionAt?: string; creator?: MemoryActor; sourceVersion?: string;
+  /** Declared last editor, present only while its attribution hash matches the current content. */
+  editor?: MemoryActor;
   /** Derived, length-capped plain display text; present only when previews were requested. */
   preview?: string;
 }

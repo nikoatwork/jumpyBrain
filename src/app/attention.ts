@@ -31,6 +31,7 @@ export function createSettledRevisionReader(readSnapshot = readCanonicalMarkdown
     }
   };
 }
+// Shared by settled-edit detection and last-editor verification; both compare attributionHash.
 const settledRevision = createSettledRevisionReader();
 
 import type { MemoryActor, MemoryAttentionNote, MemoryAttentionPacket } from "../types.js";
@@ -74,7 +75,7 @@ export async function listMemoryAttention(rootArg: string, options: { now?: numb
   await assertCompatibleMemoryRoot(root);
   const now = options.now ?? Date.now();
   const counts = new Map<string, number>();
-  const candidates: { absolutePath: string; note: MemoryAttentionNote; state: ReturnType<typeof resolveMemoryAttention> }[] = [];
+  const candidates: { absolutePath: string; note: MemoryAttentionNote; state: ReturnType<typeof resolveMemoryAttention>; editor?: { actor: MemoryActor; hash: string } }[] = [];
   for (const file of await listCanonicalMemoryMarkdownFiles(root)) {
     const beforeVersion = await sourceVersion(file);
     let document = await readMarkdownDocument(root, file).catch((error: NodeJS.ErrnoException) => {
@@ -90,10 +91,13 @@ export async function listMemoryAttention(rootArg: string, options: { now?: numb
     }
     const version = beforeVersion && await sourceVersion(file) === beforeVersion ? beforeVersion : undefined;
     const metadata = document.frontmatter;
-    let creator: MemoryActor | undefined;
+    let creator: MemoryActor | undefined, declaredEditor: MemoryActor | undefined;
     try { creator = normalizeMemoryActor({ kind: metadata.creator_kind,
       ...(metadata.creator_id ? { id: metadata.creator_id } : {}),
       ...(metadata.creator_name ? { name: metadata.creator_name } : {}) }); } catch {}
+    if (typeof metadata.last_editor_hash === "string") try { declaredEditor = normalizeMemoryActor({ kind: metadata.last_editor_kind,
+      ...(metadata.last_editor_id ? { id: metadata.last_editor_id } : {}),
+      ...(metadata.last_editor_name ? { name: metadata.last_editor_name } : {}) }); } catch {}
 
     if (!isValidMemoryDocumentId(metadata.id)) continue;
     counts.set(metadata.id, (counts.get(metadata.id) ?? 0) + 1);
@@ -103,7 +107,8 @@ export async function listMemoryAttention(rootArg: string, options: { now?: numb
     const state = resolveMemoryAttention(metadata, now, revision);
     candidates.push({ absolutePath: file, note: { id: metadata.id, title: typeof metadata.title === "string" ? metadata.title : "", file: document.relativePath,
       ...(version ? { sourceVersion: version } : {}), ...(creator ? { creator } : {}), ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}),
-      ...(state.attentionAt ? { attentionAt: state.attentionAt } : {}) }, state });
+      ...(state.attentionAt ? { attentionAt: state.attentionAt } : {}) }, state,
+      ...(declaredEditor ? { editor: { actor: declaredEditor, hash: metadata.last_editor_hash as string } } : {}) });
   }
   const eligible = candidates.filter(({ note }) => counts.get(note.id) === 1);
   const snoozed = eligible.filter(({ state }) => state.state === "snoozed");
@@ -119,10 +124,15 @@ export async function listMemoryAttention(rootArg: string, options: { now?: numb
     return right - left || (a.note.file < b.note.file ? -1 : a.note.file > b.note.file ? 1 : 0);
   });
   const warnings = active.slice(0, 100).filter(({ state }) => state.invalid).map(({ note }) => ({ code: "invalid_attention_at" as const, id: note.id }));
+  // A declared last editor is reported only while its hash still matches the canonical content
+  // (as currentMemoryEditor does); raw edits since then make the editor unknown.
   const emit = async (rows: typeof candidates) => {
     const notes: MemoryAttentionNote[] = [];
-    for (const { note, absolutePath } of rows.slice(0, 100)) notes.push(options.previews
-      ? { ...note, preview: await attentionPreview(absolutePath, note.title, note.sourceVersion) } : note);
+    for (const { note, absolutePath, editor } of rows.slice(0, 100)) {
+      const current = editor && (await settledRevision(root, absolutePath))?.revision === editor.hash ? editor.actor : undefined;
+      const row = current ? { ...note, editor: current } : note;
+      notes.push(options.previews ? { ...row, preview: await attentionPreview(absolutePath, note.title, note.sourceVersion) } : row);
+    }
     return notes;
   };
   return { notes: await emit(active),

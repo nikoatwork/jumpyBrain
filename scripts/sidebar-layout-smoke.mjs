@@ -117,8 +117,8 @@ try {
     assert.ok(geometry.controls[3].x - geometry.controls[2].right >= 8, 'update action stays separate from the left icon group');
     assert.ok(geometry.shelf.bottom <= geometry.brain.y, 'Settled sits with pages above the brain/footer controls');
     const summary = page.locator('#sidebar-settled-section summary');
-    assert.equal(await summary.evaluate(el => getComputedStyle(el).fontSize), '14px');
-    assert.ok((await summary.boundingBox()).height >= 48, 'Settled uses the roomy reference row');
+    assert.equal(await summary.evaluate(el => getComputedStyle(el).fontSize), '12px', 'Settled is a quiet section label, not a page row');
+    assert.ok((await summary.boundingBox()).height >= 32, 'Settled keeps a 32px target');
     assert.ok(geometry.shelf.bottom <= geometry.footer.y, 'Settled never enters the footer');
     assert.ok(geometry.footer.bottom <= height, 'footer stays reachable in short windows');
     assert.ok(geometry.list.bottom <= geometry.shelf.y + 1, 'Attention scrolls independently above Settled');
@@ -138,9 +138,10 @@ try {
         assert.equal(entry.x, sidebar.x, 'desktop row surface reaches the left sidebar edge');
         assert.equal(entry.x + entry.width, sidebar.x + sidebar.width - 1, 'desktop row surface reaches the sidebar divider');
         const title = await pinned.locator('.sidebar-page-title').boundingBox();
-        const preview = await pinned.locator('.sidebar-page-preview').boundingBox();
+        const mark = await pinned.locator('.sidebar-page-editor').boundingBox();
         const age = await pinned.locator('.sidebar-page-age').boundingBox();
-        assert.equal(preview.x, title.x); assert.equal(preview.width, title.width, 'title and preview share one truncated text column');
+        assert.equal(await pinned.locator('.sidebar-page-preview').isVisible(), false, 'rows are one line; the preview lives in the tooltip');
+        assert.ok(mark.x + mark.width + 12 <= title.x + 0.5 && Math.abs((mark.y + mark.height / 2) - (title.y + title.height / 2)) <= 1, 'editor mark leads the title on one line');
         assert.ok(title.x + title.width + 12 <= age.x, 'age has a separate right-hand lane with at least 12px clearance');
         assert.ok(sidebar.x + sidebar.width - age.x - age.width >= 24, 'age retains its right inset');
         await page.screenshot({ path: path.join(captures, `sidebar-rest-${sidebarWidth}-${theme}.png`) });
@@ -167,9 +168,9 @@ try {
     assert.equal(await row.evaluate(el => getComputedStyle(el).backgroundColor), selectedFill, 'selection remains distinct during hover');
     assert.equal(await row.locator('a').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)', 'selected row has a single background surface');
     const actions = await row.locator('.sidebar-page-actions').boundingBox();
-    for (const selector of ['.sidebar-page-title', '.sidebar-page-preview']) {
+    for (const selector of ['.sidebar-page-title']) {
       const text = await row.locator(selector).boundingBox();
-      assert.ok(text.x + text.width <= actions.x, 'hover actions do not cover the title or preview');
+      assert.ok(text.x + text.width <= actions.x, 'hover actions do not cover the title');
     }
     assert.ok(actions.y >= before.y && actions.y + actions.height <= before.y + before.height, 'actions stay inside their row');
     await row.locator('a').focus(); await page.keyboard.press('Tab');

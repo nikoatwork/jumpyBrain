@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPageHistory, sidebarPageAge } from "../dist/adapters/http-server/browser-page-navigation.js";
+import { createPageHistory, sidebarEditorLabel, sidebarPageAge, sidebarPageGroup } from "../dist/adapters/http-server/browser-page-navigation.js";
 
 const page = (n, title = `Page ${n}`) => ({ id: `mem_a0000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title });
 function harness({ blocked = false, readOnly = false, values = new Map() } = {}) {
@@ -146,4 +146,23 @@ test("a true due override survives a preview edit time equal to its due time", (
   assert.deepEqual(sidebarPageAge({ ...attention, updatedAt: "2026-10-22" }, now, attention), {
     label: "due 3d", details: "Due 2026-10-22",
   });
+});
+
+test("sidebar time groups follow local calendar days and the attention sort key", () => {
+  const now = new Date(2026, 10, 18, 12);
+  const at = (days, hours = 0) => new Date(now.getTime() - days * 86400000 - hours * 3600000).toISOString();
+  assert.equal(sidebarPageGroup({ attentionAt: at(0, 11) }, now), "Today");
+  assert.equal(sidebarPageGroup({ attentionAt: at(0, 13) }, now), "This week", "yesterday evening is not today");
+  assert.equal(sidebarPageGroup({ updatedAt: "2026-11-18" }, now), "Today", "date-only metadata is a local day");
+  assert.equal(sidebarPageGroup({ attentionAt: at(6) }, now), "This week");
+  assert.equal(sidebarPageGroup({ attentionAt: at(8) }, now), "Earlier");
+  assert.equal(sidebarPageGroup({ attentionAt: at(8), updatedAt: at(0) }, now), "Earlier", "attention recency wins, matching the list order");
+  assert.equal(sidebarPageGroup({}, now), "Earlier");
+});
+
+test("sidebar editor marks distinguish only declared people and agents", () => {
+  assert.equal(sidebarEditorLabel({ kind: "agent", name: "Claude" }), "Last edited by an agent · Claude");
+  assert.equal(sidebarEditorLabel({ kind: "human" }), "Last edited by a person");
+  assert.equal(sidebarEditorLabel(undefined), undefined);
+  assert.equal(sidebarEditorLabel({ kind: "robot" }), undefined);
 });

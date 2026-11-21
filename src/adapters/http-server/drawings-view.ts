@@ -17,8 +17,13 @@ export const drawingsStyles = String.raw`
 .drawing-notice { flex: none; }
 #drawing-stage { flex: 1; min-height: 0; position: relative; }
 #drawing-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-#drawing-navigation { margin-bottom: var(--space-3); }
+#drawing-navigation { margin-bottom: var(--space-4); }
+.drawings-head { display: flex; align-items: center; padding-right: var(--space-2); }
+.drawings-head > #drawings-disclosure { flex: 1; min-width: 0; padding-right: var(--space-1); }
+#new-drawing svg { width: var(--icon-size); height: var(--icon-size); }
 #sidebar-drawings { margin-bottom: var(--space-1); }
+#sidebar-drawings .list-row { gap: var(--space-3); padding-left: var(--space-5); font-size: var(--text-body); }
+#sidebar-drawings .list-row-lead { width: var(--icon-size-lg); }
 #sidebar-drawings:empty { margin: 0; }
 #sidebar-drawings-more { margin-bottom: var(--space-3); }
 @media ${media.narrow} { #sidebar-drawings { display: block; overflow: visible; } }
@@ -27,9 +32,11 @@ export const drawingsStyles = String.raw`
 
 export const drawingsNavigationControl = `<button id="open-drawings" type="button" class="icon-button sidebar-icon" aria-label="Drawings" title="Drawings" aria-expanded="false" aria-controls="drawings-list">${drawingIcon}</button>`;
 export const drawingsSidebarMarkup = `<div id="drawing-navigation">
-  <button id="drawings-disclosure" type="button" class="list-row list-row--edge list-row--shelf disclosure-trigger" aria-expanded="false" aria-controls="drawings-list"><span class="list-row-label">Drawings</span>${browserChevronIcon}</button>
+  <div class="drawings-head">
+    <button id="drawings-disclosure" type="button" class="list-row list-row--edge list-row--shelf disclosure-trigger" aria-expanded="false" aria-controls="drawings-list"><span class="list-row-label">Drawings</span><span id="drawings-count" class="list-meta" hidden></span>${browserChevronIcon}</button>
+    <button id="new-drawing" type="button" class="icon-button" aria-label="New drawing" title="New drawing" aria-describedby="drawing-create-reason">${browserIcons.plus}</button>
+  </div>
   <div id="drawings-list" hidden>
-    <button id="new-drawing" type="button" class="list-row list-row--edge" aria-label="New drawing" aria-describedby="drawing-create-reason"><span class="list-row-lead">${browserIcons.plus}</span><span class="list-row-label">New drawing</span></button>
     <p id="drawing-create-reason" class="list-status" hidden></p>
     <p id="drawings-list-state" class="list-status" role="status" aria-live="polite"></p>
     <button id="drawings-list-retry" type="button" class="quiet-button quiet-button--plain list-more" hidden>Retry</button>
@@ -76,13 +83,13 @@ function createDrawingsUI(host) {
   const view = element("drawing-view"), stage = element("drawing-stage"), nameInput = element("drawing-name"), stateLabel = element("drawing-state");
   const notice = element("drawing-notice"), noticeText = element("drawing-notice-text"), empty = element("drawing-empty");
   const deleteDialog = element("drawing-delete-dialog");
-  let list = [], listScope = null, listAt = 0, listRequest = null, listStatus = "idle", listVersion = 0, creating = false, reader = false;
+  let list = [], listScope = null, listAt = 0, listRequest = null, listStatus = "idle", listVersion = 0, listLoaded = false, creating = false, reader = false;
   const disclosures = new Map();
   let disclosure = { expanded: false, showAll: false }, renderedRows = "";
   function syncScope() {
     const scope = host.scope();
     if (scope !== listScope) {
-      listScope = scope; list = []; reader = false; listAt = 0; listRequest = null; listStatus = "idle"; listVersion++;
+      listScope = scope; list = []; reader = false; listAt = 0; listRequest = null; listStatus = "idle"; listVersion++; listLoaded = false;
       if (!disclosures.has(scope)) disclosures.set(scope, { expanded: false, showAll: false });
       disclosure = disclosures.get(scope);
     }
@@ -126,6 +133,11 @@ function createDrawingsUI(host) {
     const explains = connected && readOnly() && Boolean(host.explainReadOnly);
     const reason = !connected ? "Connect to create a drawing." : readOnly() && !explains ? "This connection is read only." : "";
     element("new-drawing").disabled = Boolean(reason) || creating || listStatus === "loading";
+    element("new-drawing").title = reason ? "New drawing · " + reason : "New drawing";
+    // The collapsed header still shows how many drawings exist once a listing has loaded.
+    const count = element("drawings-count"), counted = connected && listLoaded && listStatus !== "error";
+    count.hidden = !counted; count.textContent = counted ? String(list.length) : "";
+    if (connected && listStatus === "idle") queueMicrotask(() => { if (listStatus === "idle" && host.connected()) refreshList(false); });
     element("drawing-create-reason").textContent = reason;
     element("drawing-create-reason").hidden = !reason;
     const visible = connected ? (disclosure.showAll ? list : list.slice(0, 5)) : [];
@@ -172,7 +184,7 @@ function createDrawingsUI(host) {
         if (host.scope() !== scope || version !== listVersion || !host.connected()) return [];
         list = Array.isArray(packet && packet.drawings) ? packet.drawings.filter((item) => item && validName(item.name)) : [];
         reader = capabilities?.principal?.role === "reader";
-        listAt = Date.now(); listStatus = "ready"; revealActive(); syncControls();
+        listAt = Date.now(); listStatus = "ready"; listLoaded = true; revealActive(); syncControls();
         const api = frameApi(); if (api && current?.opened) api.setReadOnly(!writable());
       } catch {
         if (host.scope() !== scope || version !== listVersion) return [];

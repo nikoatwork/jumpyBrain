@@ -1,5 +1,6 @@
 # Changes
 
+- **Calmer sidebar:** pages now take one line each, with an icon showing whether a person or an agent edited them last, grouped under Today, This week and Earlier. Settled and Drawings have quiet headers with counts, and New drawing is a + next to the Drawings header.
 - **Server-role app access:** your server key now determines what the Mac app can do. The separate editing toggle and old client restrictions are removed; readers cannot change notes or keys. Settings shows your access, and blocked actions explain the restriction and open Settings. After saving a connection with this version, older app builds cannot open that profile file.
 - **Access diagnosis:** `jumpybrain access whoami` explains which brain and key the CLI uses, its server role/capabilities and local restrictions, separately from the app’s selection.
 - **Headless installs:** remote-only release installs need no npm or local search engine. Installer output lists filesystem effects; `--read-only-commands` blocks state-changing CLI commands. Local provisioning and interrupted-install retries still work with that mode enabled.
