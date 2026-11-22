@@ -1,6 +1,6 @@
 import { drawingsNavigationControl, drawingsSidebarMarkup } from "./drawings-view.js";
 import { folderExplorerToggle } from "./folder-explorer-view.js";
-import { browserChevronIcon, browserIcons } from "./browser-icons.js";
+import { browserChevronIcon, browserEditorIcons, browserIcons, browserPinIcon } from "./browser-icons.js";
 import { media } from "./browser-design-system.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 import { referencePresentationStyles } from "./editor-reference-presentation.js";
@@ -277,6 +277,24 @@ export const notesMarkup = String.raw`
 <aside id="note-attribution" class="popover popover--caption" aria-label="Saved note attribution" aria-live="polite" hidden>
   <strong>Saved note · last editor</strong><span id="note-attribution-facts"></span><span id="note-attribution-scope"></span>
 </aside>
+<template id="sidebar-page-row">
+  <li class="sidebar-page list-row list-row--edge list-row--page">
+    <a class="sidebar-page-link list-row-target">
+      <span class="sidebar-page-editor list-row-lead"></span>
+      <span class="sidebar-page-pin-mark" role="img" aria-label="Pinned">${browserPinIcon}</span>
+      <span class="sidebar-page-title list-row-title"></span>
+      <span class="sidebar-page-preview list-row-preview"></span>
+      <span class="sidebar-page-age list-row-meta"></span>
+    </a>
+    <span class="sidebar-page-actions row-actions row-actions--overlay">
+      <button type="button" class="icon-button icon-button--glyph-toggle sidebar-page-pin">${browserPinIcon}</button>
+      <button type="button" class="icon-button sidebar-page-action" data-attention-action="snooze"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <button type="button" class="icon-button sidebar-page-action" data-attention-action="settle"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="icon-button sidebar-page-action" data-attention-action="reactivate"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10h10a6 6 0 0 1 0 12M4 10l6-6M4 10l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </span>
+  </li>
+</template>
+<template id="sidebar-editor-icons"><span data-kind="human">${browserEditorIcons.human}</span><span data-kind="agent">${browserEditorIcons.agent}</span></template>
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
   <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="320"></div>
   <div class="nav-brand"><button id="toggle-sidebar" class="icon-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button quiet-button--plain home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>

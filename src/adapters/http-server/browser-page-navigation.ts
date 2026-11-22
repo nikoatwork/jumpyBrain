@@ -4,7 +4,6 @@ import { recognitionDay } from "../../core/search-recognition.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
 import { readablePreview, resultEditContext } from "./search-presentation.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
-import { browserEditorIcons, browserPinIcon } from "./browser-icons.js";
 import { media, motion } from "./browser-design-system.js";
 
 type Page = { id: string; title: string; preview?: string; updatedAt?: string; editor?: MemoryActor };
@@ -142,6 +141,8 @@ export function installPageNavigation(options: {
 }) {
   const { document, window } = options;
   const element = (id: string) => document.getElementById(id)!;
+  const rowTemplate = (element("sidebar-page-row") as HTMLTemplateElement).content.firstElementChild!;
+  const editorIcons = (element("sidebar-editor-icons") as HTMLTemplateElement).content;
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
   let previewScope: string | null = null;
@@ -223,40 +224,27 @@ export function installPageNavigation(options: {
       if (signature !== signatures.get(section)) {
         signatures.set(section, signature); list.replaceChildren();
         for (const page of pages) {
-          const row = document.createElement("li"); row.className = "sidebar-page list-row list-row--edge list-row--page";
-          const link = document.createElement("a");
-          link.className = "sidebar-page-link list-row-target"; link.dataset.pageLink = page.id;
-          const title = document.createElement("span");
-          title.className = "sidebar-page-title list-row-title";
-          const preview = document.createElement("span"); preview.className = "sidebar-page-preview list-row-preview";
-          const age = document.createElement("span"); age.className = "sidebar-page-age list-row-meta";
-          const editor = document.createElement("span"); editor.className = "sidebar-page-editor list-row-lead";
-          const pinMark = document.createElement("span"); pinMark.className = "sidebar-page-pin-mark";
-          pinMark.innerHTML = browserPinIcon; pinMark.setAttribute("role", "img"); pinMark.setAttribute("aria-label", "Pinned");
-          link.append(editor, pinMark, title, preview, age);
+          const row = rowTemplate.cloneNode(true) as HTMLLIElement;
+          const link = row.querySelector("a")!;
+          link.dataset.pageLink = page.id;
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
           });
-          const pin = document.createElement("button");
-          pin.type = "button"; pin.className = "icon-button icon-button--glyph-toggle sidebar-page-pin"; pin.dataset.pagePin = page.id;
-          pin.innerHTML = browserPinIcon;
+          const pin = row.querySelector<HTMLButtonElement>(".sidebar-page-pin")!;
+          pin.dataset.pagePin = page.id;
           pin.addEventListener("click", () => history.toggle({ ...page, ...previews.get(page.id) }));
-          const actions = document.createElement("span"); actions.className = "sidebar-page-actions row-actions row-actions--overlay";
-          actions.append(pin);
-          if (attention && options.onAction) {
-            for (const action of (section === "settled" ? ["reactivate"] : ["snooze", "settle"]) as ("snooze" | "settle" | "reactivate")[]) {
-              const button = document.createElement("button");
-              button.type = "button"; button.className = "icon-button sidebar-page-action"; button.dataset.attentionAction = action;
-              button.dataset.pageAction = page.id + ":" + action;
-              button.innerHTML = action === "reactivate" ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10h10a6 6 0 0 1 0 12M4 10l6-6M4 10l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : action === "snooze"
-                ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
-                : '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-              button.addEventListener("click", () => options.onAction!(action, { ...page, ...previews.get(page.id) }, button));
-              actions.append(button);
+          for (const button of row.querySelectorAll<HTMLButtonElement>("[data-attention-action]")) {
+            const action = button.dataset.attentionAction as "snooze" | "settle" | "reactivate";
+            const inSection = section === "settled" ? action === "reactivate" : action !== "reactivate";
+            if (!attention || !options.onAction || !inSection) {
+              button.remove();
+              continue;
             }
+            button.dataset.pageAction = page.id + ":" + action;
+            button.addEventListener("click", () => options.onAction!(action, { ...page, ...previews.get(page.id) }, button));
           }
-          row.append(link, actions); list.append(row);
+          list.append(row);
         }
       }
       let group = "";
@@ -284,7 +272,11 @@ export function installPageNavigation(options: {
           if (preview) preview.textContent = previewText || "No preview text";
           const editor = link.querySelector<HTMLElement>(".sidebar-page-editor")!;
           const editorLabel = sidebarEditorLabel(page.editor), editorKind = editorLabel ? page.editor!.kind : "";
-          if (editor.dataset.editorKind !== editorKind) { editor.dataset.editorKind = editorKind; editor.innerHTML = editorKind ? browserEditorIcons[editorKind as "human" | "agent"] : ""; }
+          if (editor.dataset.editorKind !== editorKind) {
+            editor.dataset.editorKind = editorKind;
+            const icon = editorIcons.querySelector(`[data-kind="${editorKind}"]`)?.firstElementChild;
+            editor.replaceChildren(...(icon ? [icon.cloneNode(true)] : []));
+          }
           if (editorLabel) { editor.setAttribute("role", "img"); editor.setAttribute("aria-label", editorLabel); editor.title = editorLabel; }
           else { editor.removeAttribute("role"); editor.removeAttribute("aria-label"); editor.removeAttribute("title"); }
           const age = link.querySelector<HTMLElement>(".sidebar-page-age");

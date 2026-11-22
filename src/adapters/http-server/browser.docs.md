@@ -103,6 +103,8 @@ Verification: `node --test test/companion-browser.test.js test/notes-browser.tes
 
 ## Browser verification
 
+The shared shell renders the sidebar page row and last-editor glyphs as inert templates in `notes-browser.ts`. `browser-page-navigation.ts` clones them and binds note targets, focus, action availability and accessible labels. Run the sidebar and note-attention smokes for changes to this markup or its binding.
+
 `npm run smoke:page-references` builds and runs production editor preservation/context regressions, isolated autocomplete/controller checks with stub transport, and real disposable-root/QMD/server integration (navigation, save failures, cancellation, history, search freshness, insertion and touch scrolling). Set `JUMPYBRAIN_REFERENCE_SMOKE_BENCH=1` for small/large-note app timings, or `JUMPYBRAIN_REFERENCE_EDITOR_BENCH=1` for isolated editor timings. Historical feasibility entrypoints forward to these production runners; no second editor is maintained.
 
 `npm run smoke:lexical` checks formatted heading/emphasis editing, toolbar undo, Markdown preservation (including edits within unsupported blocks), exact reference titles, empty-document history isolation, safe paste, and desktop/mobile layout in a disposable root. It needs no QMD index. Set `JUMPYBRAIN_SMOKE_SCREENSHOT_DIR` to retain screenshots. Unsupported syntax stays literal; edited supported lines may normalize delimiters. This is a deliberately small Markdown subset, not a general rich-document conversion guarantee.

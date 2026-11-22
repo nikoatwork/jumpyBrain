@@ -495,3 +495,10 @@ its signals library, which clipboard and HTML support reference at runtime.
 Reducing those means deferring optional surfaces (map, feedback form, retained
 versions) out of the inline script, which is an architecture change rather than
 a build setting.
+
+The v0.3.27 release check measured the editor at 186,912 gzip bytes. Rendering
+the sidebar row and its glyphs as inert templates removes the bundled markup
+and DOM construction code. The next local build measured 186,344 gzip bytes,
+under the existing 186,500-byte ceiling. The complete hosted and companion
+shells also compressed smaller with the templates included. The browser still
+bundles the same 15 packages.
