@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import http from "node:http";
-import { chmod, mkdir, mkdtemp, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -433,7 +433,12 @@ test("the Mac app's own selection and role are shown beside the CLI's, without i
   t.after(() => gateway.close());
   await writeFile(path.join(support, "api-key"), CONTROL, { mode: 0o600 });
   const native = (route, body) => fetch(gateway.url + route, { method: "POST", headers: { Authorization: "Bearer " + CONTROL, "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const before = await listing(support);
+  // The running gateway asynchronously records diagnostics for startup and requests.
+  const appFiles = async () => {
+    const files = (await listing(support)).filter(file => file !== "diagnostics" && !file.startsWith(`diagnostics${path.sep}`));
+    return Promise.all(files.map(async file => [file, await readFile(path.join(support, file))]));
+  };
+  const beforeLocalChecks = await appFiles();
 
   // The app has a local folder selected; the CLI has no target of its own.
   const untargeted = await s.whoami(dir);
@@ -447,11 +452,13 @@ test("the Mac app's own selection and role are shown beside the CLI's, without i
   // Same local folder for both: a match, and no note.
   const same = await s.whoami(["--root", brain, ...dir]);
   assert.equal(same.report.app.matchesCliTarget, true); assert.deepEqual(same.report.notes, []);
+  assert.deepEqual(await appFiles(), beforeLocalChecks, "checking local access preserves app configuration");
 
   // The app selects the server with a reader key; the CLI sends a writer key to the same server.
   const saved = await gateway.store.save({ name: "Team", kind: "remote", url: h.url, key: reader.token }, gateway.store.snapshot().revision);
   const profile = saved.profiles.find(item => item.kind === "remote");
   assert.equal((await native("/companion/switch", { id: profile.id })).status, 200);
+  const beforeRemoteChecks = await appFiles();
   const mixed = await s.whoami(["--target-url", h.url, ...dir], { JUMPYBRAIN_API_KEY: writer.token });
   assert.deepEqual(mixed.report.app, { running: true, selected: { kind: "remote", id: profile.id, name: "Team", url: h.url }, health: "connected",
     access: { source: "server", role: "reader", capabilities: ["read"], name: "App reader" }, matchesCliTarget: true });
@@ -477,7 +484,7 @@ test("the Mac app's own selection and role are shown beside the CLI's, without i
 
   const everything = [untargeted, same, mixed, elsewhere, revoked].map(result => result.stdout).join("\n") + mixedText + revokedText;
   noSecret(everything, CONTROL, reader.token, writer.token, profile.credentialRef);
-  assert.deepEqual(await listing(support), before, "the check changes no app file");
+  assert.deepEqual(await appFiles(), beforeRemoteChecks, "checking remote access preserves app configuration");
   assert.equal(gateway.store.snapshot().activeId, profile.id, "and no selection");
 
   // A control file other users can read is not trusted, and no error text from it is shown.

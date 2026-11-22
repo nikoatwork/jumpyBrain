@@ -46,6 +46,25 @@ async function openNote(id) {
   await js(`navigation.navigate(${JSON.stringify('/?note=' + id)})`);
   await until(`state.editor?.state.loaded && state.editor.state.documentId === ${JSON.stringify(id)} && !navigation.isBusy()`);
 }
+async function appendBody(text) {
+  await until('document.getElementById("note-editor").isContentEditable');
+  await js(`(() => {
+    const editor = document.getElementById('note-editor');
+    editor.focus();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection.removeAllRanges(); selection.addRange(range);
+  })()`);
+  await until('richEditor.captureSelection()?.isCollapsed() === true');
+  await js(`(() => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', ${JSON.stringify(text)});
+    document.getElementById('note-editor').dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData }));
+  })()`);
+  await until(`richEditor.getMarkdown().trim().endsWith(${JSON.stringify(text.trim())})`);
+}
 async function noteFiles(root) {
   const directory = path.join(root, 'notes');
   return Promise.all((await readdir(directory)).filter(file => file.endsWith('.md')).map(file => readFile(path.join(directory, file), 'utf8')));
@@ -98,7 +117,7 @@ try {
   await select(work);
   // Change a real note and immediately switch through the same selector: the existing barrier must save it to Work.
   await js(`navigation.navigate('/?note=${config.id}')`); await until('state.editor?.state.loaded && !navigation.isBusy()');
-  await js('richEditor.setMarkdown("Only in Work.\\nSaved before switching.\\n"); state.editor.input(richEditor.getMarkdown())');
+  await appendBody(' Saved before switching.');
   await select(personal);
   assert.equal(await js('state.view'), 'home');
   checks.push('rename/test, selector on Home, dirty Work note flushed before switching');
@@ -147,14 +166,15 @@ try {
   await until(`!creatingNote && state.editor?.state.loaded && state.editor.state.documentId !== ${JSON.stringify(config.id)} && !navigation.isBusy()`);
   const remoteNoteId = await js('state.editor.state.documentId');
   const remoteTitle = 'Remote-only switching smoke';
-  const remoteBody = 'Remote-only capture marker.\nSaved by the switch barrier before leaving Team.\n';
+  const remoteBody = 'Remote-only capture marker.\n\nSaved by the switch barrier before leaving Team.';
   mark('remote edit immediately followed by local switch');
-  // Issue input and the selector change in one renderer turn, before the normal
-  // autosave debounce can run. The production switch barrier must flush both.
+  await appendBody(remoteBody);
+  const remoteDraft = await js('richEditor.getMarkdown().trim()');
+  // Dispatch the title input and selector change in one renderer turn so the
+  // production switch barrier must wait for the live edit to settle.
   assert.equal(await js(`(() => {
     const title = document.getElementById('note-name'); title.value = ${JSON.stringify(remoteTitle)};
     title.dispatchEvent(new Event('input', { bubbles: true }));
-    richEditor.setMarkdown(${JSON.stringify(remoteBody)}); state.editor.input(richEditor.getMarkdown());
     const pending = state.editor.hasPending();
     const chooser = document.getElementById('companion-brain-switch'); chooser.value = ${JSON.stringify(personal)};
     chooser.dispatchEvent(new Event('change', { bubbles: true })); return pending;
@@ -169,7 +189,7 @@ try {
   assert.equal((await noteFiles(config.roots.Work)).some(text => text.includes(remoteNoteId) || text.includes(remoteTitle)), false);
   const persistedRemote = (await noteFiles(config.roots.Remote)).find(text => text.includes(remoteNoteId));
   assert.ok(persistedRemote, 'the new note exists only in the remote canonical root');
-  assert.ok(persistedRemote.includes(remoteTitle)); assert.ok(persistedRemote.includes(remoteBody.trim()));
+  assert.ok(persistedRemote.includes(remoteTitle)); assert.ok(persistedRemote.includes(remoteDraft));
   await openNote(config.id);
   assert.match(await js('richEditor.getMarkdown()'), /Only in Personal/);
   assert.doesNotMatch(await js('richEditor.getMarkdown()'), /Only in Remote|Remote-only capture marker/);
@@ -182,13 +202,13 @@ try {
   assert.equal(await js('document.getElementById("sidebar-recent").textContent.includes("Personal fixture")'), false);
   await openNote(remoteNoteId);
   assert.equal(await js('document.getElementById("note-name").value'), remoteTitle);
-  assert.equal(await js('richEditor.getMarkdown().trim()'), remoteBody.trim());
+  assert.equal(await js('richEditor.getMarkdown().trim()'), remoteDraft);
   assert.equal(await js('document.getElementById("note-name").readOnly'), false);
   await openNote(config.id);
   assert.equal(await js('document.getElementById("note-name").value'), 'Remote fixture');
   assert.match(await js('richEditor.getMarkdown()'), /Only in Remote/);
   await capture('remote-after-roundtrip');
-  checks.push('explicit remote write approval; remote create/title/body flushed before immediate local switch; canonical isolation, scoped history/sidebar and saved roundtrip');
+  checks.push('writing key; remote create/title/body saved across immediate local switch; canonical isolation, scoped history/sidebar and saved roundtrip');
   mark('remove cancel, confirm and return to one brain');
   await select(personal); await settings();
   await js('window.confirm = () => false; undefined'); await action(remote, 'Remove');
