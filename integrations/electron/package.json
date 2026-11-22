@@ -1,6 +1,6 @@
 {
   "name": "jumpybrain-desktop",
-  "version": "0.3.26",
+  "version": "0.3.27",
   "private": true,
   "type": "module",
   "main": "main.mjs",
