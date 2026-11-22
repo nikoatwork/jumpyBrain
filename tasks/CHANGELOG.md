@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-22 — v0.3.27 beta published
+
+- Shipped server-role access, shared-brain migration and CLI setup, headless installer fixes, trusted project memory and the compact sidebar. The editor stayed below its existing size ceiling, and all three release assets were verified. [Published notes](done/releases/v0.3.27.md) · [Release verification](done/releases/v0.3.27.qa.md).
+
 ## 2026-11-21 — Compact sidebar with last-editor marks
 
 - Active pages are one line with an agent or person mark (revision-checked last editor from the attention packet) and Pinned/Today/This week/Earlier captions; Settled and Drawings share a quiet header with counts; Drawings gains a header New drawing (+). [Outcome, checks and limits](done/2026-11-21_tasks-sidebar-compact-rows.md).
