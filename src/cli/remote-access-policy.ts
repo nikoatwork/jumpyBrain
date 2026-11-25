@@ -92,6 +92,7 @@ export function isObservationalInvocation(args: ParsedCliArgs): boolean {
   if (command === "identity") return args.name === undefined;
   if (command === "backend") return ["status", "list"].includes(operation);
   if (command === "extensions") return ["list", "check"].includes(operation);
+  if (command === "smart-search") return operation === "status";
   return isReadInvocation(args);
 }
 

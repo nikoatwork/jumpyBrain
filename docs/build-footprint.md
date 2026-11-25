@@ -4,6 +4,16 @@ Keep the local CLI/runtime distribution small. `npm test` checks the actual npm
 manifest and byte budgets after building; `npm run cli:pack` applies the same
 checks to its real tarball before recording successful package metadata.
 
+## 2026-11-25 install profiles and smart search
+
+Install profiles add `scripts/install-profiles.mjs` (also an install.sh helper)
+and the `smart-search` CLI command with its plain-words search wording, two
+JavaScript/declaration pairs. `npm pack --dry-run --json` measured 3,276,800 B
+packed, 9,034,222 B unpacked, 7,365,011 B under `dist/` and 789 files on macOS
+arm64 with Node 26.7.0. Raise the file-count ceiling from 788 to 796 for these
+five files and the existing headroom; the byte ceilings stay unchanged and no
+runtime dependency is added.
+
 ## 2026-11-20 integrated remote-feedback package
 
 After integrating role-based app access, the access diagnostic, remote-only

@@ -10,7 +10,23 @@ fail() {
 }
 JSON_OUTPUT=0
 REMOTE_ONLY=0
-for ARG in "$@"; do case "$ARG" in --json) JSON_OUTPUT=1;; --remote-only) REMOTE_ONLY=1;; esac; done
+BROWSE_ONLY=0
+PROFILE_NEXT=0
+INSTALL_CHOICE=0
+for ARG in "$@"; do
+  if [ "$PROFILE_NEXT" = 1 ]; then PROFILE_NEXT=0; case "$ARG" in remote) REMOTE_ONLY=1;; browse) BROWSE_ONLY=1; REMOTE_ONLY=1;; esac; continue; fi
+  case "$ARG" in --json) JSON_OUTPUT=1;; --remote-only) REMOTE_ONLY=1;; --with-app|--smart-search|--no-smart-search) INSTALL_CHOICE=1;; --profile) PROFILE_NEXT=1;; --profile=*) fail 'Use --profile <name> with a space.';; esac
+done
+# Browsing a team brain installs nothing, so nothing is downloaded either (same text as install-profiles.mjs).
+if [ "$BROWSE_ONLY" = 1 ]; then
+  [ "$INSTALL_CHOICE" = 0 ] && case " $* " in *" --remote-only "*) false;; *) true;; esac || fail '--profile browse installs nothing; it cannot be combined with --with-app, --remote-only or --smart-search.'
+  if [ "$JSON_OUTPUT" = 1 ]; then printf '{"schemaVersion":1,"state":"not_needed","profile":"browse","remainingActions":["Open the team brain'"'"'s web address in your browser and choose Connect."]}\n'; fi
+  printf '%s\n' "Browse a team brain in the browser: Read a shared brain in your web browser. There is nothing to install." \
+    "- Open the brain's web address (the person who runs the server gives it to you), choose Connect and paste the access key they gave you." \
+    "- Nothing is downloaded or written on this computer." \
+    "To let your agents use that brain too, rerun with --profile remote. For notes of your own, rerun without --profile." >&2
+  exit 0
+fi
 fetch() {
   if command -v curl >/dev/null 2>&1; then curl -fsSL --connect-timeout 15 --max-time 120 "$1" -o "$2"
   elif command -v wget >/dev/null 2>&1; then wget --timeout=120 -qO "$2" "$1"
@@ -28,7 +44,7 @@ else
   RAW_BASE="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/$SHA"
 fi
 mkdir -p "$TMP_DIR/scripts/engine" "$TMP_DIR/integrations/macos-companion" "$TMP_DIR/integrations/electron"
-HELPERS='scripts/bootstrap-node.sh scripts/public-install.mjs scripts/install-compatibility.mjs scripts/install-support.mjs scripts/installation-storage.mjs scripts/desktop-prerequisites.mjs scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/electron/update-release.mjs integrations/electron/install-shim.mjs integrations/electron/managed-integrations.mjs integrations/electron/update-retention.py integrations/electron/installation-retention.py integrations/macos-companion/update.py integrations/macos-companion/lifecycle.py'
+HELPERS='scripts/bootstrap-node.sh scripts/public-install.mjs scripts/install-compatibility.mjs scripts/install-profiles.mjs scripts/install-support.mjs scripts/installation-storage.mjs scripts/desktop-prerequisites.mjs scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/electron/update-release.mjs integrations/electron/install-shim.mjs integrations/electron/managed-integrations.mjs integrations/electron/update-retention.py integrations/electron/installation-retention.py integrations/macos-companion/update.py integrations/macos-companion/lifecycle.py'
 # A remote-only CLI never provisions the search engine or the Mac app: skip their recipes.
 [ "$REMOTE_ONLY" = 1 ] || HELPERS="$HELPERS scripts/setup-desktop.mjs scripts/engine/package.json scripts/engine/package-lock.json"
 for FILE in $HELPERS; do

@@ -15,7 +15,7 @@ Install on macOS or Linux:
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash
 ```
 
-This sets up the CLI, local text search, and integrations for detected agents. Want the Mac app too? Add `-s -- --with-app` after `bash`. [Installation guide →](docs/install.md)
+This sets up the CLI, local keyword search, and integrations for detected agents. Want the Mac app too? Add `-s -- --with-app` after `bash`. Smart search, which also finds notes that say the same thing in other words, is optional: add `--smart-search` or turn it on later. [Installation guide →](docs/install.md)
 
 <p align="center">
   <strong><a href="#start-your-own-brain">Get started</a></strong>
@@ -59,7 +59,7 @@ In a fresh session:
 
 Your agent searches for relevant notes instead of loading everything into every chat. Results point back to source files and lines, so you can check the reasoning.
 
-Text search works from the start. Add a local embedding model when you want to search by meaning, too. Agents can ask for a short overview or open more evidence when a question needs it. [See the agent workflows →](docs/agent-workflows.md)
+Keyword search works from the start. Turn on smart search (`jumpybrain smart-search on`, a one-time 334 MB local model) when you want to search by meaning, too. Agents can ask for a short overview or open more evidence when a question needs it. [See the agent workflows →](docs/agent-workflows.md)
 
 ## Find the thread between ideas
 

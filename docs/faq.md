@@ -10,7 +10,7 @@ You can inspect, edit, move, and back up those files yourself. Search indexes an
 
 Local storage and search stay local. These are the separate ways network services can be involved:
 
-- **Installation and updates:** GitHub, npm, and dependency download hosts supply code and packages. This is software downloading, not a brain-upload step. Optional semantic search needs a separately provisioned model; inference then runs locally.
+- **Installation and updates:** GitHub, npm, and dependency download hosts supply code and packages. This is software downloading, not a brain-upload step. Optional smart (semantic) search downloads a 334 MB language model once, only when you choose it; it then runs locally and sends no notes anywhere.
 - **A remote brain you choose:** adding/selecting a remote connection in the app or using the CLI's `--target-url` sends requests to that server. Searches send queries; writes send their content. The server stores that brain. Connecting does not automatically upload or sync your personal brain. Remote writes require explicit authorization.
 - **Your AI assistant:** when an agent recalls notes, the results enter its context. If that agent uses a cloud model, those excerpts can go to its provider under the agent's settings and policies. jumpyBrain's local storage does not make a cloud assistant run locally.
 - **Feedback you send:** choosing Send shares your message and, when **Include logs** is checked, a sanitized diagnostic attachment with the jumpyBrain support service. The information icon explains the logs; uncheck the box to exclude them. Opening the dialog does not send a report. Do not put private notes into the message unless you intend to share them.
@@ -67,7 +67,7 @@ Memory writes follow the integration's authorization rules. Installing a skill d
 
 ## Why does it say “embeddings disabled” or return no matches?
 
-A new brain is empty, so no matches is expected. Text search works immediately without a model or API key. “Embeddings disabled” means optional semantic search is not enabled, not that installation failed. You can [configure a local embedding model](cli-commands.md#indexing-policy-and-recovery) later. Normal recall/status does not download models.
+A new brain is empty, so no matches is expected. Keyword search works immediately without a model or API key. “Embeddings disabled” (or `Search: keyword search`) means optional smart search is not turned on, not that installation failed. Add it any time with [`jumpybrain smart-search on`](cli-commands.md#smart-search). Normal recall/status does not download models.
 
 Restart/reload an already-running agent after installing its integration. If it cannot find the command, use the full path printed by the installer, normally `~/.jumpybrain/bin/jumpybrain`.
 

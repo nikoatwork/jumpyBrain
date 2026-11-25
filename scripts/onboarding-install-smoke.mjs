@@ -65,7 +65,7 @@ try {
   assert.equal(existsSync(root), false);
   assert.deepEqual(await readdir(scratch), []);
   const installed = await run('downloaded bootstrap real source install/build', 'sh', args);
-  assert.match(installed.stdout, /Local text search is ready/);
+  assert.match(installed.stdout, /Keyword search is ready/);
   assert.deepEqual(await readdir(scratch), []);
   for (const file of files) assert.ok(requests.includes(file), `bootstrap did not download ${file}`);
   const cli = path.join(installRoot, 'bin/jumpybrain');

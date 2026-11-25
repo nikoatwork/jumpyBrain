@@ -25,6 +25,8 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);
   if (argv[0] === "migrate") return argv[1] === "remote" ? parseSyncArgs(argv) : parseMigrationArgs(argv);
   if (argv[0] === "diff") return parseSyncArgs(argv);
+  // A bare `smart-search` (or one followed only by flags) reports status.
+  if (argv[0] === "smart-search" && (argv[1] === undefined || argv[1].startsWith("--"))) argv = ["smart-search", "status", ...argv.slice(1)];
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
   if (operation === "dream" && argv.some(token => /^--(?:check-sources|draft|page-file|id)(?:=|$)/u.test(token))) return parseDreamSourceArgs(argv);
   if (operation === "remember") return parseRememberArgs(argv);
@@ -82,6 +84,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
     status: { values: [...targets, "directory"], booleans: ["all"] },
     index: { values: [...targets, "semantic-model", "model-file"], booleans: ["rebuild", "lexical", "setup-semantic", "download-model"] },
+    "smart-search": { positional: 2, values: [...targets, ...(argv[1] === "on" ? ["model-file"] : [])], booleans: argv[1] === "on" ? ["download-model"] : argv[1] === "off" ? ["remove-model"] : [] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     overview: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     show: { values: [...targets, "id"] },
@@ -149,6 +152,11 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
   if (operation === "index") {
     if ((args["download-model"] || args["model-file"]) && !args["setup-semantic"]) throw new Error("Model provisioning requires explicit --setup-semantic.");
     if (args["setup-semantic"] && (args.lexical || args["semantic-model"])) throw new Error("Use --setup-semantic or an explicit indexing policy, not both.");
+    if (args["model-file"] && !path.isAbsolute(String(args["model-file"]))) throw new Error("--model-file requires an absolute local path.");
+    if (args["download-model"] && args["model-file"]) throw new Error("Choose --download-model or --model-file.");
+  }
+  if (operation === "smart-search") {
+    if (!["status", "on", "off"].includes(argv[1] ?? "")) throw new Error("Use jumpybrain smart-search [status|on|off] --help.");
     if (args["model-file"] && !path.isAbsolute(String(args["model-file"]))) throw new Error("--model-file requires an absolute local path.");
     if (args["download-model"] && args["model-file"]) throw new Error("Choose --download-model or --model-file.");
   }

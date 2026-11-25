@@ -42,7 +42,7 @@ jumpybrain instructions --topic write
 - `write`: authorization, declared actors, remember/update examples, historical capture, saved/indexed outcomes and strict wrapup sections. Read this before any write.
   Authorized concurrent editing is normal: an active editor needs no extra permission or request to stop typing. Prefer `collaborate open` then edit or stream on that target/note. Read the write topic for actual read-base offsets, stable client identity and resync; use show/update only for intentional whole-note replacement.
 - `maintenance`: observational `process --mode lint --preview`, explicit report apply and optional dreaming.
-- `setup`: installation, app/CLI selection and privacy. See the [agent installation guide](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install-for-agents.md), [installation commands](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md) and [FAQ](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/faq.md).
+- `setup`: installation, smart search, app/CLI selection and privacy. See the [agent installation guide](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install-for-agents.md), [installation commands](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md) and [FAQ](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/faq.md).
 - `feedback`: explicit consent, redaction, dry-run, delivery uncertainty and deliberate same-ID retries. Never send automatically.
 - `board`: selected-target board operations. `--topic all` prints every topic; `jumpybrain <command> --help` lists flags without operations.
 

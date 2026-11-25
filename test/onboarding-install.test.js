@@ -44,7 +44,7 @@ test("onboarding preview is truthful and installed shell/agent examples preserve
 
   const installed = run(process.execPath, args);
   assert.match(installed, /jumpyBrain install complete/);
-  assert.match(installed, /Local text search is ready/);
+  assert.match(installed, /Keyword search is ready/);
   assert.match(installed, /Restart or reload any assistant/);
   assert.match(installed, /In a fresh session, ask:/);
   const lines = installed.split("\n");

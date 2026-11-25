@@ -7,6 +7,7 @@ import { packageVersion } from "../adapters/package-info/index.js";
 import { stringArg, type ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
 import { memoryRootInspectionMessage, resolveCliTarget } from "./targets.js";
+import { formatSearchLine, searchModeSummary } from "./search-mode.js";
 
 interface DoctorCheck {
   ok: boolean;
@@ -19,7 +20,7 @@ export interface DoctorReport {
   node: DoctorCheck & { version: string };
   qmd: DoctorCheck & { binary: string; source: "override" | "package" | "path" };
   retrievalProbe: { status: "not_run" | "passed" | "empty" | "failed"; mode: "lexical"; message: string; warnings?: string[] };
-  memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; semanticSetup?: import("../types.js").SemanticSetupStatus; readiness?: RetrievalReadiness };
+  memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; semanticSetup?: import("../types.js").SemanticSetupStatus; search?: "keyword" | "smart"; readiness?: RetrievalReadiness };
   integrations: Record<string, DoctorCheck & { path: string }>;
   integrationsScope: "global";
   projectRoot?: string;
@@ -49,6 +50,7 @@ export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemory
       compatible: status.compatible,
       readiness: status.readiness,
       semanticSetup: status.semanticSetup,
+      ...(status.semanticSetup ? { search: searchModeSummary(status.semanticSetup)!.mode } : {}),
       ok: status.compatible,
       message: status.compatible ? "Memory root is compatible." : status.message ?? "Memory root is not compatible.",
     };
@@ -102,6 +104,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     `- Node: ${statusIcon(report.node.ok)} ${report.node.message}`,
     `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message} Selected: ${report.qmd.binary} (${ENGINE_SOURCES[report.qmd.source]}).`,
     `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.source}) — ${report.memoryRoot.message}`,
+    ...(report.memoryRoot.semanticSetup ? [`- ${formatSearchLine(report.memoryRoot.semanticSetup)}`] : []),
     ...(report.memoryRoot.semanticSetup ? [`- Semantic setup: ${report.memoryRoot.semanticSetup.state}${report.memoryRoot.semanticSetup.nextAction ? ". " + report.memoryRoot.semanticSetup.nextAction : ""}`] : []),
     ...(report.memoryRoot.readiness ? [`- Readiness: ${report.memoryRoot.readiness.freshness}; modes: ${report.memoryRoot.readiness.modes.join(", ") || "none"}; embeddings: ${report.memoryRoot.readiness.embedding}`] : []),
     "- Modes/coverage describe index metadata, not verified inference or relevance; lexical-only retrieval can miss paraphrases.",

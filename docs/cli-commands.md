@@ -153,7 +153,7 @@ Read-only command mode blocks every state-changing command of this CLI, for loca
 | `status`, `tree`/`overview`, `search`, `recall`, `expand`, `show`, `diff`, `dream` windows and their `run memory:*` recipes | `remember`, `wrapup`, document `update`, `delete` (including its preview), `index`, `process`, `init`, and their recipes |
 | `access whoami`, `access list`, `attention list`, `board list/show/status`, `drawings list/show`, `collaborate open/watch` | `access issue/revoke`, `attention settle/snooze/bring-back`, board changes, `drawings update`, `collaborate` editing and streaming |
 | `migrate remote` without `--apply` | `migrate remote --apply`, `migrate obsidian`, `migrate logseq` |
-| `connections list/test`, `project status`, `identity` (show), `backend status/list`, `extensions list/check` | `connections add/remove/select`, `project trust/untrust`, `identity --name`, `backend start/stop`, other `extensions` operations, `serve` |
+| `connections list/test`, `project status`, `identity` (show), `backend status/list`, `extensions list/check`, `smart-search` (status) | `connections add/remove/select`, `project trust/untrust`, `identity --name`, `backend start/stop`, other `extensions` operations, `serve`, `smart-search on/off` |
 | `doctor`, `instructions`, `help`, `version`, `feedback`, `update --dry-run` | `update` (run the installer again instead), and any command not listed as allowed |
 
 A blocked command fails with `JUMPYBRAIN_READ_ONLY_COMMANDS` (JSON error code `read_only_commands`) before the CLI reads an access key, stdin or an input file, contacts a server, creates a root or starts a backend. Allowed commands behave exactly as without the mode. If the policy file cannot be read, or the variable has a value other than `1`, `true`, `0` or `false`, state-changing commands fail closed until that is corrected.
@@ -221,10 +221,24 @@ Extension management is desktop-local and accepts `--directory <extensions-direc
 | `jumpybrain status --target-url <url> [--json]` | Check whether a remote jumpyBrain server memory target is ready to use, and which [access key](#remote-access-keys) it accepted (source and fingerprint, never the key). |
 | `jumpybrain status --all [--directory <support-directory>] [--json]` | One overview for agents: the CLI's target with its key source and health, every Mac app connection (local or remote, health, effective `access` from the server role, active) and `staleLocalRoots`, local connections whose folder is missing. Reports `app.running: false` when the app is closed. Never prints a key; changes no notes or connections. Health checks may start the active local brain's engine, as opening the app does. |
 | `jumpybrain index --root <memory-root> [--rebuild] [--semantic-model <absolute-local-gguf> \| --lexical] [--json]` | Update derived search state incrementally; persist explicit policy or request a rebuild. |
+| `jumpybrain smart-search [status \| on [--download-model \| --model-file <path>] \| off [--remove-model]] --root <memory-root> [--json]` | Show whether a local brain uses **keyword search** or **smart search**, or turn smart search on or off. `on` explains the 334 MB model download and fetches nothing until repeated with `--download-model`; `off` returns to keyword search and keeps the model unless `--remove-model`. See [smart search](#smart-search). |
 | `jumpybrain index --target-url <url> [--rebuild] [--json]` | Update server-derived search state using its persisted policy. Requires `JUMPYBRAIN_API_KEY`; model/policy flags are server-local only. |
 | `jumpybrain tree --root <memory-root> [--connections] [--show-files] [--limit <n>] [--json]` | Show a map of a local memory root: buckets, document counts, tags, index freshness, and optionally file lists and Markdown/wiki-link connections. It does not print full memory bodies. |
 | `jumpybrain tree --target-url <url> [--connections] [--show-files] [--limit <n>] [--json]` | Show the same memory overview for a hosted/shared memory server. Requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain overview ...` | Alias for `jumpybrain tree ...`. |
+
+### Smart search
+
+**Keyword search** (QMD full-text search, the `lexical` policy) is the default and needs no model. **Smart search** (the `semantic` policy) also finds notes that say the same thing in other words. It runs only on the computer that holds the brain and sends no notes anywhere; only the one-time model download uses the internet.
+
+```bash
+jumpybrain smart-search --root <brain>                       # status (default action)
+jumpybrain smart-search on --root <brain>                    # outcome, download size, disk, model terms; nothing fetched
+jumpybrain smart-search on --root <brain> --download-model   # download + verify the pinned model, then index
+jumpybrain smart-search off --root <brain> [--remove-model]  # keyword search again; optionally free the model's 334 MB
+```
+
+`on` is the same consent flow as `index --setup-semantic [--download-model | --model-file <absolute-path>]`, and `off` is `index --lexical`; both older spellings keep working. The model file is shared by the brains on this computer, so `off` keeps it unless you pass `--remove-model`; another brain that used it then needs `smart-search on` again. `status` is observational and allowed in [read-only command mode](#read-only-command-mode); `on` and `off` change the brain's policy and are blocked there. Remote targets are refused: turn smart search on where the brain lives. `status` and `doctor` print `Search: keyword search` or `Search: smart search …` and add `search: "keyword" | "smart"` to their JSON; `semanticSetup` keeps the precise state.
 
 ### Indexing policy and recovery
 
@@ -605,4 +619,4 @@ Read the current hash with `show --id <mem_id>`, then use `attention settle --id
 
 For consistent named-agent declarations across remember, update and live streams, set `JUMPYBRAIN_CLIENT_NAME`; use `--actor agent` for remember/update. Optional device owner names prefix all three paths. A live `--client-id` identifies the collaboration client, not declared authorship; unknown actor IDs stay unknown.
 
-`index --setup-semantic` plans optional verified model setup; explicitly add `--download-model` or `--model-file /absolute/model.gguf` to provision/select and index. The preset identity is portable; model files stay device-local. All setup flags are local to the brain owner; remote clients cannot send model paths. See [installation](install.md#optional-semantic-model-setup) for costs, state/recovery and platform limits.
+`index --setup-semantic` plans optional verified model setup; explicitly add `--download-model` or `--model-file /absolute/model.gguf` to provision/select and index. The preset identity is portable; model files stay device-local. All setup flags are local to the brain owner; remote clients cannot send model paths. `smart-search on` is the discoverable name for the same flow. See [installation](install.md#smart-search-optional) for costs, state/recovery and platform limits.

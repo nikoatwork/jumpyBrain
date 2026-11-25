@@ -123,6 +123,8 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
     "--source", source,
   ];
   if (manifest.remoteOnly) installerArgs.push("--remote-only");
+  // Updates keep the recorded profile and add-ons; they never stop to ask.
+  installerArgs.push("--yes");
   if (dryRun) installerArgs.push("--dry-run");
   if (ref) installerArgs.push("--ref", ref);
   if (manifest.installerOptions?.skipBuild) installerArgs.push("--skip-build");
