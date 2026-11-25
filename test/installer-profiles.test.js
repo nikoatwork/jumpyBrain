@@ -90,7 +90,7 @@ async function fixture(t) {
   // (the policy is saved before indexing, so FIXTURE_FAIL=semantic leaves it saved and fails).
   await writeFile(path.join(source, 'dist/cli.js'), `const fs=require('node:fs');const path=require('node:path');const args=process.argv.slice(2);const root=args[args.indexOf('--root')+1];
 fs.appendFileSync(${JSON.stringify(calls)}, args.join(' ')+'\\n');
-if(args[0]==='init'){fs.mkdirSync(root,{recursive:true});fs.writeFileSync(path.join(root,'jumpybrain.json'),JSON.stringify({canonical:'markdown',memoryDirs:['notes']}));}
+if(args[0]==='init'&&!fs.existsSync(path.join(root,'jumpybrain.json'))){fs.mkdirSync(root,{recursive:true});fs.writeFileSync(path.join(root,'jumpybrain.json'),JSON.stringify({canonical:'markdown',memoryDirs:['notes']}));}
 if(args[0]==='index'&&process.env.FIXTURE_FAIL==='index')process.exit(1);
 if(args[0]==='index'&&(args.includes('--setup-semantic')||args.includes('--lexical'))){if(process.env.FIXTURE_FAIL==='download'&&args.includes('--setup-semantic'))process.exit(1);if(process.env.FIXTURE_FAIL==='kill'&&args.includes('--setup-semantic')){process.kill(process.ppid,'SIGKILL');process.exit(1);}const file=path.join(root,'jumpybrain.json');const config=JSON.parse(fs.readFileSync(file,'utf8'));config.indexing=args.includes('--setup-semantic')?{mode:'semantic',modelId:'sha256:${SMART_SEARCH_MODEL.sha256}'}:{mode:'lexical'};fs.writeFileSync(file,JSON.stringify(config));if(process.env.FIXTURE_FAIL==='semantic'&&args.includes('--setup-semantic'))process.exit(1);process.exit(0);}
 console.log(JSON.stringify(args[0]==='doctor'?{ok:true}:{retrieval:{status:'complete'},results:[]}));`);
@@ -201,6 +201,19 @@ test('retrying an interrupted first install keeps the smart search choice', asyn
   assert.equal(retry.status, 0, retry.stderr);
   assert.deepEqual([retry.report.plan.smartSearch.action, retry.report.smartSearch.state, await f.policy()], ['add', 'on', 'semantic']);
   assert.deepEqual([(await f.manifest()).state, (await f.manifest()).addOns.smartSearch], ['ready', true]);
+});
+
+test('an opt-out on a resumed install switches a brain that already saved smart search back to keyword search', async t => {
+  const f = await fixture(t);
+  assert.notEqual(f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'kill' }).status, 0);
+  // Simulate the policy having been saved before the stop.
+  const config = path.join(f.memory, 'jumpybrain.json');
+  await writeFile(config, JSON.stringify({ ...JSON.parse(await readFile(config, 'utf8')), indexing: { mode: 'semantic', modelId: `sha256:${SMART_SEARCH_MODEL.sha256}` } }));
+  const model = smartSearchModelPath(f.home, {}); await mkdir(path.dirname(model), { recursive: true }); await writeFile(model, 'model');
+  const optOut = f.install(['--no-smart-search', '--json']);
+  assert.equal(optOut.status, 0, optOut.stderr);
+  assert.equal(optOut.report.filesystem.changes.find(item => item.role === 'smart-search-model').path, model);
+  assert.deepEqual([await f.policy(), (await f.manifest()).addOns.smartSearch, (await f.manifest()).state, existsSync(model)], ['lexical', false, 'ready', false], JSON.stringify(optOut.report.smartSearch));
 });
 
 test('a remote-only installation keeps its mode and says why it cannot switch', async t => {

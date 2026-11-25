@@ -125,7 +125,10 @@ async function installManaged({ options, home, cwd, installRoot }) {
   }
   const profile = effectiveProfile(options, previousProfile);
   if (existingInstall && previousProfile === "mac-app" && profile === "personal") log("The Mac app stays installed; this installation now records the personal profile. Remove the app by moving it to the Trash.");
-  const smartSearchBefore = existingInstall && !remoteOnly ? smartSearchActive(memoryRoot) : false;
+  // The brain's saved policy, also when resuming an interrupted first install that already switched it.
+  const smartSearchBefore = previousManifest && !remoteOnly ? smartSearchActive(memoryRoot) : false;
+  // The managed model this brain selected, read once so the plan and the removal name the same file.
+  const smartSearchModelId = smartSearchBefore ? brainIndexingPolicy(memoryRoot)?.modelId : undefined;
   if (existingInstall && !remoteOnly && options.smartSearch === undefined && shouldPrompt({ stdinIsTTY: process.stdin.isTTY, json: jsonOutput, yes: options.yes, dryRun: options.dryRun })) {
     const keep = await withTerminal(ask => askSmartSearch(ask, { current: smartSearchBefore }));
     if (keep !== smartSearchBefore) options.smartSearch = keep;
@@ -183,7 +186,8 @@ async function installManaged({ options, home, cwd, installRoot }) {
   const reportFilesystem = ({ policy, integrations: planned, existing }) => {
     resultReport.filesystem = filesystemReport({ dryRun: options.dryRun, home, installRoot, appDir, cliPath, cliConfigPath, manifestPath, memoryRoot, remoteOnly,
       existing, reuseApp: options.reuseApp, policy, engine, integrations: planned, skipInitialIndex: options.skipInitialIndex, withApp: options.withApp, dependencies, source,
-      smartSearch: ["add", "remove"].includes(smartSearchAction) ? { action: smartSearchAction, path: smartSearchModelPath(home) } : undefined,
+      smartSearch: smartSearchAction === "add" ? { action: "add", path: smartSearchModelPath(home) }
+        : smartSearchAction === "remove" && smartSearchModelId ? { action: "remove", path: smartSearchModelPath(home, process.env, smartSearchModelId) } : undefined,
       agentDirs: [home, ...(scope === "project" ? [cwd] : [])].flatMap(base => [".claude", ".agents", ".pi", ".codex"].map(name => path.join(base, name))),
       bootstrapDir: process.env.JUMPYBRAIN_BOOTSTRAP_DIR || undefined, rootExisted });
     resultReport.commandMode = policy.readOnlyCommands === null ? "invalid" : policy.readOnlyCommands ? "read-only" : "read-write";
@@ -224,6 +228,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
       profile,
       smartSearchAction,
       smartSearchBefore,
+      smartSearchModelId,
     });
     return;
   }
@@ -267,7 +272,11 @@ async function installManaged({ options, home, cwd, installRoot }) {
 
   const qmdAvailable = Boolean(selectedQmd);
   summary.searchReady = qmdAvailable && !options.skipInitialIndex;
-  if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
+  // A resumed install whose brain already switched to smart search applies an explicit opt-out first:
+  // `index --lexical` is then its initial index, so a missing model cannot block it.
+  const optOutFirst = !options.dryRun && smartSearchAction === "remove";
+  if (optOutFirst) manifest.addOns.smartSearch = applySmartSearch({ action: "remove", cliPath, memoryRoot, options, modelId: smartSearchModelId });
+  else if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
 
   for (const item of integrationPlan.install) {
     if (!options.dryRun) {
@@ -285,7 +294,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     if (options.withApp) await setupDesktop({ appDir, installRoot, home, memoryRoot, options });
     // Before `ready`: an interrupted download leaves the request in the installing record, and a
     // retry runs the same idempotent setup again (reusing a verified model, repairing a partial index).
-    manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options });
+    if (!optOutFirst) manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options, modelId: smartSearchModelId });
     manifest.state = "ready";
     await atomicJSON(manifestPath, manifest);
   }
@@ -395,6 +404,7 @@ async function updateExistingInstall({
   profile,
   smartSearchAction,
   smartSearchBefore,
+  smartSearchModelId,
 }) {
   assertPreservedInstallSettings(options, { scope, integrations, memoryRoot }, home);
 
@@ -474,7 +484,7 @@ async function updateExistingInstall({
   for (const item of refreshed.results) log(`Integration ${item.status}: ${item.path}`);
   await atomicJSON(manifestPath, manifest);
   if (smartSearchAction === "add" || smartSearchAction === "remove") {
-    manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options });
+    manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options, modelId: smartSearchModelId });
     await atomicJSON(manifestPath, manifest);
   } else resultReport.smartSearch = { action: smartSearchAction, state: smartSearchAction === "keep" ? "on" : "off" };
   Object.assign(resultReport, { integrationRefresh: refreshed.results, version: manifest.installedVersion, state: resultReport.remainingActions.length ? "pending_user_action" : "ready" });
@@ -497,7 +507,7 @@ function smartSearchActive(memoryRoot) { return brainIndexingPolicy(memoryRoot)?
 // Turning the add-on on or off never fails the installation: keyword search is already verified.
 // It uses the index flags every installed runtime since semantic setup understands
 // (`smart-search on|off` is their newer spelling), and records what the brain actually uses.
-function applySmartSearch({ action, cliPath, memoryRoot, options }) {
+function applySmartSearch({ action, cliPath, memoryRoot, options, modelId }) {
   if (action === "keep" || action === "none") { resultReport.smartSearch = { action, state: action === "keep" ? "on" : "off" }; return action === "keep"; }
   if (action === "add" && (!selectedQmd || options.skipInitialIndex)) {
     resultReport.smartSearch = { action, state: "pending" };
@@ -506,18 +516,23 @@ function applySmartSearch({ action, cliPath, memoryRoot, options }) {
   }
   log(action === "add" ? "Turning on smart search: downloading and verifying its 334 MB model, then indexing" : "Turning off smart search and removing its downloaded model");
   const index = flags => run(cliPath, ["index", "--root", memoryRoot, ...flags], { env: provisioningEnvironment(cliPath) });
-  // Only a model the brain selected by managed identity is removed; a custom model path is left alone.
-  const modelId = action === "remove" ? brainIndexingPolicy(memoryRoot)?.modelId : undefined;
+  // Only a model the brain selected by managed identity (`modelId`, read before switching) is removed; a custom path is left alone.
   try {
     index(action === "add" ? ["--setup-semantic", "--download-model"] : ["--lexical"]);
     resultReport.smartSearch = { action, state: action === "add" ? "on" : "off" };
-    if (modelId) {
+    if (action === "remove" && modelId) {
       let removed;
       try { removed = removeSmartSearchModel(installationHome, process.env, modelId); }
       catch (error) { removed = { path: smartSearchModelPath(installationHome, process.env, modelId), removed: false, reason: error.message }; }
       resultReport.smartSearch.model = removed;
       if (removed.removed) log(`Removed the smart search model ${removed.path}`);
-      else if (removed.reason) resultReport.remainingActions.push(`Smart search is off, but its model was not removed (${removed.reason}). Delete ${removed.path} yourself to free the space.`);
+      else if (removed.reason) {
+        const action = `Smart search is off, but its model was not removed (${removed.reason}). Delete ${removed.path} yourself to free the space.`;
+        resultReport.remainingActions.push(action);
+        log(action);
+        const planned = resultReport.filesystem?.changes.find(item => item.role === "smart-search-model");
+        if (planned) Object.assign(planned, { action: "keep", note: `not removed: ${removed.reason}` });
+      }
     }
   } catch (error) {
     // The policy can be saved before a failed index; put an added policy back to keyword search.
