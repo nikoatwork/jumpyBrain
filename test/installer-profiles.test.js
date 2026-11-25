@@ -165,6 +165,14 @@ test('smart search chosen at install is turned on and recorded; reruns keep, rem
   assert.equal(removed.report.plan.smartSearch.action, 'remove');
   assert.equal((await f.smartCalls()).at(-1), `index --root ${f.memory} --lexical`);
   assert.deepEqual([(await f.manifest()).addOns.smartSearch, await f.policy(), existsSync(model), existsSync(other)], [false, 'lexical', false, true]);
+  assert.deepEqual([removed.report.filesystem.changes.find(item => item.role === 'smart-search-model').action, removed.report.smartSearch.model.removed], ['remove', true]);
+
+  // An already absent model is reported as such, not as removed.
+  const config0 = path.join(f.memory, 'jumpybrain.json');
+  await writeFile(config0, JSON.stringify({ ...JSON.parse(await readFile(config0, 'utf8')), indexing: { mode: 'semantic', modelId: `sha256:${SMART_SEARCH_MODEL.sha256}` } }));
+  const absent = f.install(['--no-smart-search', '--json']);
+  assert.equal(absent.status, 0, absent.stderr);
+  assert.deepEqual([absent.report.filesystem.changes.find(item => item.role === 'smart-search-model').action, absent.report.smartSearch.state], ['none', 'off']);
 
   // A brain on a custom model path keeps the preset file: it is not that brain's managed model.
   await writeFile(model, 'model');

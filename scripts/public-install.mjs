@@ -517,6 +517,7 @@ function applySmartSearch({ action, cliPath, memoryRoot, options, modelId }) {
   log(action === "add" ? "Turning on smart search: downloading and verifying its 334 MB model, then indexing" : "Turning off smart search and removing its downloaded model");
   const index = flags => run(cliPath, ["index", "--root", memoryRoot, ...flags], { env: provisioningEnvironment(cliPath) });
   // Only a model the brain selected by managed identity (`modelId`, read before switching) is removed; a custom path is left alone.
+  const markModel = (verb, note) => { const planned = resultReport.filesystem?.changes.find(item => item.role === "smart-search-model"); if (planned) Object.assign(planned, { action: verb, note }); };
   try {
     index(action === "add" ? ["--setup-semantic", "--download-model"] : ["--lexical"]);
     resultReport.smartSearch = { action, state: action === "add" ? "on" : "off" };
@@ -530,18 +531,20 @@ function applySmartSearch({ action, cliPath, memoryRoot, options, modelId }) {
         const action = `Smart search is off, but its model was not removed (${removed.reason}). Delete ${removed.path} yourself to free the space.`;
         resultReport.remainingActions.push(action);
         log(action);
-        const planned = resultReport.filesystem?.changes.find(item => item.role === "smart-search-model");
-        if (planned) Object.assign(planned, { action: "keep", note: `not removed: ${removed.reason}` });
-      }
+        markModel("keep", `not removed: ${removed.reason}`);
+      } else markModel("none", "already absent");
     }
   } catch (error) {
     // The policy can be saved before a failed index; put an added policy back to keyword search.
     if (action === "add" && smartSearchActive(memoryRoot)) { try { index(["--lexical"]); } catch { /* reported below by the observed state */ } }
     const on = smartSearchActive(memoryRoot);
     resultReport.smartSearch = { action, state: action === "add" ? (on ? "on-not-ready" : "failed") : on ? "failed" : "off", error: error.message };
-    resultReport.remainingActions.push(action === "add"
+    if (action === "remove") markModel("keep", "not removed: switching back to keyword search failed first");
+    const remaining = action === "add"
       ? `Smart search was not turned on (${error.message}); ${on ? "its index is incomplete, so searches fall back to keyword matches" : "keyword search works"}. Retry with: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --setup-semantic --download-model`
-      : `Smart search could not be fully turned off (${error.message}). Retry with: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --lexical`);
+      : `Smart search could not be turned off (${error.message}); its model was kept. Retry by rerunning the installer with --no-smart-search.`;
+    resultReport.remainingActions.push(remaining);
+    log(remaining);
   }
   return smartSearchActive(memoryRoot);
 }

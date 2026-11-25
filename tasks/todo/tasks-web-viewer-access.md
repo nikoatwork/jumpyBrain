@@ -1,6 +1,6 @@
 # Let web viewers stay signed in to a shared brain
 
-Priority: proposed, to confirm. Status: planned 2026-11-25, nothing started. Sibling list: [install profiles](tasks-install-profiles.md).
+Priority: proposed, to confirm. Status: planned 2026-11-25, nothing started. Sibling list: [install profiles](../done/2026-11-25_tasks-install-profiles.md).
 
 ## Goal
 
