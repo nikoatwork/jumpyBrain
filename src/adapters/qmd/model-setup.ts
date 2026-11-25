@@ -127,6 +127,9 @@ export async function localModelFile(modelId?: string, options: { directory?: st
 export async function removeLocalModel(modelId?: string, options: { directory?: string } = {}): Promise<{ path: string; removed: boolean; bytes: number }> {
   const found = await localModelFile(modelId, options);
   if (!found.present) return { path: found.path, removed: false, bytes: 0 };
+  // Never follow a linked model directory to a same-named file elsewhere.
+  const directory = await lstat(path.dirname(found.path));
+  if (!directory.isDirectory() || directory.isSymbolicLink()) throw new Error('Model directory must be a plain directory, not a link; remove the model file yourself if intended.');
   try { await unlink(found.path); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; return { path: found.path, removed: false, bytes: 0 }; }
   return { path: found.path, removed: true, bytes: found.bytes };

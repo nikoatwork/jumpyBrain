@@ -13,7 +13,7 @@ import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
 import { atomicJSON, cliShim, durableNode, preflight, selectEngineWithSource, discoverRelease, installRelease, filesystemReport, observeFilesystem, formatFilesystem } from "./install-support.mjs";
 import { classifyManifest, classifyVerification, DEFAULT_REPO, incompatibleRuntimeError, INSTALLER_NAME, MANIFEST_VERSION, migrationBlockers, migrationCommand, runtimeCapabilities, sourcePolicy } from "./install-compatibility.mjs";
 import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
-import { applyProfileFlags, askSmartSearch, browseInstructions, describePlan, effectiveProfile, formatPlan, promptChoices, recordedProfile, shouldPrompt, SMART_SEARCH, smartSearchModelPath } from './install-profiles.mjs';
+import { applyProfileFlags, askSmartSearch, browseInstructions, describePlan, effectiveProfile, formatPlan, promptChoices, recordedProfile, removeSmartSearchModel, shouldPrompt, SMART_SEARCH, smartSearchModelPath } from './install-profiles.mjs';
 
 const installerToken = randomUUID();
 let unlock = async () => {};
@@ -75,6 +75,9 @@ async function installManaged({ options, home, cwd, installRoot }) {
   const previousManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
   assertNoUnmanagedInstall(previousManifest, { installRoot, appDir, binDir, cliPath });
   const existingInstall = Boolean(previousManifest && previousManifest.state !== "installing");
+  // Retrying an interrupted first install finishes what was chosen, unless the retry chooses again.
+  if (previousManifest?.state === "installing" && !options.profile && !options.withApp && !options.remoteOnly && previousManifest.profile === "mac-app") options.withApp = true;
+  if (previousManifest?.state === "installing" && options.smartSearch === undefined && previousManifest.addOns?.smartSearch === true) options.smartSearch = true;
   const previousProfile = recordedProfile(previousManifest, { appInstalled: installRoot === path.join(home, ".jumpybrain") && existsSync(path.join(home, "Applications/jumpyBrain.app")) });
   // A person at a terminal picks what they want; agents, --json, --yes, dry runs and pipes get the defaults.
   const choiceFlags = ["profile", "with-app", "remote-only", "smart-search", "no-smart-search"].some(flag => options.provided.has(flag));
@@ -220,6 +223,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
       reportFilesystem,
       profile,
       smartSearchAction,
+      smartSearchBefore,
     });
     return;
   }
@@ -243,7 +247,8 @@ async function installManaged({ options, home, cwd, installRoot }) {
     source: manifestSource, distribution: source === "release" ? "release" : "source", release: selectedRelease || null, ref: ref ?? null,
     scope, installRoot, appDir, binDir, cliPath, cliConfigPath, memoryRoot,
     node: durableNode(), qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest?.desktopPort, remoteOnly, integrationMode: integrations,
-    profile, addOns: { smartSearch: false },
+    // While installing this is the request (a retry resumes it); once ready it is the verified outcome.
+    profile, addOns: { smartSearch: smartSearchWanted },
     integrations: integrationPlan.install.map(({ kind, path }) => ({ kind, path })),
     installerOptions: { skipBuild: Boolean(options.skipBuild), skipQmdInstall: Boolean(options.skipQmdInstall), skipInitialIndex: Boolean(options.skipInitialIndex) },
     files: [cliPath, ...integrationPlan.install.map(item => item.path)],
@@ -388,6 +393,7 @@ async function updateExistingInstall({
   reportFilesystem,
   profile,
   smartSearchAction,
+  smartSearchBefore,
 }) {
   assertPreservedInstallSettings(options, { scope, integrations, memoryRoot }, home);
 
@@ -456,7 +462,7 @@ async function updateExistingInstall({
     memoryRoot,
     integrationMode: integrations,
     profile,
-    addOns: { ...(previousManifest.addOns && typeof previousManifest.addOns === "object" ? previousManifest.addOns : {}), smartSearch: smartSearchAction === "keep" || smartSearchAction === "add" },
+    addOns: { ...(previousManifest.addOns && typeof previousManifest.addOns === "object" ? previousManifest.addOns : {}), smartSearch: smartSearchBefore },
     ...(resultReport.policyChange ? { installerOptions: { ...previousManifest.installerOptions, skipBuild: Boolean(options.skipBuild) } } : {}),
   };
   if (!ownsConfig) log(`Existing ${cliConfigPath} predates recorded ownership; it is used but will not be removed by uninstall.`);
@@ -487,31 +493,40 @@ function smartSearchActive(memoryRoot) {
 }
 
 // Turning the add-on on or off never fails the installation: keyword search is already verified.
+// It uses the index flags every installed runtime since semantic setup understands
+// (`smart-search on|off` is their newer spelling), and records what the brain actually uses.
 function applySmartSearch({ action, cliPath, memoryRoot, options }) {
   if (action === "keep" || action === "none") { resultReport.smartSearch = { action, state: action === "keep" ? "on" : "off" }; return action === "keep"; }
   if (action === "add" && (!selectedQmd || options.skipInitialIndex)) {
     resultReport.smartSearch = { action, state: "pending" };
-    resultReport.remainingActions.push("Smart search was not turned on because local search is not set up yet; run jumpybrain smart-search on --download-model after doctor --check passes.");
+    resultReport.remainingActions.push(`Smart search was not turned on because local search is not set up yet; after doctor --check passes run: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --setup-semantic --download-model`);
     return false;
   }
   log(action === "add" ? "Turning on smart search: downloading and verifying its 334 MB model, then indexing" : "Turning off smart search and removing its downloaded model");
+  const index = flags => run(cliPath, ["index", "--root", memoryRoot, ...flags], { env: provisioningEnvironment(cliPath) });
   try {
-    run(cliPath, ["smart-search", action === "add" ? "on" : "off", "--root", memoryRoot, action === "add" ? "--download-model" : "--remove-model"], { env: provisioningEnvironment(cliPath) });
+    index(action === "add" ? ["--setup-semantic", "--download-model"] : ["--lexical"]);
+    if (action === "remove") {
+      const removed = removeSmartSearchModel(installationHome);
+      if (removed.removed) log(`Removed the smart search model ${removed.path}`);
+    }
     resultReport.smartSearch = { action, state: action === "add" ? "on" : "off" };
-    return action === "add";
   } catch (error) {
-    resultReport.smartSearch = { action, state: "failed", error: error.message };
+    // The policy can be saved before a failed index; put an added policy back to keyword search.
+    if (action === "add" && smartSearchActive(memoryRoot)) { try { index(["--lexical"]); } catch { /* reported below by the observed state */ } }
+    const on = smartSearchActive(memoryRoot);
+    resultReport.smartSearch = { action, state: action === "add" ? (on ? "on-not-ready" : "failed") : on ? "failed" : "off", error: error.message };
     resultReport.remainingActions.push(action === "add"
-      ? `Smart search was not turned on (${error.message}); keyword search works. Retry with: ${shellQuote(cliPath)} smart-search on --root ${shellQuote(memoryRoot)} --download-model`
-      : `Smart search could not be turned off (${error.message}). Retry with: ${shellQuote(cliPath)} smart-search off --root ${shellQuote(memoryRoot)} --remove-model`);
-    return action === "remove";
+      ? `Smart search was not turned on (${error.message}); ${on ? "its index is incomplete, so searches fall back to keyword matches" : "keyword search works"}. Retry with: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --setup-semantic --download-model`
+      : `Smart search could not be fully turned off (${error.message}). Retry with: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --lexical`);
   }
+  return smartSearchActive(memoryRoot);
 }
 
 function smartSearchLine(state) {
   if (state === "on") return "Smart search is on: it also finds notes that say the same thing in other words. Turn it off with jumpybrain smart-search off.";
   if (state === "planned") return "Smart search will be turned on after installing (334 MB model download).";
-  if (state === "failed" || state === "pending") return "Smart search is not on yet; see the remaining action above. Keyword search works.";
+  if (state === "failed" || state === "pending" || state === "on-not-ready") return "Smart search is not on yet; see the remaining action above. Keyword search works.";
   return `Smart search is off. ${SMART_SEARCH.outcome} Add it any time with jumpybrain smart-search on (334 MB download, runs only on this computer).`;
 }
 

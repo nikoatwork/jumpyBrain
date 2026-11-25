@@ -84,7 +84,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
     status: { values: [...targets, "directory"], booleans: ["all"] },
     index: { values: [...targets, "semantic-model", "model-file"], booleans: ["rebuild", "lexical", "setup-semantic", "download-model"] },
-    "smart-search": { positional: 2, values: [...targets, ...(argv[1] === "on" ? ["model-file"] : [])], booleans: argv[1] === "on" ? ["download-model"] : argv[1] === "off" ? ["remove-model"] : [] },
+    "smart-search": { positional: 2, values: [...targets, ...(argv[1] === "on" ? ["model-file"] : [])], booleans: argv[1] === "on" ? ["download-model", "rebuild"] : argv[1] === "off" ? ["remove-model"] : [] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     overview: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     show: { values: [...targets, "id"] },

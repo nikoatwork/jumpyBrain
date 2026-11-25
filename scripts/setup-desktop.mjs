@@ -28,7 +28,7 @@ async function main(args = process.argv.slice(2)) {
     catch (error) { if (error.code !== 'ENOENT') throw new Error('Cannot read the managed CLI manifest. Repair the CLI installation before setting up Desktop.'); }
     if (!manifest) {
       console.log('\n1/3 · Installing the local memory runtime and search dependencies…');
-      run(process.execPath, [path.join(repo, 'scripts/public-install.mjs'), '--source', repo, '--integrations', 'none', '--skip-initial-index']);
+      run(process.execPath, [path.join(repo, 'scripts/public-install.mjs'), '--source', repo, '--integrations', 'none', '--skip-initial-index', '--yes']);
       manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
     } else console.log('\n1/3 · Reusing your installed CLI and memory settings.');
     if (manifest.installRoot !== installRoot || manifest.appDir !== path.join(installRoot, 'app')) throw new Error('The managed CLI manifest has unexpected paths. Repair the installation before continuing.');

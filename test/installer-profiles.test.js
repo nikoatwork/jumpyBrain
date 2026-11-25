@@ -86,11 +86,13 @@ async function fixture(t) {
   const home = path.join(base, 'home'), source = path.join(base, 'source'), root = path.join(home, '.jumpybrain'), calls = path.join(base, 'cli-calls.log');
   await mkdir(home); await mkdir(path.join(source, 'dist'), { recursive: true });
   await writeFile(path.join(source, 'package.json'), JSON.stringify({ name: 'jumpybrain', version: '0.0.1' }));
-  // A fake CLI: records each call, and applies smart-search on/off to the brain's policy like the real one.
+  // A fake CLI: records each call, and applies the index policy flags to the brain like the real one
+  // (the policy is saved before indexing, so FIXTURE_FAIL=semantic leaves it saved and fails).
   await writeFile(path.join(source, 'dist/cli.js'), `const fs=require('node:fs');const path=require('node:path');const args=process.argv.slice(2);const root=args[args.indexOf('--root')+1];
 fs.appendFileSync(${JSON.stringify(calls)}, args.join(' ')+'\\n');
 if(args[0]==='init'){fs.mkdirSync(root,{recursive:true});fs.writeFileSync(path.join(root,'jumpybrain.json'),JSON.stringify({canonical:'markdown',memoryDirs:['notes']}));}
-if(args[0]==='smart-search'){if(process.env.FIXTURE_FAIL==='smart-search')process.exit(1);const file=path.join(root,'jumpybrain.json');const config=JSON.parse(fs.readFileSync(file,'utf8'));config.indexing={mode:args[1]==='on'?'semantic':'lexical'};fs.writeFileSync(file,JSON.stringify(config));process.exit(0);}
+if(args[0]==='index'&&process.env.FIXTURE_FAIL==='index')process.exit(1);
+if(args[0]==='index'&&(args.includes('--setup-semantic')||args.includes('--lexical'))){if(process.env.FIXTURE_FAIL==='download'&&args.includes('--setup-semantic'))process.exit(1);const file=path.join(root,'jumpybrain.json');const config=JSON.parse(fs.readFileSync(file,'utf8'));config.indexing={mode:args.includes('--setup-semantic')?'semantic':'lexical'};fs.writeFileSync(file,JSON.stringify(config));if(process.env.FIXTURE_FAIL==='semantic'&&args.includes('--setup-semantic'))process.exit(1);process.exit(0);}
 console.log(JSON.stringify(args[0]==='doctor'?{ok:true}:{retrieval:{status:'complete'},results:[]}));`);
   const { bin } = await installFakeQmd(base); await writeFile(bin, '#!/bin/sh\necho "qmd 2.8.3"\n', { mode: 0o755 });
   const env = { ...process.env, HOME: home, JUMPYBRAIN_QMD_BIN: bin };
@@ -102,8 +104,9 @@ console.log(JSON.stringify(args[0]==='doctor'?{ok:true}:{retrieval:{status:'comp
     return { ...result, report };
   };
   const manifest = async () => JSON.parse(await readFile(path.join(root, 'install-manifest.json'), 'utf8'));
-  const smartCalls = async () => existsSync(calls) ? (await readFile(calls, 'utf8')).split('\n').filter(line => line.startsWith('smart-search')) : [];
-  return { home, root, install, manifest, smartCalls, memory: path.join(root, 'memory') };
+  const smartCalls = async () => existsSync(calls) ? (await readFile(calls, 'utf8')).split('\n').filter(line => /--setup-semantic|--lexical/.test(line)) : [];
+  const policy = async () => JSON.parse(await readFile(path.join(root, 'memory/jumpybrain.json'), 'utf8')).indexing?.mode ?? 'lexical';
+  return { home, root, install, manifest, smartCalls, policy, memory: path.join(root, 'memory') };
 }
 
 test('without a terminal the installer never asks: defaults are recorded, smart search stays off', async t => {
@@ -143,7 +146,7 @@ test('smart search chosen at install is turned on and recorded; reruns keep, rem
   const installed = f.install(['--smart-search', '--json']);
   assert.equal(installed.status, 0, installed.stderr);
   assert.deepEqual([installed.report.state, installed.report.smartSearch.state], ['ready', 'on']);
-  assert.deepEqual(await f.smartCalls(), [`smart-search on --root ${f.memory} --download-model`]);
+  assert.deepEqual(await f.smartCalls(), [`index --root ${f.memory} --setup-semantic --download-model`]);
   assert.deepEqual((await f.manifest()).addOns, { smartSearch: true });
 
   // A plain rerun (an update) keeps the profile and the add-on without asking or downloading again.
@@ -153,19 +156,38 @@ test('smart search chosen at install is turned on and recorded; reruns keep, rem
   assert.equal((await f.smartCalls()).length, 1);
   assert.deepEqual([(await f.manifest()).profile, (await f.manifest()).addOns.smartSearch], ['personal', true]);
 
+  // Removing it switches the brain back and frees only the pinned model file in a real model directory.
+  const model = smartSearchModelPath(f.home, {}), other = path.join(path.dirname(model), 'user-selected.gguf');
+  await mkdir(path.dirname(model), { recursive: true }); await writeFile(model, 'model'); await writeFile(other, 'keep');
   const removed = f.install(['--no-smart-search', '--json']);
   assert.equal(removed.status, 0, removed.stderr);
   assert.equal(removed.report.plan.smartSearch.action, 'remove');
-  assert.equal((await f.smartCalls()).at(-1), `smart-search off --root ${f.memory} --remove-model`);
-  assert.equal((await f.manifest()).addOns.smartSearch, false);
+  assert.equal((await f.smartCalls()).at(-1), `index --root ${f.memory} --lexical`);
+  assert.deepEqual([(await f.manifest()).addOns.smartSearch, await f.policy(), existsSync(model), existsSync(other)], [false, 'lexical', false, true]);
 
   // A failed download leaves keyword search installed and names the retry.
-  const failed = f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'smart-search' });
+  const failed = f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'download' });
   assert.equal(failed.status, 0, failed.stderr);
   assert.deepEqual([failed.report.state, failed.report.smartSearch.state], ['pending_user_action', 'failed']);
-  assert.ok(failed.report.remainingActions.some(item => /smart-search on --root .* --download-model/.test(item)));
-  assert.equal((await f.manifest()).addOns.smartSearch, false);
-  assert.equal((await f.manifest()).state, 'ready');
+  assert.ok(failed.report.remainingActions.some(item => /index --root .* --setup-semantic --download-model/.test(item)));
+  assert.deepEqual([(await f.manifest()).addOns.smartSearch, (await f.manifest()).state], [false, 'ready']);
+
+  // An index that fails after the policy was saved is put back to keyword search, and recorded as such.
+  const unindexed = f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'semantic' });
+  assert.equal(unindexed.status, 0, unindexed.stderr);
+  assert.equal(unindexed.report.smartSearch.state, 'failed');
+  assert.deepEqual([await f.policy(), (await f.manifest()).addOns.smartSearch], ['lexical', false]);
+});
+
+test('retrying an interrupted first install keeps the smart search choice', async t => {
+  const f = await fixture(t);
+  const interrupted = f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'index' });
+  assert.equal(interrupted.status, 1);
+  assert.deepEqual([(await f.manifest()).state, (await f.manifest()).addOns], ['installing', { smartSearch: true }]);
+  const retry = f.install(['--json']);
+  assert.equal(retry.status, 0, retry.stderr);
+  assert.deepEqual([retry.report.plan.smartSearch.action, retry.report.smartSearch.state, await f.policy()], ['add', 'on', 'semantic']);
+  assert.deepEqual([(await f.manifest()).state, (await f.manifest()).addOns.smartSearch], ['ready', true]);
 });
 
 test('a remote-only installation keeps its mode and says why it cannot switch', async t => {
@@ -184,9 +206,17 @@ test('a remote-only installation keeps its mode and says why it cannot switch', 
   assert.match(rerun.stdout, /remote-only\); that mode stays fixed/);
 });
 
-test('jumpybrain update reruns the installer without ever asking', async () => {
-  const source = await readFile(path.join(repo, 'src/cli/update.ts'), 'utf8');
-  assert.match(source, /installerArgs\.push\("--yes"\)/);
+test('jumpybrain update reruns the installer with --yes and keeps the recorded profile and add-on', async t => {
+  const f = await fixture(t);
+  assert.equal(f.install(['--smart-search']).status, 0);
+  const { installerUpdatePlan } = await import('../dist/cli/update.js');
+  const plan = await installerUpdatePlan({ _: ['update'], home: f.home, 'install-root': f.root });
+  assert.ok(plan.installerArgs.includes('--yes'));
+  const updated = spawnSync(process.execPath, [plan.installerScript, ...plan.installerArgs, '--json'], { env: { ...process.env, HOME: f.home, JUMPYBRAIN_QMD_BIN: (await f.manifest()).qmd }, encoding: 'utf8', timeout: 60000 });
+  assert.equal(updated.status, 0, updated.stderr);
+  const report = JSON.parse(updated.stdout);
+  assert.deepEqual([report.profile, report.smartSearch.state], ['personal', 'on']);
+  assert.deepEqual([(await f.manifest()).profile, (await f.manifest()).addOns.smartSearch], ['personal', true]);
 });
 
 test('the bootstrap downloads nothing for --profile browse and skips local-only helpers for --profile remote', async t => {

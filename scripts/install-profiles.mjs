@@ -1,6 +1,7 @@
 // Install profiles and add-ons: what someone wants to do, mapped onto the
 // installer's existing mode flags. Pure functions plus one optional terminal
 // prompt; imports only Node built-ins because install.sh downloads it as a helper.
+import { lstatSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 
 export const DEFAULT_PROFILE = 'personal';
@@ -62,6 +63,22 @@ export const SMART_SEARCH = Object.freeze({
 export function smartSearchModelPath(home, env = process.env) {
   const directory = env.JUMPYBRAIN_MODEL_DIRECTORY && path.isAbsolute(env.JUMPYBRAIN_MODEL_DIRECTORY) ? env.JUMPYBRAIN_MODEL_DIRECTORY : path.join(home, '.jumpybrain/models');
   return path.join(directory, `${SMART_SEARCH_MODEL.sha256}.gguf`);
+}
+
+/**
+ * Frees the downloaded model after the brain is back on keyword search. Only the
+ * regular file named by the pinned SHA-256 inside a real (unlinked) model directory.
+ */
+export function removeSmartSearchModel(home, env = process.env) {
+  const file = smartSearchModelPath(home, env);
+  try {
+    const directory = lstatSync(path.dirname(file));
+    if (!directory.isDirectory() || directory.isSymbolicLink()) return { path: file, removed: false, reason: 'model directory is not a plain directory' };
+    const info = lstatSync(file);
+    if (!info.isFile()) return { path: file, removed: false, reason: 'not a regular file' };
+    unlinkSync(file);
+    return { path: file, removed: true, bytes: info.size };
+  } catch (error) { if (error.code === 'ENOENT') return { path: file, removed: false }; throw error; }
 }
 
 const fail = message => { throw new Error(message); };

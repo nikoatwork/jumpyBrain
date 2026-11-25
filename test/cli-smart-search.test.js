@@ -5,7 +5,7 @@ import { SEMANTIC_MODEL, removeLocalModel, localModelFile } from "../dist/adapte
 import { SMART_SEARCH_MODEL } from "../scripts/install-profiles.mjs";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -127,6 +127,11 @@ test("model removal touches only the managed file named by its identity", async 
   assert.deepEqual(await localModelFile(id, { directory }), { path: file, present: true, bytes: 10 });
   assert.deepEqual(await removeLocalModel(id, { directory }), { path: file, removed: true, bytes: 10 });
   assert.deepEqual(await removeLocalModel(id, { directory }), { path: file, removed: false, bytes: 0 });
+  // A linked model directory is never followed to a same-named file elsewhere.
+  const elsewhere = path.join(directory, "elsewhere"), linked = path.join(directory, "linked");
+  await mkdir(elsewhere); await writeFile(path.join(elsewhere, `${"a".repeat(64)}.gguf`), "outside"); await symlink(elsewhere, linked);
+  await assert.rejects(removeLocalModel(id, { directory: linked }), /plain directory/);
+  assert.equal(await readFile(path.join(elsewhere, `${"a".repeat(64)}.gguf`), "utf8"), "outside");
   assert.equal(await readFile(other, "utf8"), "keep");
   await assert.rejects(removeLocalModel("../escape", { directory }), /Invalid device-local model identity/);
 });

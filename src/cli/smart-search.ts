@@ -44,7 +44,14 @@ export async function smartSearchCli(args: ParsedCliArgs, localMemory: LocalMemo
       print({ ...prepared, state: "consent_required", root, nextAction }, [...smartSearchExplanation(prepared.downloadBytes), `Model terms: ${prepared.terms}`, "", "Nothing was downloaded.", nextAction]);
       return;
     }
-    const result = await localMemory.indexMemory(root, { indexing: prepared.policy });
+    let result;
+    try { result = await localMemory.indexMemory(root, { indexing: prepared.policy, ...(args.rebuild ? { rebuild: true } : {}) }); }
+    catch (error) {
+      // The policy is saved before indexing; a brain that was on keyword search goes back to it.
+      if (status.semanticSetup?.state !== "lexical") throw error;
+      await localMemory.indexMemory(root, { indexing: { mode: "lexical" } }).catch(() => undefined);
+      throw new Error(`Smart search could not index this brain, so it stays on keyword search; the model stays downloaded. Retry with smart-search on (add --rebuild if the error names a model change). ${(error as Error).message}`, { cause: error });
+    }
     const after = await localMemory.memoryRootStatus(root);
     print({ state: "on", root, model: { ...prepared, policy: undefined }, documents: result.documents, readiness: result.readiness, semanticSetup: after.semanticSetup },
       [`Smart search is on for ${root} (${prepared.reused ? "model already on this computer" : "model downloaded and verified"}); indexed ${result.documents} notes.`, formatSearchLine(after.semanticSetup) ?? ""]);
