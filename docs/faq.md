@@ -59,6 +59,10 @@ Use the CLI for agents; the desktop app is optional. Use the Mac app for a graph
 
 The Mac beta currently builds from source with developer tools. It is locally ad-hoc signed, not a notarized one-click download. See [installation](install.md) for the supported commands; Linux users can use the CLI.
 
+## How long does a browser stay signed in to a shared brain?
+
+As long as browsers allow. Opening an invite link, or entering an access key once, signs that browser in. The session cookie lasts 400 days (the most browsers accept) and renews whenever you use the brain, so you stay signed in while you keep coming back at least once a year. It ends when you choose **Sign out**, when an admin revokes your key or signs your browser out, or after 400 days without use. The cookie holds only a random session ID, never your key; the server keeps just a hash of it. Invite links work once and expire after 7 days. Safari's 7-day limit applies to cookies set by page scripts; this one is set by the server, so it should keep its full lifetime, but that has not been confirmed on a real Safari install yet.
+
 ## Will my agent read all my files or send every note into every prompt?
 
 jumpyBrain searches the selected memory root. Installing its integration gives the agent instructions/tools for recall and capture; it does not import your whole disk or automatically inject the whole brain. The agent can retrieve relevant excerpts and expand evidence when needed. The agent's own filesystem permissions and other tools are separate from jumpyBrain.

@@ -98,11 +98,20 @@ The host owns cancellation/root authority, queueing and pre-write/publication
 execution; it does not maintain a second operation-name or hash-position list.
 Public routes and their distinct permission/error policies are unchanged.
 
-Hosted `/session` GET establishes a brain-scoped HttpOnly SameSite=Strict24-hour
-cookie from a valid bearer credential; DELETE clears it. Cookie-authenticated
+Hosted `/session` GET with a valid bearer credential starts an opaque server-side
+browser session (`../access-control/sessions.ts`) and sets the brain-scoped
+`jumpybrain_session_v3_` cookie (HttpOnly, SameSite=Strict, Secure behind HTTPS,
+400 days); public `POST /session/invite` does the same for a single-use invite
+code and requires the exact Origin. The auth gate resolves the cookie to a session,
+then to its key's current principal; use re-issues the cookie and records last use
+at most daily; a 401 leaves the cookie alone so a late reply cannot erase a newer session. The invite route refuses a browser with a live session (409) and compares the Origin scheme too. DELETE ends the session on
+the server and clears the cookie. A legacy `v2` key cookie still authenticates
+until it expires and is exchanged once by GET `/session`. Cookie-authenticated
 mutations require exact Origin and every request revalidates authorization.
-WS resolves the browser-session marker from the authenticated upgrade cookie;
-credentials never enter the socket URL. See [collaboration](../../../docs/collaboration.md).
+WS resolves the browser-session marker from the authenticated upgrade cookie
+through `authenticateSession`, so a session secret is never a bearer token;
+credentials never enter the socket URL. See the
+[protocol](../../../docs/shared-memory-protocol.md#browser-sessions). See [collaboration](../../../docs/collaboration.md).
 
 ## Retained external versions
 
@@ -116,4 +125,4 @@ The collaboration facade preserves a unique private draft before adopting a revi
 
 ## Access-key routes
 
-Admin-only `GET/POST /access` and `DELETE /access/:id` are thin decoders over `../access-control/`. POST accepts only `name` and `role` (writer default; admin allowed by owner decision 2026-11-12) and maps store validation to `invalid_credential`/`credential_limit`; other store failures use the generic handler. DELETE returns `{ revoked }` and refuses the credential authorizing the request (`cannot_revoke_current`, 409 rather than 403 so browser connection state is not reset). Listing never includes secrets. `test/access-keys.test.js` covers the routes, the remote client and CLI.
+Admin-only `GET/POST /access` and `DELETE /access/:id` are thin decoders over `../access-control/`. POST accepts only `name` and `role` (writer default; admin allowed by owner decision 2026-11-12) and maps store validation to `invalid_credential`/`credential_limit`; other store failures use the generic handler. DELETE returns `{ revoked }`, ends that key's browser sessions and open invites, and refuses the credential authorizing the request (`cannot_revoke_current`, 409 rather than 403 so browser connection state is not reset). Admin-only `POST /access/:id/invites`, `GET /access/sessions`, `DELETE /access/sessions/:id` and `DELETE /access/:id/sessions` create invite codes and list or end browser sessions; `test/browser-session.test.js` covers them. Listing never includes secrets. `test/access-keys.test.js` covers the routes, the remote client and CLI.

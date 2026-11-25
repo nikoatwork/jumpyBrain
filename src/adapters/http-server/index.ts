@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { AccessError, AccessStore, ROLE_CAPABILITIES, hasCapability, roleCapabilities, type AccessRole, type Principal } from "../access-control/index.js";
+import { AccessError, AccessStore, BrowserSessionStore, ROLE_CAPABILITIES, SESSION_COOKIE_MAX_AGE_SECONDS, browserDeviceLabel, hasCapability, roleCapabilities, type AccessRole, type Principal } from "../access-control/index.js";
 import { canonicalPublicationEvidence, createCollaborationHub } from "../../app/collaboration/index.js";
 import { createLiveServer } from "../live/index.js";
 import { callBackend } from "../../app/backend-rpc.js";
@@ -39,6 +39,8 @@ export interface JumpyBrainHttpServerOptions {
   onMemoryWrite?: () => void;
   onMemoryActivity?: () => void;
   maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean };
+  /** Test seam: the clock for browser session renewal, inactivity and invite expiry. */
+  now?: () => number;
 }
 
 export interface StartedJumpyBrainHttpServer {
@@ -76,13 +78,55 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   const access = options.accessStore ?? new AccessStore(root, { bootstrapKeys: apiKeys, ...(options.localOwnerToken && options.backendControl ? {bootstrapOwner: {token: options.localOwnerToken, id: "local-owner:" + options.backendControl.rootId}} : {}) });
   const collaboration = createCollaborationHub({root, enqueueWrite, onWrite: options.onMemoryWrite});
   const authenticate = (token: string) => access.authenticate(token);
+  const sessions = new BrowserSessionStore(root, {now: options.now});
   let cookieRoot = root; try {cookieRoot = realpathSync(root);} catch {}
-  const cookieName = "jumpybrain_session_v2_" + createHash("sha256").update(cookieRoot).digest("hex").slice(0,16);
-  const sessionToken = (request: http.IncomingMessage) => {
-    const raw = request.headers.cookie?.split(";").map(value=>value.trim()).find(value=>value.startsWith(cookieName + "="))?.slice(cookieName.length+1);
+  const cookieSuffix = createHash("sha256").update(cookieRoot).digest("hex").slice(0,16);
+  // v3 holds an opaque session secret; v2 (before 2026-11-25) held the raw access key for 24 hours.
+  const cookieName = "jumpybrain_session_v3_" + cookieSuffix, legacyCookieName = "jumpybrain_session_v2_" + cookieSuffix;
+  const readCookie = (request: http.IncomingMessage, name: string) => {
+    const raw = request.headers.cookie?.split(";").map(value=>value.trim()).find(value=>value.startsWith(name + "="))?.slice(name.length+1);
     try {return raw ? decodeURIComponent(raw) : undefined;} catch {return undefined;}
   };
+  // The browser credential, tagged by kind. Only cookie paths resolve these values.
+  const browserCredential = (request: http.IncomingMessage) => {
+    const session = readCookie(request, cookieName); if (session) return "s:" + session;
+    const legacy = readCookie(request, legacyCookieName); return legacy ? "k:" + legacy : undefined;
+  };
+  const resolveSession = async (secret: string) => {
+    const found = await sessions.resolve(secret); if (!found) return undefined;
+    const principal = await access.authenticateId(found.session.keyId);
+    return principal ? {principal, session: found.session, renew: found.renew} : undefined;
+  };
+  const authenticateBrowser = async (value: string) => value.startsWith("s:") ? (await resolveSession(value.slice(2)))?.principal
+    : value.startsWith("k:") ? access.authenticate(value.slice(2)) : undefined;
   const cookieAttributes = (request: http.IncomingMessage) => "; HttpOnly; SameSite=Strict; Path=/" + ((request.socket as any).encrypted || request.headers["x-forwarded-proto"] === "https" ? "; Secure" : "");
+  const setCookies = (response: ServerResponse, cookies: string[]) => {
+    const existing = response.getHeader("Set-Cookie");
+    response.setHeader("Set-Cookie", [...(Array.isArray(existing) ? existing : existing ? [String(existing)] : []), ...cookies]);
+  };
+  const sessionCookie = (request: http.IncomingMessage, secret: string) => cookieName + "=" + encodeURIComponent(secret) + "; Max-Age=" + SESSION_COOKIE_MAX_AGE_SECONDS + cookieAttributes(request);
+  const clearCookie = (request: http.IncomingMessage, name: string) => name + "=; Max-Age=0" + cookieAttributes(request);
+  const sessionLimit = (response: ServerResponse, error: unknown) => {
+    if (!(error instanceof AccessError) || error.code !== "session_limit") return false;
+    writeJson(response, 503, errorResponse("session_limit", "This brain has too many signed-in browsers. Ask an admin to sign some out.")); return true;
+  };
+  const sameOrigin = (request: http.IncomingMessage) => request.headers.origin === "http://" + request.headers.host || request.headers.origin === "https://" + request.headers.host;
+  /** Start a browser session for an authenticated key, replacing this browser's previous one. */
+  const keyActive = (id: string) => access.authenticateId(id).then(Boolean);
+  const startBrowserSession = async (request: http.IncomingMessage, response: ServerResponse, principal: Principal) => {
+    const previous = readCookie(request, cookieName), legacy = readCookie(request, legacyCookieName) ? [clearCookie(request, legacyCookieName)] : [];
+    // The same key again (Update key with an unchanged key) keeps this browser's session, so other tabs stay connected.
+    const current = previous ? await sessions.resolve(previous) : undefined;
+    if (current?.session.keyId === principal.id) {
+      // The cookie's lifetime restarts only together with the server's record of use.
+      if (current.renew && await sessions.touch(current.session.id)) setCookies(response, [sessionCookie(request, previous!)]);
+      if (legacy.length) setCookies(response, legacy);
+      return current.session;
+    }
+    const started = await sessions.create({keyId: principal.id, role: principal.role, label: browserDeviceLabel(request.headers["user-agent"]), replacing: previous, keyActive});
+    setCookies(response, [sessionCookie(request, started.secret), ...legacy]);
+    return started.session;
+  };
   const requests = new Set<AbortController>();
   const operations = new Map<string, AbortController>();
   const cancelledOperations = new Map<string, number>();
@@ -106,18 +150,46 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
       if (url.pathname === "/session" && request.method === "DELETE") {
-        if (request.headers.origin !== "http://" + request.headers.host && request.headers.origin !== "https://" + request.headers.host) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin."));return;}
-        response.setHeader("Set-Cookie",cookieName + "=; Max-Age=0" + cookieAttributes(request)); writeJson(response,200,{signedOut:true});return;
+        if (!sameOrigin(request)) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin."));return;}
+        // Sign out: the server-side session ends, so a copied cookie stops working too.
+        const current = readCookie(request, cookieName); if (current) await sessions.end(current);
+        setCookies(response, [clearCookie(request, cookieName), clearCookie(request, legacyCookieName)]); writeJson(response,200,{signedOut:true});return;
+      }
+      if (url.pathname === "/session/invite") {
+        if (request.method !== "POST") {writeJson(response,405,errorResponse("method_not_allowed","Use POST.")); return;}
+        // Exact Origin, scheme included: another site cannot sign this browser in to a session of its choosing.
+        const scheme = (request.socket as any).encrypted || request.headers["x-forwarded-proto"] === "https" ? "https://" : "http://";
+        if (request.headers.origin !== scheme + request.headers.host) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin."));return;}
+        response.setHeader("cache-control", "no-store");
+        const body = await parseJsonBody(request); if (isJsonError(body)) {writeJson(response,body.statusCode,body.body); return;}
+        // An invite never replaces a live sign-in: the code stays unused and the browser keeps its identity.
+        // Both cookie kinds are checked on their own: a dead v3 cookie must not hide a live v2 sign-in.
+        const previous = readCookie(request, cookieName), legacyKey = readCookie(request, legacyCookieName);
+        if ((previous && await resolveSession(previous)) || (legacyKey && await access.authenticate(legacyKey))) {writeJson(response,409,errorResponse("already_signed_in","This browser is already signed in. Sign out first to use this invite link.")); return;}
+        let redeemed;
+        try { redeemed = await sessions.redeemInvite(typeof body.code === "string" ? body.code : "", {label: browserDeviceLabel(request.headers["user-agent"]), replacing: previous, principal: id => access.authenticateId(id), keyActive}); }
+        catch (error) { if (sessionLimit(response, error)) return; throw error; }
+        if (!redeemed) {writeJson(response,410,errorResponse("invite_invalid","This invite link has expired or was already used. Ask for a new link.")); return;}
+        setCookies(response, [sessionCookie(request, redeemed.secret), ...(readCookie(request, legacyCookieName) ? [clearCookie(request, legacyCookieName)] : [])]);
+        writeJson(response,200,{protocol:2,principal:redeemed.principal,session:redeemed.session}); return;
       }
       const publicPath = ["/", "/graph", "/graph/", "/favicon.svg", HTTP_MEMORY_ROUTES.health].includes(url.pathname) || isDrawingStaticPath(url.pathname);
-      let principal: Principal | undefined;
+      let principal: Principal | undefined, browserSessionId: string | undefined;
       if (!publicPath) {
         const header = request.headers.authorization;
-                const browserToken = sessionToken(request);
+        const browserValue = browserCredential(request);
         const bearer = header?.startsWith("Bearer ") ? header.slice(7).trim() : undefined;
         const usesCookie = !bearer || bearer === "browser-session";
-        if (usesCookie && browserToken && !["GET","HEAD"].includes(request.method ?? "") && request.headers.origin !== "http://" + request.headers.host && request.headers.origin !== "https://" + request.headers.host) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin.")); return;}
-        principal = await authenticate(usesCookie ? browserToken ?? "" : bearer);
+        if (usesCookie && browserValue && !["GET","HEAD"].includes(request.method ?? "") && !sameOrigin(request)) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin.")); return;}
+        if (!usesCookie) principal = await authenticate(bearer!);
+        else if (browserValue?.startsWith("s:")) {
+          const resolved = await resolveSession(browserValue.slice(2));
+          principal = resolved?.principal; browserSessionId = resolved?.session.id;
+          // Use renews the session: last use is recorded and the 400-day cookie re-issued at most once a day.
+          if (resolved?.renew && await sessions.touch(resolved.session.id)) setCookies(response, [sessionCookie(request, browserValue.slice(2))]);
+          // A 401 does not clear the cookie: a late reply for an ended session could otherwise erase
+          // the newer session another tab just installed. Sign-in overwrites it; sign-out clears it.
+        } else if (browserValue) principal = await authenticate(browserValue.slice(2));
         if (!principal) { writeJson(response, 401, errorResponse(header?.startsWith("Bearer ") ? "invalid_api_key" : "auth_required", header?.startsWith("Bearer ") ? "Invalid API key." : MISSING_BEARER)); return; }
         const readPosts = [HTTP_MEMORY_ROUTES.search, HTTP_MEMORY_ROUTES.recall, HTTP_MEMORY_ROUTES.compactRecall, HTTP_MEMORY_ROUTES.expand, HTTP_MEMORY_ROUTES.resolveTitle, HTTP_MEMORY_ROUTES.dreamSources];
         // Roles are fixed capability sets (access-control). Every request is authorized
@@ -135,8 +207,12 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
       response.setHeader("cache-control", "no-store");
       if (url.pathname === "/session" && request.method === "GET") {
         const bearer = request.headers.authorization?.startsWith("Bearer ") ? request.headers.authorization.slice(7).trim() : undefined;
-        if (bearer && bearer !== "browser-session") response.setHeader("Set-Cookie",cookieName + "=" + encodeURIComponent(bearer) + "; Max-Age=86400" + cookieAttributes(request));
-        writeJson(response,200,{protocol:2,principal}); return;
+        // A key entered in Connect, or a v2 key cookie from an earlier version, becomes an opaque session.
+        const exchange = bearer && bearer !== "browser-session" || (!bearer || bearer === "browser-session") && browserCredential(request)?.startsWith("k:");
+        let session;
+        try { session = exchange && principal ? await startBrowserSession(request, response, principal) : undefined; }
+        catch (error) { if (sessionLimit(response, error)) return; throw error; }
+        writeJson(response,200,{protocol:2,principal,...(session ? {session} : {})}); return;
       }
       if (url.pathname === "/capabilities" && request.method === "GET") {
         // `capabilities` describes this credential; `roles` names every fixed set. Both are
@@ -177,7 +253,29 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         const id = url.pathname.slice(8);
         // Revoking the key that authorizes this request would lock the caller out mid-task.
         if (principal?.id === id) {writeJson(response, 409, errorResponse("cannot_revoke_current", "This key is in use for this request. Sign in with another admin key to revoke it.")); return;}
-        writeJson(response, 200, {revoked: await access.revoke(id)}); return;
+        const revoked = await access.revoke(id);
+        // Authorization already fails for the revoked key; this also drops its sessions and open invites.
+        await sessions.endForKey(id);
+        writeJson(response, 200, {revoked}); return;
+      }
+      if (url.pathname === "/access/sessions" && request.method === "GET") {
+        // Sessions of keys revoked elsewhere (for example `access revoke --root`) no longer authorize anything; leave them out.
+        const revoked = new Set((await access.list()).filter(item => item.revokedAt).map(item => item.id));
+        writeJson(response, 200, {sessions: (await sessions.list()).filter(item => !revoked.has(item.keyId)).map(item => ({...item, ...(item.id === browserSessionId ? {current: true} : {})}))}); return;
+      }
+      if (/^\/access\/sessions\/[a-f0-9-]{36}$/.test(url.pathname) && request.method === "DELETE") {
+        writeJson(response, 200, {ended: Boolean(await sessions.endById(url.pathname.slice("/access/sessions/".length)))}); return;
+      }
+      if (/^\/access\/[a-f0-9-]{36}\/sessions$/.test(url.pathname) && request.method === "DELETE") {
+        writeJson(response, 200, {ended: await sessions.endForKey(url.pathname.slice(8, 44))}); return;
+      }
+      if (/^\/access\/[a-f0-9-]{36}\/invites$/.test(url.pathname) && request.method === "POST") {
+        const id = url.pathname.slice(8, 44);
+        const credential = (await access.list()).find(item => item.id === id && !item.revokedAt);
+        if (!credential) {writeJson(response, 404, errorResponse("not_found", "No active access key has this ID.")); return;}
+        try { const invite = await sessions.createInvite(id); writeJson(response, 201, {code: invite.code, expiresAt: invite.expiresAt, credential: {id: credential.id, name: credential.name, role: credential.role}}); }
+        catch (error) { if (error instanceof AccessError && error.code === "invite_limit") writeJson(response, 409, errorResponse("invite_limit", error.message)); else throw error; }
+        return;
       }
       if (url.pathname === "/_backend/call" && request.method === "POST") {
         const body = await parseJsonBody(request);
@@ -226,7 +324,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
       }
     }
   }));
-  const live = createLiveServer({server, hub: collaboration, authenticate, sessionToken, brainId: createHash("sha256").update(cookieRoot).digest("hex")});
+  const live = createLiveServer({server, hub: collaboration, authenticate, sessionToken: browserCredential, authenticateSession: authenticateBrowser, brainId: createHash("sha256").update(cookieRoot).digest("hex")});
   // Finite body receipt, separate from the backend operation deadline.
   server.requestTimeout = 30_000;
   server.headersTimeout = 30_000;

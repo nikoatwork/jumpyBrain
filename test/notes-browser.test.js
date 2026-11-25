@@ -11,7 +11,7 @@ const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<
 // The shared role guard (accessGuardScript) is part of every shell; a test may replace any of it.
 const accessGuard = ["accessState", "accessCan", "accessBlocked", "accessWritable", "accessOffered", "accessExplanation", "accessExplanationInline", "accessExplain", "accessDenied", "accessDeniedIn", "accessObserved"];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ companionMode: false, connectionStatus: "disconnected", hostedAccess: null, accessNoticeCount: 0, accessRefresh: async () => {}, accessRefused() {}, hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, pageBacklinks: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ companionMode: false, connectionStatus: "disconnected", hostedAccess: null, accessNoticeCount: 0, accessRefresh: async () => {}, accessRefused() {}, hostedIdentityChannel: null, hostedPrincipalId: null, hostedPrincipal: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, pageBacklinks: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, [...names, ...accessGuard.filter(name => !(name in globals) && !names.includes(name))], context), context);
   return context;
 }
@@ -104,7 +104,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
     lifecycleActions: { refresh() { retainedRefreshes++; } },
     $, systemMessages: { sync() {} }, map: { reset() { graphResets++; } }, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
     apiKeyInput: { value: "unsaved-edit", type: "text" },
-    connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
+    connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) }, fetch: async () => ({ ok: true }),
   });
   context.renderConnection();
   assert.equal($("open-connection")["aria-label"], "Connected · Connection settings");
@@ -113,6 +113,15 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   assert.equal(context.apiKeyInput.value, "saved-key");
   assert.equal(context.apiKeyInput.type, "password");
   assert.equal($("toggle-api-key").textContent, "Show key", "closing masks the key again");
+  context.fetch = async () => ({ ok: false });
+  await assert.rejects(context.setConnectionKey(""), /Sign out failed/, "a sign-out the server did not confirm changes nothing here");
+  assert.equal(context.activeApiKey, "saved-key");
+  assert.equal(context.credentialRevision, 0);
+  context.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+  await assert.rejects(context.setConnectionKey("typo"), /not accepted/, "a refused key changes nothing: the current sign-in stays");
+  assert.equal(context.activeApiKey, "saved-key");
+  assert.equal(context.credentialRevision, 0);
+  context.fetch = async () => ({ ok: true });
   await context.setConnectionKey("");
   assert.equal(context.activeApiKey, "");
   assert.equal(context.apiKeyInput.value, "");
@@ -896,7 +905,7 @@ test("reference activation ignores repeats while saving/resolving/preflighting a
 
 test("credentials and modal openings cancel pending references, including transports that ignore abort", async (t) => {
   const cancelers = [
-    ["credentials", (h) => h.context.setConnectionKey("new-key")],
+    ["credentials", (h) => h.context.setConnectionKey("new-key").catch(() => {})],
     ["connection modal", (h) => h.context.openConnection(false)],
     ["search modal", (h) => h.context.openSearch()],
     ["explicit cancellation", (h) => h.context.cancelReferenceInteraction()],

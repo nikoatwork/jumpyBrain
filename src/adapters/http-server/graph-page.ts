@@ -228,20 +228,24 @@ const feedback = JumpyBrainBrowser.installFeedback({ document, window, diagnosti
   collectHost: companionMode ? (signal) => graphJson("/companion/diagnostics", { signal }) : undefined });
 ${companion ? companionPrelude : ""}
 const apiKeyInput = $("api-key");
+// A one-click invite link carries a single-use code in the fragment (never the key); it is
+// exchanged for a browser session before anything else loads.
+let inviteCode = "";
 if (!companionMode) {
-  const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
+  const fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const hashKey = fragment.get("apiKey");
+  inviteCode = fragment.get("invite") || "";
   try { localStorage.removeItem("jumpybrain.graph.apiKey"); } catch { /* Browser storage may be disabled. */ }
-  if (hashKey) {
-    apiKeyInput.value = hashKey;
-    history.replaceState(history.state, "", location.pathname + location.search);
-  }
-
+  if (hashKey) apiKeyInput.value = hashKey;
+  if (hashKey || inviteCode) history.replaceState(history.state, "", location.pathname + location.search);
 }
 
 // Keep the committed credential separate from edits in the settings dialog.
 let activeApiKey = companionMode ? "companion-session" : apiKeyInput.value.trim();
 let credentialRevision = 0;
 let hostedPrincipalId = null;
+// Who this browser session signed in as, from /session or an invite: {id, name, role}.
+let hostedPrincipal = null;
 const hostedIdentityChannel = !companionMode && typeof BroadcastChannel === "function" ? new BroadcastChannel("jumpybrain.browser.identity.v2") : null;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 ${accessGuardScript}
@@ -577,12 +581,38 @@ $("graph-index-state").addEventListener("click", () => browserCommands.execute("
 for (const dialog of [dreamDialog, connectionDialog, $("feedback-dialog")]) dialog.addEventListener("toggle", () => { if (dialog.open) searchMaintenance.suspend(); else searchMaintenance.resume(); });
 if (!companionMode) {
   (async () => {
+    let inviteProblem = "", signedInAs = null;
+    if (inviteCode) {
+      // An invite never silently replaces who this browser is signed in as: a link opened from
+      // elsewhere could otherwise switch an existing session to another key.
+      // Redeem only after the server said this browser has no session (401); the route refuses a live one too.
+      let unsigned = false;
+      try { const current = await fetch("/session"); if (current.ok) signedInAs = (await current.json()).principal || null; else unsigned = current.status === 401; if (!current.ok && !unsigned) inviteProblem = "failed"; }
+      catch { inviteProblem = "offline"; }
+      if (unsigned) try {
+        const response = await fetch("/session/invite", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({code: inviteCode})});
+        if (response.ok) {
+          // Connected is set below, together with the first page, once /session confirms the cookie.
+          hostedPrincipal = (await response.json()).principal || null; hostedPrincipalId = hostedPrincipal?.id || null;
+          apiKeyInput.value = ""; activeApiKey = "browser-session";
+          hostedIdentityChannel?.postMessage({principalId: hostedPrincipalId, principal: hostedPrincipal});
+        } else if (response.status === 409) signedInAs = {name: ""};
+        else inviteProblem = response.status === 410 ? "used" : "failed";
+      } catch { inviteProblem = "offline"; }
+      inviteCode = "";
+    }
     try {
-      const response = await fetch("/session", {headers: activeApiKey ? {Authorization:"Bearer " + activeApiKey} : {}});
-      if (response.ok) {hostedPrincipalId = (await response.json()).principal?.id; activeApiKey = "browser-session"; apiKeyInput.value = ""; connectionStatus = "connected"; void accessRefresh();}
+      const response = await fetch("/session", {headers: activeApiKey && activeApiKey !== "browser-session" ? {Authorization:"Bearer " + activeApiKey} : {}});
+      if (response.ok) {hostedPrincipal = (await response.json()).principal || null; hostedPrincipalId = hostedPrincipal?.id || null; activeApiKey = "browser-session"; apiKeyInput.value = ""; connectionStatus = "connected"; void accessRefresh();}
+      // A key that did not become a session is never used directly; it stays in the dialog to retry.
+      else if (activeApiKey !== "browser-session" && response.status !== 401) {activeApiKey = ""; connectionStatus = "disconnected";}
     } catch { /* The connection dialog remains available offline. */ }
     showPage(initialEntry.url); renderConnection();
+    if (inviteProblem) showInviteProblem(inviteProblem);
+    else if (signedInAs) systemMessages.dispatch({ source: "invite", text: "This browser is already signed in" + (hostedPrincipal?.name || signedInAs.name ? " as “" + (hostedPrincipal?.name || signedInAs.name) + "”" : "") + ", so the invite link was not used. To use it instead, sign out first, then open the link again.", severity: "info", revision: "invite", duration: 12000 });
   })();
+  // An invite link opened in a tab already showing this brain changes only the fragment: reload to use it.
+  window.addEventListener("hashchange", () => { if (new URLSearchParams(location.hash.replace(/^#/, "")).has("invite")) location.reload(); });
 }
 ${companion ? String.raw`
 function syncCompanionExtensions() {

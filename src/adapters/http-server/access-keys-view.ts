@@ -24,8 +24,19 @@ const panel = String.raw`
     <input id="access-keys-secret" class="input--mono" type="text" readonly aria-label="New access key" autocomplete="off" spellcheck="false" />
     <div class="access-keys-actions">
       <button id="access-keys-copy" class="button button-primary" type="button">Copy key</button>
-      <button id="access-keys-copy-invite" class="quiet-button" type="button" title="Copies the address, the key and how to connect">Copy invite</button>
+      <button id="access-keys-copy-link" class="quiet-button" type="button" title="For people: a one-click browser sign-in link that works once, within 7 days" hidden>Copy invite link</button>
+      <button id="access-keys-copy-invite" class="quiet-button" type="button" title="For agents and the CLI: the address, the key and how to connect">Copy agent setup</button>
       <button id="access-keys-done" class="quiet-button" type="button">Done</button>
+    </div>
+    <p class="access-keys-uses">Invite link: for people reading in a browser. Agent setup: for the app, the CLI and agents.</p>
+  </div>
+  <div id="access-keys-link" class="access-keys-new card card--roomy" hidden>
+    <strong id="access-keys-link-title"></strong>
+    <p id="access-keys-link-expiry"></p>
+    <input id="access-keys-link-url" class="input--mono" type="text" readonly aria-label="Invite link" autocomplete="off" spellcheck="false" />
+    <div class="access-keys-actions">
+      <button id="access-keys-link-copy" class="button button-primary" type="button">Copy link</button>
+      <button id="access-keys-link-done" class="quiet-button" type="button">Done</button>
     </div>
   </div>
   <form id="access-keys-form" hidden>
@@ -81,7 +92,7 @@ export const accessKeysStyles = String.raw`
   .access-keys-fields button { flex: none; }
   .access-keys-new { margin-top: var(--space-5); border-color: var(--accent); }
   .access-keys-new strong { font-size: var(--text-body); overflow-wrap: anywhere; }
-  #access-keys-secret { display: block; width: 100%; margin-top: var(--space-3); }
+  #access-keys-secret, #access-keys-link-url { display: block; width: 100%; margin-top: var(--space-3); }
   .access-keys-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
   .access-keys #access-keys-message { margin-top: var(--space-4); font-size: var(--text-ui); }
   #access-keys-list, #access-keys-revoked-list { list-style: none; margin: var(--space-5) 0 0; padding: 0; display: grid; gap: var(--space-2); }
@@ -90,6 +101,9 @@ export const accessKeysStyles = String.raw`
   .access-key strong { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-body); overflow-wrap: anywhere; }
   .access-key p { margin-top: var(--space-1); }
   .access-key-empty { color: var(--ink-soft); font-size: var(--text-ui); }
+  .access-key-actions { display: flex; flex: none; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+  .access-key-sessions { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-1); color: var(--ink-soft); font-size: var(--text-caption); }
+  .access-key-sessions li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
   #access-keys-revoked { margin-top: var(--space-5); color: var(--ink-soft); font-size: var(--text-ui); }
   #access-keys-revoked-list { margin-top: var(--space-3); }
   #access-keys-revoked-list .access-key strong { color: var(--ink-soft); font-weight: var(--weight-regular); }
@@ -97,7 +111,7 @@ export const accessKeysStyles = String.raw`
   #access-keys-dialog h2 { margin-right: var(--space-10); }
   #access-keys-close { position: absolute; top: var(--space-4); right: var(--space-4); margin: 0; }
   #open-access-keys[hidden] { display: none; }
-  @media ${media.compact} { .access-keys-fields { flex-wrap: wrap; } .access-keys-fields input { flex-basis: 100%; } .access-keys-fields .dropdown { flex: 1 1 auto; } }
+  @media ${media.compact} { .access-keys-fields { flex-wrap: wrap; } .access-keys-fields input { flex-basis: 100%; } .access-keys-fields .dropdown { flex: 1 1 auto; } .access-key { flex-wrap: wrap; } .access-key-actions { justify-content: flex-start; } }
 `;
 
 // One guard for changes a key's role does not allow, shared by the app (companion) and the

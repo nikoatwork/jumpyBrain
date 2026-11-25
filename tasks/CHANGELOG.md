@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-25 — Browsers stay signed in to shared brains
+
+- Hosted browsers use opaque server-side sessions instead of a key-holding cookie: 400 days, renewed on use, ended by sign-out, admin sign-out or key revocation. Admins copy single-use one-click invite links per key and see signed-in browsers; readers see who they are and **View only**. [Outcome, decisions, checks and limits](done/2026-11-25_tasks-web-viewer-access.md)
+
 ## 2026-11-25 — Install profiles and optional smart search
 
 - The installer offers profiles (personal memory by default, Mac app, team brain for agents, browse only) with outcome-first explanations, a terminal-only menu and the recorded choice kept by updates. Smart search is an opt-in add-on (`--smart-search`, `jumpybrain smart-search on|off`), and status/doctor name the active search in plain words. The Mac Settings row is deferred. [Verification and limits](done/2026-11-25_tasks-install-profiles.md).

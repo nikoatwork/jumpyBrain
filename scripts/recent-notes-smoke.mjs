@@ -15,7 +15,7 @@ let server, browser;
 // The connection control is icon-only; its accessible name carries the state.
 const connectionName = (page) => page.locator("#open-connection").getAttribute("aria-label");
 // Hosted browser credentials live only in an HttpOnly session cookie, never in JavaScript storage.
-const sessionCookies = async (page) => (await page.context().cookies()).filter((cookie) => cookie.name.startsWith("jumpybrain_session_v2_"));
+const sessionCookies = async (page) => (await page.context().cookies()).filter((cookie) => cookie.name.startsWith("jumpybrain_session_v3_"));
 try {
   await mkdir(path.join(root, "notes"));
   for (let n = 1; n <= 10; n++) {
@@ -42,6 +42,8 @@ try {
     await page.locator("#recent-connect").click();
     await page.locator("#api-key").fill("wrong-key");
     await page.locator('#connection-form button[type="submit"]').click();
+    await page.waitForFunction(() => document.querySelector("#connection-message").textContent === "The access key was not accepted. Check it and try again.");
+    await page.locator("#close-connection").click();
     await page.locator("#recent-connect").waitFor({ state: "visible" });
     assert.equal(await connectionName(page), "Connect · Connection settings");
     await page.locator("#open-connection").click();
@@ -103,7 +105,7 @@ try {
     await showSidebar(page);
     await page.locator("#open-connection").click();
     await page.locator("#disconnect").click();
-    await page.waitForFunction(() => document.querySelector("#connection-message").textContent.includes("Could not disconnect"));
+    await page.waitForFunction(() => document.querySelector("#connection-message").textContent.includes("Could not sign out"));
     assert.equal((await sessionCookies(page)).length, 1, "failed disconnect keeps the session");
     assert.equal(await connectionName(page), "Connected · Connection settings");
     await page.locator("#close-connection").click();
