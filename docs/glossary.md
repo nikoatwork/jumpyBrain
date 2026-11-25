@@ -102,3 +102,15 @@ Unpublished body/title/recovery state scoped to one brain, principal, document a
 ## Stream lease
 
 A bounded period during which an agent's live stream can accept more chunks. Activity renews it; expiry or revoked access stops further chunks and releases capacity while retaining already saved Markdown.
+
+## Keyword search
+
+The default search of a local brain: QMD's SQLite full-text search over the Markdown notes (the `lexical` indexing policy). It needs no model and finds notes that contain the words searched for, so it can miss paraphrases. User-facing copy says "keyword search"; "Lexical" is also the name of the editor library, so avoid it in product text.
+
+## Smart search
+
+The optional semantic search add-on (the `semantic` indexing policy): a pinned 334 MB embedding model, downloaded once per computer after explicit consent, that lets search also find notes saying the same thing in other words. It runs only on the computer holding the brain. Turned on and off per brain with `jumpybrain smart-search on|off` or the installer's `--smart-search`/`--no-smart-search`. See [smart search](cli-commands.md#smart-search).
+
+## Install profile
+
+What someone wants jumpyBrain for, chosen at install time and recorded in `install-manifest.json`: `personal` (default: CLI, keyword search, agent skills), `mac-app` (plus the Mac app), `remote` (CLI for a shared brain only) or `browse` (nothing to install). Profiles map onto the older `--with-app` and `--remote-only` options; add-ons such as smart search are recorded beside them. See [installation](install.md).

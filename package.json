@@ -80,6 +80,7 @@
     "examples/extensions",
     "scripts/install-support.mjs",
     "scripts/install-compatibility.mjs",
+    "scripts/install-profiles.mjs",
     "scripts/installation-storage.mjs",
     "scripts/engine",
     "scripts/setup-desktop.mjs",

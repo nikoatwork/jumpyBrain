@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-25 — Install profiles and optional smart search
+
+- The installer offers profiles (personal memory by default, Mac app, team brain for agents, browse only) with outcome-first explanations, a terminal-only menu and the recorded choice kept by updates. Smart search is an opt-in add-on (`--smart-search`, `jumpybrain smart-search on|off`), and status/doctor name the active search in plain words. The Mac Settings row is deferred. [Verification and limits](done/2026-11-25_tasks-install-profiles.md).
+
 ## 2026-11-25 — Homebrew recovery and shared note links
 
 - Managed installs follow a verified Homebrew Node link across typical upgrades. Desktop gives repair guidance when its Node cannot start, and the installer can reclaim a verifiably abandoned app-update lock. Shared note links offer key entry and reopen the requested note using the existing browser session. [Verification and limits](done/2026-11-25_tasks-november-feedback-fixes.md).

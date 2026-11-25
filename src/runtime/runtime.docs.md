@@ -59,4 +59,4 @@ The public local runtime re-exports `MemoryActor`, `SearchRecognitionOptions`, `
 
 ## Optional model provisioning
 
-`prepareSemanticModel({download?,file?,signal?})` explicitly provisions/verifies the pinned optional device-local model and returns a portable policy. Without consent and without an available cache, it returns the cost/terms plan without writing. Indexing is a separate selected-root operation. Status adds safe semanticSetup state; default lexical operation remains available without setup.
+`prepareSemanticModel({download?,file?,signal?,onProgress?})` explicitly provisions/verifies the pinned optional device-local model and returns a portable policy. Without consent and without an available cache, it returns the cost/terms plan without writing. Indexing is a separate selected-root operation. Status adds safe semanticSetup state; default lexical operation remains available without setup. `semanticModelPreset`, `semanticModelFile(modelId?)` and `removeSemanticModel(modelId?)` describe and explicitly free the managed model file; removal never touches a user-selected model path.

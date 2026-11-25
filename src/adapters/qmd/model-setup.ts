@@ -39,7 +39,7 @@ async function validArtifact(file: string, artifact: Artifact): Promise<boolean>
 }
 
 /** Explicit provisioning only. Status/recall never call this network path. */
-export async function provisionLocalModel(options: { download?: boolean; file?: string; signal?: AbortSignal; directory?: string; fetchImpl?: typeof fetch } = {}, artifact: Artifact = SEMANTIC_MODEL) {
+export async function provisionLocalModel(options: { download?: boolean; file?: string; signal?: AbortSignal; directory?: string; fetchImpl?: typeof fetch; onProgress?: (bytes: number, total: number) => void } = {}, artifact: Artifact = SEMANTIC_MODEL) {
   if (!/^[a-f0-9]{64}$/.test(artifact.sha256) || !Number.isSafeInteger(artifact.bytes) || artifact.bytes < 4) throw new Error('Invalid model artifact identity.');
   const directory = options.directory ? path.resolve(options.directory) : modelDirectory();
   const file = path.join(directory, artifact.sha256 + '.gguf');
@@ -79,6 +79,7 @@ export async function provisionLocalModel(options: { download?: boolean; file?: 
       signal.throwIfAborted(); bytes += chunk.byteLength;
       if (bytes > artifact.bytes) throw new Error('Model download exceeds the pinned artifact size.');
       hash.update(chunk); await output.writeFile(chunk);
+      options.onProgress?.(bytes, artifact.bytes);
     }
     if (bytes !== artifact.bytes || hash.digest('hex') !== artifact.sha256) throw new Error('Model verification failed; no model was selected.');
     await output.sync(); await output.close(); output = undefined;
@@ -100,4 +101,36 @@ export async function localModelAvailable(policy: IndexingPolicy): Promise<boole
   if (!file) return false;
   try { const info = await lstat(file); return info.isFile() && !info.isSymbolicLink(); }
   catch { return false; }
+}
+
+/** Where the device-local copy of a managed model lives; a user-selected --semantic-model file is never reported. */
+function managedModelFile(modelId: string | undefined, directory?: string): string {
+  const id = modelId ?? 'sha256:' + SEMANTIC_MODEL.sha256;
+  if (!/^sha256:[a-f0-9]{64}$/.test(id)) throw new Error('Invalid device-local model identity.');
+  return path.join(directory ? path.resolve(directory) : modelDirectory(), id.slice(7) + '.gguf');
+}
+
+/** Observational: the managed model file and its size, without hashing or network. */
+export async function localModelFile(modelId?: string, options: { directory?: string } = {}): Promise<{ path: string; present: boolean; bytes: number }> {
+  const file = managedModelFile(modelId, options.directory);
+  try {
+    const info = await lstat(file);
+    return info.isFile() && !info.isSymbolicLink() ? { path: file, present: true, bytes: info.size } : { path: file, present: false, bytes: 0 };
+  } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { path: file, present: false, bytes: 0 }; throw error; }
+}
+
+/**
+ * Explicit removal of a downloaded managed model to free disk space. Only the
+ * device-local file named by its SHA-256 identity is removed; a model another
+ * brain on this computer selects must be provisioned again for that brain.
+ */
+export async function removeLocalModel(modelId?: string, options: { directory?: string } = {}): Promise<{ path: string; removed: boolean; bytes: number }> {
+  const found = await localModelFile(modelId, options);
+  if (!found.present) return { path: found.path, removed: false, bytes: 0 };
+  // Never follow a linked model directory to a same-named file elsewhere.
+  const directory = await lstat(path.dirname(found.path));
+  if (!directory.isDirectory() || directory.isSymbolicLink()) throw new Error('Model directory must be a plain directory, not a link; remove the model file yourself if intended.');
+  try { await unlink(found.path); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; return { path: found.path, removed: false, bytes: 0 }; }
+  return { path: found.path, removed: true, bytes: found.bytes };
 }

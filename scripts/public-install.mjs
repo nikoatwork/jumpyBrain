@@ -2,7 +2,7 @@
 import { refreshManagedIntegrations, renderIntegration } from '../integrations/electron/managed-integrations.mjs';
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { constants as fsConstants, existsSync } from "node:fs";
+import { constants as fsConstants, existsSync, readFileSync } from "node:fs";
 import { access, chmod, cp, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -13,6 +13,7 @@ import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
 import { atomicJSON, cliShim, durableNode, preflight, selectEngineWithSource, discoverRelease, installRelease, filesystemReport, observeFilesystem, formatFilesystem } from "./install-support.mjs";
 import { classifyManifest, classifyVerification, DEFAULT_REPO, incompatibleRuntimeError, INSTALLER_NAME, MANIFEST_VERSION, migrationBlockers, migrationCommand, runtimeCapabilities, sourcePolicy } from "./install-compatibility.mjs";
 import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
+import { applyProfileFlags, askSmartSearch, browseInstructions, describePlan, effectiveProfile, formatPlan, promptChoices, recordedProfile, removeSmartSearchModel, shouldPrompt, SMART_SEARCH, smartSearchModelPath } from './install-profiles.mjs';
 
 const installerToken = randomUUID();
 let unlock = async () => {};
@@ -33,6 +34,11 @@ async function main(argv = process.argv.slice(2)) {
     return;
   }
 
+  if (options.profile === "browse") {
+    reportBrowseOnly();
+    if (jsonOutput) process.stdout.write(JSON.stringify(resultReport) + "\n");
+    return;
+  }
   ensureSupportedPlatform();
   ensureNodeVersion();
 
@@ -41,8 +47,8 @@ async function main(argv = process.argv.slice(2)) {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const installRoot = path.resolve(expandHome(options.installRoot ?? path.join(home, ".jumpybrain"), home));
   try {
-    await installManaged({ options, home, cwd, installRoot });
-    if (!options.dryRun) {
+    const outcome = await installManaged({ options, home, cwd, installRoot });
+    if (outcome !== "browse" && !options.dryRun) {
       for (const { generation, versions } of pendingSoftware) finishSoftware(generation, { home, root: installRoot, owner: process.pid, versions });
       resultReport.storage = maintainSoftware({ home, root: installRoot, owner: process.pid });
       // Printed last so the report reflects everything this run left on disk.
@@ -68,6 +74,21 @@ async function installManaged({ options, home, cwd, installRoot }) {
   const manifestPath = path.join(installRoot, "install-manifest.json");
   const previousManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
   assertNoUnmanagedInstall(previousManifest, { installRoot, appDir, binDir, cliPath });
+  const existingInstall = Boolean(previousManifest && previousManifest.state !== "installing");
+  // Retrying an interrupted first install finishes what was chosen, unless the retry chooses again.
+  if (previousManifest?.state === "installing" && !options.profile && !options.withApp && !options.remoteOnly && previousManifest.profile === "mac-app") options.withApp = true;
+  if (previousManifest?.state === "installing" && options.smartSearch === undefined && previousManifest.addOns?.smartSearch === true) options.smartSearch = true;
+  const previousProfile = recordedProfile(previousManifest, { appInstalled: installRoot === path.join(home, ".jumpybrain") && existsSync(path.join(home, "Applications/jumpyBrain.app")) });
+  // A person at a terminal picks what they want; agents, --json, --yes, dry runs and pipes get the defaults.
+  const choiceFlags = ["profile", "with-app", "remote-only", "smart-search", "no-smart-search"].some(flag => options.provided.has(flag));
+  if (!previousManifest && !choiceFlags && shouldPrompt({ stdinIsTTY: process.stdin.isTTY, json: jsonOutput, yes: options.yes, dryRun: options.dryRun })) {
+    const choice = await withTerminal(ask => promptChoices(ask));
+    options.profile = choice.profile;
+    options.smartSearch = choice.smartSearch;
+    if (choice.profile === "browse") { reportBrowseOnly(); return "browse"; }
+    applyProfileFlags(options);
+    if (options.remoteOnly && !options.provided.has("integrations")) options.integrations = "none";
+  }
   if (options.source === "release" && options.ref) throw new Error("--ref selects a Git revision and cannot be combined with --source release.");
   const previousPolicy = previousManifest ? sourcePolicy(previousManifest) : null;
   // Converting source policy is explicit: an ordinary rerun keeps the recorded source/ref.
@@ -88,6 +109,8 @@ async function installManaged({ options, home, cwd, installRoot }) {
   // Conflicting modes stop here: before preflight, locks, engine selection or any write.
   const conflict = message => Object.assign(new Error(`${message} Nothing was changed.`), { blockers: [message] });
   if (previousManifest && options.remoteOnly && previousManifest.remoteOnly !== true) throw conflict(`The installation at ${installRoot} is a local installation with its own brain; --remote-only cannot convert it. Use a separate --install-root for a remote-only CLI, or uninstall this one first.`);
+  if (previousManifest?.remoteOnly === true && options.profile && options.profile !== "remote") throw conflict(`The installation at ${installRoot} connects agents to a team brain (remote-only) and cannot switch to the ${options.profile} profile today: it has no local engine or brain. Use a separate --install-root for a local installation.`);
+  if (previousManifest?.remoteOnly === true && options.smartSearch !== undefined) throw conflict(`The installation at ${installRoot} is remote-only, so there is no local brain for smart search. Smart search for a team brain is set up on its server.`);
   if (previousManifest?.remoteOnly === true && options.withApp) throw conflict(`The installation at ${installRoot} is remote-only and has no local engine or brain, so the Mac app cannot be added to it. Use a separate local installation for the app.`);
   if (!previousManifest && remoteOnly && options.provided.has("memory-root")) throw conflict("--remote-only creates no local brain, so --memory-root cannot be combined with it.");
   options.remoteOnly = remoteOnly;
@@ -100,7 +123,21 @@ async function installManaged({ options, home, cwd, installRoot }) {
     const protectedDir = await physicalPath(directory);
     if (physicalMemory === protectedDir || physicalMemory.startsWith(protectedDir + path.sep) || protectedDir.startsWith(physicalMemory + path.sep)) throw new Error("Memory must not overlap replaceable program or engine directories.");
   }
-  resultReport = { ...resultReport, dryRun: options.dryRun, installRoot, cliPath, memoryRoot: remoteOnly ? null : memoryRoot, source, remoteOnly, integrations: [], skippedIntegrations: [] };
+  const profile = effectiveProfile(options, previousProfile);
+  if (existingInstall && previousProfile === "mac-app" && profile === "personal") log("The Mac app stays installed; this installation now records the personal profile. Remove the app by moving it to the Trash.");
+  // The brain's saved policy, also when resuming an interrupted first install that already switched it.
+  const smartSearchBefore = previousManifest && !remoteOnly ? smartSearchActive(memoryRoot) : false;
+  // The managed model this brain selected, read once so the plan and the removal name the same file.
+  const smartSearchModelId = smartSearchBefore ? brainIndexingPolicy(memoryRoot)?.modelId : undefined;
+  if (existingInstall && !remoteOnly && options.smartSearch === undefined && shouldPrompt({ stdinIsTTY: process.stdin.isTTY, json: jsonOutput, yes: options.yes, dryRun: options.dryRun })) {
+    const keep = await withTerminal(ask => askSmartSearch(ask, { current: smartSearchBefore }));
+    if (keep !== smartSearchBefore) options.smartSearch = keep;
+  }
+  const smartSearchWanted = remoteOnly ? false : options.smartSearch ?? smartSearchBefore;
+  const smartSearchAction = smartSearchWanted ? (smartSearchBefore ? "keep" : "add") : smartSearchBefore ? "remove" : "none";
+  const plan = describePlan({ profile, smartSearch: smartSearchWanted, smartSearchAction, existing: existingInstall && profile === previousProfile });
+  resultReport = { ...resultReport, dryRun: options.dryRun, installRoot, cliPath, memoryRoot: remoteOnly ? null : memoryRoot, source, remoteOnly, profile, plan, integrations: [], skippedIntegrations: [] };
+  log(formatPlan(plan));
   const reuseCandidate = Boolean(options.withApp && previousManifest && previousManifest.state !== "installing" && !options.source && !options.ref);
   if (previousManifest) {
     const { shape, omitted } = previousManifest[manifestClassification];
@@ -149,6 +186,8 @@ async function installManaged({ options, home, cwd, installRoot }) {
   const reportFilesystem = ({ policy, integrations: planned, existing }) => {
     resultReport.filesystem = filesystemReport({ dryRun: options.dryRun, home, installRoot, appDir, cliPath, cliConfigPath, manifestPath, memoryRoot, remoteOnly,
       existing, reuseApp: options.reuseApp, policy, engine, integrations: planned, skipInitialIndex: options.skipInitialIndex, withApp: options.withApp, dependencies, source,
+      smartSearch: smartSearchAction === "add" ? { action: "add", path: smartSearchModelPath(home) }
+        : smartSearchAction === "remove" && smartSearchModelId ? { action: "remove", path: smartSearchModelPath(home, process.env, smartSearchModelId) } : undefined,
       agentDirs: [home, ...(scope === "project" ? [cwd] : [])].flatMap(base => [".claude", ".agents", ".pi", ".codex"].map(name => path.join(base, name))),
       bootstrapDir: process.env.JUMPYBRAIN_BOOTSTRAP_DIR || undefined, rootExisted });
     resultReport.commandMode = policy.readOnlyCommands === null ? "invalid" : policy.readOnlyCommands ? "read-only" : "read-write";
@@ -186,6 +225,10 @@ async function installManaged({ options, home, cwd, installRoot }) {
       memoryRoot,
       dependencies,
       reportFilesystem,
+      profile,
+      smartSearchAction,
+      smartSearchBefore,
+      smartSearchModelId,
     });
     return;
   }
@@ -209,6 +252,8 @@ async function installManaged({ options, home, cwd, installRoot }) {
     source: manifestSource, distribution: source === "release" ? "release" : "source", release: selectedRelease || null, ref: ref ?? null,
     scope, installRoot, appDir, binDir, cliPath, cliConfigPath, memoryRoot,
     node: durableNode(), qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest?.desktopPort, remoteOnly, integrationMode: integrations,
+    // While installing this is the request (a retry resumes it); once ready it is the verified outcome.
+    profile, addOns: { smartSearch: smartSearchWanted },
     integrations: integrationPlan.install.map(({ kind, path }) => ({ kind, path })),
     installerOptions: { skipBuild: Boolean(options.skipBuild), skipQmdInstall: Boolean(options.skipQmdInstall), skipInitialIndex: Boolean(options.skipInitialIndex) },
     files: [cliPath, ...integrationPlan.install.map(item => item.path)],
@@ -227,7 +272,11 @@ async function installManaged({ options, home, cwd, installRoot }) {
 
   const qmdAvailable = Boolean(selectedQmd);
   summary.searchReady = qmdAvailable && !options.skipInitialIndex;
-  if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
+  // A resumed install whose brain already switched to smart search applies an explicit opt-out first:
+  // `index --lexical` is then its initial index, so a missing model cannot block it.
+  const optOutFirst = !options.dryRun && smartSearchAction === "remove";
+  if (optOutFirst) manifest.addOns.smartSearch = applySmartSearch({ action: "remove", cliPath, memoryRoot, options, modelId: smartSearchModelId });
+  else if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
 
   for (const item of integrationPlan.install) {
     if (!options.dryRun) {
@@ -243,6 +292,9 @@ async function installManaged({ options, home, cwd, installRoot }) {
     manifest.installedVersion = await readInstalledVersion(appDir);
     await verifyInstallation({ options, cliPath, memoryRoot, runtime: { role: "installed", version: manifest.installedVersion } });
     if (options.withApp) await setupDesktop({ appDir, installRoot, home, memoryRoot, options });
+    // Before `ready`: an interrupted download leaves the request in the installing record, and a
+    // retry runs the same idempotent setup again (reusing a verified model, repairing a partial index).
+    if (!optOutFirst) manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options, modelId: smartSearchModelId });
     manifest.state = "ready";
     await atomicJSON(manifestPath, manifest);
   }
@@ -251,6 +303,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
 
   if (!options.dryRun) resultReport.state = resultReport.remainingActions.length ? "pending_user_action" : "ready";
   summary.remoteOnly = remoteOnly;
+  summary.smartSearch = resultReport.smartSearch?.state ?? (smartSearchAction === "add" ? "planned" : "off");
   printSummary(summary);
 }
 
@@ -348,6 +401,10 @@ async function updateExistingInstall({
   memoryRoot,
   dependencies,
   reportFilesystem,
+  profile,
+  smartSearchAction,
+  smartSearchBefore,
+  smartSearchModelId,
 }) {
   assertPreservedInstallSettings(options, { scope, integrations, memoryRoot }, home);
 
@@ -375,6 +432,7 @@ async function updateExistingInstall({
     console.log(`\n${formatFilesystem(resultReport.filesystem)}`);
     return;
   }
+  if (options.remoteOnly) log("This installation connects agents to a team brain (remote-only); that mode stays fixed. Use a separate --install-root for personal memory or the Mac app.");
 
   const verifyRuntime = async (runtimeDir, role) => {
     // Never leave probe files in a live runtime; a staged runtime is invocation-owned.
@@ -414,6 +472,8 @@ async function updateExistingInstall({
     cliConfigPath: ownsConfig ? cliConfigPath : undefined,
     memoryRoot,
     integrationMode: integrations,
+    profile,
+    addOns: { ...(previousManifest.addOns && typeof previousManifest.addOns === "object" ? previousManifest.addOns : {}), smartSearch: smartSearchBefore },
     ...(resultReport.policyChange ? { installerOptions: { ...previousManifest.installerOptions, skipBuild: Boolean(options.skipBuild) } } : {}),
   };
   if (!ownsConfig) log(`Existing ${cliConfigPath} predates recorded ownership; it is used but will not be removed by uninstall.`);
@@ -423,6 +483,10 @@ async function updateExistingInstall({
   manifest.integrationHashes = refreshed.hashes;
   for (const item of refreshed.results) log(`Integration ${item.status}: ${item.path}`);
   await atomicJSON(manifestPath, manifest);
+  if (smartSearchAction === "add" || smartSearchAction === "remove") {
+    manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options, modelId: smartSearchModelId });
+    await atomicJSON(manifestPath, manifest);
+  } else resultReport.smartSearch = { action: smartSearchAction, state: smartSearchAction === "keep" ? "on" : "off" };
   Object.assign(resultReport, { integrationRefresh: refreshed.results, version: manifest.installedVersion, state: resultReport.remainingActions.length ? "pending_user_action" : "ready" });
 
   console.log("\njumpyBrain update complete.");
@@ -430,6 +494,79 @@ async function updateExistingInstall({
   console.log(options.remoteOnly ? "Remote-only: no local brain or search engine." : `Memory preserved: ${memoryRoot}`);
   console.log(`CLI policy: ${policyPlan.description}`);
   console.log("Untouched managed integrations refreshed; customized, missing and untracked files preserved.");
+  if (!options.remoteOnly) console.log(smartSearchLine(resultReport.smartSearch.state));
+}
+
+// The brain's own policy is the truth: `jumpybrain smart-search on|off` changes it without the installer.
+function brainIndexingPolicy(memoryRoot) {
+  try { return JSON.parse(readFileSync(path.join(memoryRoot, "jumpybrain.json"), "utf8"))?.indexing; }
+  catch { return undefined; }
+}
+function smartSearchActive(memoryRoot) { return brainIndexingPolicy(memoryRoot)?.mode === "semantic"; }
+
+// Turning the add-on on or off never fails the installation: keyword search is already verified.
+// It uses the index flags every installed runtime since semantic setup understands
+// (`smart-search on|off` is their newer spelling), and records what the brain actually uses.
+function applySmartSearch({ action, cliPath, memoryRoot, options, modelId }) {
+  if (action === "keep" || action === "none") { resultReport.smartSearch = { action, state: action === "keep" ? "on" : "off" }; return action === "keep"; }
+  if (action === "add" && (!selectedQmd || options.skipInitialIndex)) {
+    resultReport.smartSearch = { action, state: "pending" };
+    resultReport.remainingActions.push(`Smart search was not turned on because local search is not set up yet; after doctor --check passes run: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --setup-semantic --download-model`);
+    return false;
+  }
+  log(action === "add" ? "Turning on smart search: downloading and verifying its 334 MB model, then indexing" : "Turning off smart search and removing its downloaded model");
+  const index = flags => run(cliPath, ["index", "--root", memoryRoot, ...flags], { env: provisioningEnvironment(cliPath) });
+  // Only a model the brain selected by managed identity (`modelId`, read before switching) is removed; a custom path is left alone.
+  const markModel = (verb, note) => { const planned = resultReport.filesystem?.changes.find(item => item.role === "smart-search-model"); if (planned) Object.assign(planned, { action: verb, note }); };
+  try {
+    index(action === "add" ? ["--setup-semantic", "--download-model"] : ["--lexical"]);
+    resultReport.smartSearch = { action, state: action === "add" ? "on" : "off" };
+    if (action === "remove" && modelId) {
+      let removed;
+      try { removed = removeSmartSearchModel(installationHome, process.env, modelId); }
+      catch (error) { removed = { path: smartSearchModelPath(installationHome, process.env, modelId), removed: false, reason: error.message }; }
+      resultReport.smartSearch.model = removed;
+      if (removed.removed) log(`Removed the smart search model ${removed.path}`);
+      else if (removed.reason) {
+        const action = `Smart search is off, but its model was not removed (${removed.reason}). Delete ${removed.path} yourself to free the space.`;
+        resultReport.remainingActions.push(action);
+        log(action);
+        markModel("keep", `not removed: ${removed.reason}`);
+      } else markModel("none", "already absent");
+    }
+  } catch (error) {
+    // The policy can be saved before a failed index; put an added policy back to keyword search.
+    if (action === "add" && smartSearchActive(memoryRoot)) { try { index(["--lexical"]); } catch { /* reported below by the observed state */ } }
+    const on = smartSearchActive(memoryRoot);
+    resultReport.smartSearch = { action, state: action === "add" ? (on ? "on-not-ready" : "failed") : on ? "failed" : "off", error: error.message };
+    if (action === "remove") markModel("keep", "not removed: switching back to keyword search failed first");
+    const remaining = action === "add"
+      ? `Smart search was not turned on (${error.message}); ${on ? "its index is incomplete, so searches fall back to keyword matches" : "keyword search works"}. Retry with: ${shellQuote(cliPath)} index --root ${shellQuote(memoryRoot)} --setup-semantic --download-model`
+      : `Smart search could not be turned off (${error.message}); its model was kept. Retry by rerunning the installer with --no-smart-search.`;
+    resultReport.remainingActions.push(remaining);
+    log(remaining);
+  }
+  return smartSearchActive(memoryRoot);
+}
+
+function smartSearchLine(state) {
+  if (state === "on") return "Smart search is on: it also finds notes that say the same thing in other words. Turn it off with jumpybrain smart-search off.";
+  if (state === "planned") return "Smart search will be turned on after installing (334 MB model download).";
+  if (state === "failed" || state === "pending" || state === "on-not-ready") return "Smart search is not on yet; see the remaining action above. Keyword search works.";
+  return `Smart search is off. ${SMART_SEARCH.outcome} Add it any time with jumpybrain smart-search on (334 MB download, runs only on this computer).`;
+}
+
+async function withTerminal(questions) {
+  const { createInterface } = await import("node:readline/promises");
+  const terminal = createInterface({ input: process.stdin, output: process.stderr });
+  try { return await questions(question => terminal.question(question)); }
+  finally { terminal.close(); }
+}
+
+function reportBrowseOnly() {
+  const plan = describePlan({ profile: "browse", smartSearch: false });
+  Object.assign(resultReport, { state: "not_needed", profile: "browse", plan, remainingActions: ["Open the team brain's web address in your browser and choose Connect."] });
+  console.log(`\n${browseInstructions()}`);
 }
 
 function parseArgs(argv) {
@@ -451,8 +588,11 @@ function parseArgs(argv) {
     if (token === "--help" || token === "-h") options.help = true;
     else if (token === "--json") options.json = true;
     else if (token === "--app-port") options.appPort = Number(requiredValue(argv, ++index, token));
-    else if (token === "--with-app") options.withApp = true;
-    else if (token === "--remote-only") options.remoteOnly = true;
+    else if (token === "--with-app") { options.provided.add("with-app"); options.withApp = true; }
+    else if (token === "--remote-only") { options.provided.add("remote-only"); options.remoteOnly = true; }
+    else if (token === "--profile") { options.provided.add("profile"); options.profile = requiredValue(argv, ++index, token); }
+    else if (token === "--smart-search") { options.provided.add("smart-search"); options.smartSearch = true; }
+    else if (token === "--no-smart-search") { options.provided.add("no-smart-search"); options.smartSearch = false; }
     else if (token === "--dry-run") options.dryRun = true;
     else if (token === "--yes" || token === "-y") options.yes = true;
     else if (token === "--skip-build") options.skipBuild = true;
@@ -475,6 +615,8 @@ function parseArgs(argv) {
 
   if (!["global", "project"].includes(options.scope)) throw new Error("--scope must be global or project.");
   if (!["auto", "all", "none"].includes(options.integrations)) throw new Error("--integrations must be auto, all, or none.");
+  if (options.provided.has("smart-search") && options.provided.has("no-smart-search")) throw new Error("--smart-search and --no-smart-search cannot be combined.");
+  applyProfileFlags(options);
   if (options.appPort !== undefined && (!options.withApp || !Number.isInteger(options.appPort) || options.appPort < 1024 || options.appPort > 65535)) throw new Error("--app-port requires --with-app and a port from 1024 to 65535.");
   if (options.remoteOnly && !options.provided.has("integrations")) options.integrations = "none";
   if (options.remoteOnly && (options.integrations !== "none" || options.withApp)) throw new Error("--remote-only requires --integrations none and cannot include --with-app.");
@@ -492,6 +634,17 @@ function usage() {
   return [
     "Usage: install.sh [options]",
     "",
+    "Profiles (what you want jumpyBrain for; a terminal run without options asks, Enter accepts the default):",
+    "  --profile personal          Personal memory for my agents: CLI, local keyword search, agent skills (default)",
+    "  --profile mac-app           The Mac app plus personal memory (same as --with-app)",
+    "  --profile remote            Connect my agents to a team brain: CLI only (same as --remote-only)",
+    "  --profile browse            Browse a team brain in the browser: nothing to install; explains how",
+    "",
+    "Add-ons:",
+    "  --smart-search              Also find notes that say the same thing in other words: downloads a 334 MB",
+    "                              model once, runs only on this computer (later: jumpybrain smart-search on)",
+    "  --no-smart-search           Turn smart search off on rerun and remove its downloaded model",
+    "",
     "Options:",
     "  --with-app                  Also install and verify the Mac app using this brain",
     "  --app-port <port>           Local Mac helper port (default: 3787; existing setting preserved)",
@@ -508,7 +661,12 @@ function usage() {
     "  --read-only-commands        Block every state-changing CLI command on this device (local guard)",
     "  --allow-write-commands      Remove the read-only command mode",
     "  --dry-run                   Print the exact filesystem plan without writing files",
-    "  --yes                       Reserved for non-interactive future prompts",
+    "  --yes                       Never ask; use the defaults or recorded choices (agents, --json and pipes never get asked)",
+    "",
+    "Advanced (development and recovery; local search is then not verified):",
+    "  --skip-build                Use the source's existing dist/ instead of installing dependencies and building",
+    "  --skip-qmd-install          Do not provision the search engine when none is found",
+    "  --skip-initial-index        Do not build the first search index",
   ].join("\n");
 }
 
@@ -874,7 +1032,8 @@ function printSummary(summary) {
     for (const item of summary.skippedIntegrations) console.log(`- ${item}`);
   }
   if (!summary.dryRun) {
-    console.log(summary.searchReady ? "Local text search is ready. A semantic model is optional." : "Local text search still needs its search dependency or initial index; check doctor before handing setup back.");
+    console.log(summary.searchReady ? "Keyword search is ready." : "Keyword search still needs its search dependency or initial index; check doctor before handing setup back.");
+    console.log(smartSearchLine(summary.smartSearch));
     if (summary.integrations.length) {
       console.log("\nRestart or reload any assistant that was already open so it can discover its new integration.");
       console.log('Then ask: "Use jumpyBrain to remember that we chose weekly releases because smaller changes are easier to review."');

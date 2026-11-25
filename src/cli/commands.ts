@@ -174,6 +174,12 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
     return;
   }
 
+  if (command === "smart-search") {
+    const { smartSearchCli } = await import("./smart-search.js");
+    await smartSearchCli(args, localMemory);
+    return;
+  }
+
   if (command === "serve") {
     await serveCli(args);
     return;

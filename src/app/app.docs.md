@@ -68,4 +68,4 @@ Attention metadata carries an optional opaque SHA-256 stat-generation token, acc
 
 ## Optional semantic setup
 
-`semantic-setup.ts` exposes explicit device-local provisioning separately from indexing and observational lexical/ready/unavailable/incomplete/failed state. Shared status composes that state without downloading or inferring. Markdown writes and selected-root indexing retain their existing owners; no brain registry, default semantic switch or daemon warming is introduced.
+`semantic-setup.ts` exposes explicit device-local provisioning separately from indexing and observational lexical/ready/unavailable/incomplete/failed state. Shared status composes that state without downloading or inferring. Markdown writes and selected-root indexing retain their existing owners; no brain registry, default semantic switch or daemon warming is introduced. It also exposes the pinned preset (`semanticModelPreset`), the managed model file (`semanticModelFile`) and explicit removal (`removeSemanticModel`) for `smart-search`.

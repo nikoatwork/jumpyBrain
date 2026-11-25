@@ -48,7 +48,7 @@ export async function preflight({ options, installRoot, memoryRoot, source, home
 // Exact filesystem effects of the CLI installer: a plan before any write, then the
 // observed outcome. Only path existence is inspected; nothing is created here.
 export function filesystemReport({ dryRun, home, installRoot, appDir, cliPath, cliConfigPath, manifestPath, memoryRoot, remoteOnly, existing, reuseApp,
-  policy, engine, integrations, agentDirs, skipInitialIndex, withApp, dependencies, source, bootstrapDir, rootExisted, node = durableNode() }) {
+  policy, engine, integrations, agentDirs, skipInitialIndex, withApp, dependencies, source, bootstrapDir, rootExisted, smartSearch, node = durableNode() }) {
   const changes = [], retained = [], untouched = [], temporary = [], network = [];
   const change = (role, file, action, note) => changes.push({ role, path: file, action, ...(note ? { note } : {}) });
   const skip = (file, reason) => untouched.push({ path: file, reason });
@@ -85,6 +85,9 @@ export function filesystemReport({ dryRun, home, installRoot, appDir, cliPath, c
     'rollback bookkeeping with its .software-retention.lock; needs python3 and is skipped without it; kept by uninstall');
   if (withApp) change('mac-app', path.join(home, 'Applications/jumpyBrain.app'), existsSync(path.join(home, 'Applications/jumpyBrain.app')) ? 'verify-or-replace' : 'create',
     'the app keeps its own profile and support state under ~/Library/Application Support; see the Mac app guide');
+  // The smart-search add-on: one device-local model file, shared by the brains on this computer.
+  if (smartSearch?.action === 'add') change('smart-search-model', smartSearch.path, existsSync(smartSearch.path) ? 'reuse' : 'create', '334 MB EmbeddingGemma 300M model, SHA-256 verified; runs only on this computer; the brain is reindexed');
+  else if (smartSearch?.action === 'remove') change('smart-search-model', smartSearch.path, 'remove', 'smart search is turned off and the brain returns to keyword search');
   temporary.push({ path: path.join(installRoot, '.installer-lock'), note: 'held while installing; removed at the end' });
   if (bootstrapDir) temporary.push({ path: bootstrapDir, note: 'installer helpers downloaded by install.sh; removed when it exits' });
   const runtimes = path.join(installRoot, 'runtimes') + path.sep, privateNode = node.startsWith(runtimes);
@@ -98,6 +101,7 @@ export function filesystemReport({ dryRun, home, installRoot, appDir, cliPath, c
   else if (!reuseApp && /^[a-z+]+:\/\//i.test(source) && !source.startsWith('file:')) network.push({ host: source, purpose: 'git clone of the selected source' });
   if (dependencies === 'installed') network.push({ host: 'registry.npmjs.org', purpose: 'runtime dependencies (npm ci)' });
   if (engine.source === 'private-new') network.push({ host: 'registry.npmjs.org', purpose: 'private search engine' });
+  if (smartSearch?.action === 'add' && !existsSync(smartSearch.path)) network.push({ host: 'huggingface.co', purpose: 'smart search model download (334 MB, once); no notes are sent' });
   return { mode: dryRun ? 'plan' : 'pending', node: { path: node, version: process.version, private: privateNode }, runtimeDependencies: dependencies,
     changes, retained, untouched, temporary, network,
     notes: ['No shell profile, PATH, system Node or global npm package is modified.', ...(dryRun ? ['A dry run writes nothing; this plan lists what a real run would do.'] : [])] };

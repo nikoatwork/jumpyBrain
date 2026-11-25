@@ -6,11 +6,16 @@
 
 For an additional existing brain, use [`connections`](cli-commands.md#app-connections) while the Mac app runs. App selection never retargets CLI memory commands.
 
-Choose your starting point:
+Choose what you want jumpyBrain for. Each choice is an installer **profile**; run in a terminal without options, the installer asks and Enter accepts the default.
 
-- **Agents:** run the installer below. It installs the CLI, local text search, and detected agent integrations.
-- **Mac app + agents:** add `--with-app` to the same command.
-- **Remote CLI only:** use `--remote-only` for a [headless client of a shared brain](#remote-only-cli-for-a-shared-brain); no local search engine, memory folder, dependencies or agent files are installed.
+| Profile | You get | Installs (measured on one Mac, macOS arm64) |
+| --- | --- | --- |
+| `personal` (**default**) | Your agents remember and recall notes on this computer, with keyword search. | The CLI (about 20 MB), a private search engine (about 205 MB), a Markdown folder and skills for detected agents. |
+| `mac-app` (= `--with-app`) | Write and browse your brain in a Mac window; agents use the same folder. | Everything in `personal`, plus `~/Applications/jumpyBrain.app` (about 310 MB, built locally). |
+| `remote` (= `--remote-only`) | Your agents read and write a [shared brain on a server](#remote-only-cli-for-a-shared-brain); nothing is stored or searched locally. | The CLI only (about 10 MB): no engine, folder, dependencies or agent files. |
+| `browse` | Read a shared brain in your web browser. | Nothing. Open the brain's address, choose **Connect** and paste the access key you were given. |
+
+**Smart search** is an add-on for `personal` and `mac-app`, off by default: it also finds notes that say the same thing in other words, not only notes with matching words. It downloads a 334 MB language model once, runs only on this computer and sends none of your notes anywhere. Choose it with `--smart-search` (or in the menu), or add it later with [`jumpybrain smart-search on`](#smart-search-optional).
 
 Software installation downloads code and dependencies. Your Markdown remains local. A cloud assistant may send recalled excerpts to its provider; remote brains, explicit feedback and user-chosen file sync have separate data flows. See the [FAQ](faq.md) and [agent installation guide](install-for-agents.md).
 
@@ -22,12 +27,14 @@ On macOS or Linux:
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash
 ```
 
-For **Mac app + agents**, including installation and readiness checks:
+This installs the default `personal` profile. For **Mac app + agents**, including installation and readiness checks:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
   | bash -s -- --with-app --json
 ```
+
+Other profiles and the add-on use the same command, for example `| bash -s -- --profile personal --smart-search --json`. Piped through `bash`, the installer reads its script from stdin, so it never asks and uses the defaults (or the options you pass). To get the menu, download the script and run `bash jumpybrain-install.sh` in a terminal (see below). `--json`, `--yes`, `--dry-run` and agent runs never ask either. Before installing, every run prints the chosen plan: what you get first, then what is installed, what runs and what uses the network; `--dry-run --json` reports it as `plan`.
 
 The bootstrap needs a shell, curl or wget, and standard archive/checksum utilities. It reuses Node 22.12+ when available; otherwise it downloads an official Node 24 binary into `~/.jumpybrain/runtimes`, checks its SHA-256 and executable version, and uses it without changing the system Node or shell profile. Private runtime downloads support macOS/Linux arm64 and x64; execution on other platforms or incompatible Linux libraries fails explicitly. A dry run does not download/install Node. Native engine dependencies can still require platform build tools when prebuilt support is unavailable.
 
@@ -40,13 +47,14 @@ Defaults:
 - local Markdown: `~/.jumpybrain/memory`
 - missing search engine: pinned CLI + SDK `@tobilu/qmd@2.8.3` under an owned `~/.jumpybrain/engines/` prefix, installed with its shipped dependency lock; no global npm install or sudo
 - integrations: detected Codex, Claude Code and Pi hosts; existing unowned/customized integration files are preserved and reported
-- initial lexical index, installed `doctor --check`, and bounded recall; an empty new brain is valid
+- initial keyword-search (lexical) index, installed `doctor --check`, and bounded recall; an empty new brain is valid
+- profile `personal` and smart search off, recorded in `install-manifest.json` as `profile` and `addOns.smartSearch`
 
-A compatible explicitly selected or existing search engine can be reused. The launcher records the selected Node/QMD paths, so agents do not need to repair PATH to find the engine. Semantic models are optional and are not downloaded during setup. No sample memory is saved.
+A compatible explicitly selected or existing search engine can be reused. The launcher records the selected Node/QMD paths, so agents do not need to repair PATH to find the engine. The smart search model is downloaded only when you choose `--smart-search` (or answer yes in the menu); a failed model download leaves keyword search installed and reports the retry as a remaining action. No sample memory is saved.
 
 Repeat-install verification uses read-only lexical recall against the existing index; its expected read-only warnings are reported as `recallMode: verified-read-only-lexical`, while other retrieval failures still fail setup.
 
-`--json` writes one result to stdout and progress to stderr. It reports paths, version, dependency selection, checks, installed/skipped integrations, remaining actions and the [filesystem report](#what-the-installer-writes). States distinguish `planned`, `ready`, `pending_user_action`, `blocked` and `failed`. A successful dry run is only a plan. A required verification failure exits nonzero. Integration files do not prove that an already-running host loaded them; restart/reload that host when reported. Verification omits recalled note contents from setup logs.
+`--json` writes one result to stdout and progress to stderr. It reports paths, version, dependency selection, checks, installed/skipped integrations, remaining actions and the [filesystem report](#what-the-installer-writes). States distinguish `planned`, `ready`, `pending_user_action`, `blocked`, `failed` and `not_needed` (the browse profile). `profile` and `plan` (outcome, details, `addOns.smartSearch` and the smart search action) say what was chosen; `smartSearch.state` reports the add-on after a real run. A successful dry run is only a plan. A required verification failure exits nonzero. Integration files do not prove that an already-running host loaded them; restart/reload that host when reported. Verification omits recalled note contents from setup logs.
 
 To inspect the bootstrap first:
 
@@ -85,7 +93,7 @@ Every run reports its exact filesystem effects: as text at the end of the output
 | Field | Meaning |
 | --- | --- |
 | `mode` | `plan` (dry run), `applied`, or `interrupted` when a run failed part-way. |
-| `changes` | Each path with its `role` (`runtime`, `launcher`, `manifest`, `cli-policy`, `memory`, `search-engine`, `integration:<agent>`, `rollback-runtime`, `retention-ledger`, `mac-app`) and `action` (`create`, `replace`, `update`, `remove`, …). After a real run, `present` says whether the path exists. |
+| `changes` | Each path with its `role` (`runtime`, `launcher`, `manifest`, `cli-policy`, `memory`, `search-engine`, `integration:<agent>`, `rollback-runtime`, `retention-ledger`, `mac-app`, `smart-search-model`) and `action` (`create`, `replace`, `update`, `remove`, …). After a real run, `present` says whether the path exists. |
 | `untouched` | Paths the run leaves alone, with the reason: agent configuration folders that receive no integration (`~/.claude`, `~/.agents`, `~/.pi`, `~/.codex`), the access-key file `~/.config/jumpybrain/.env`, a preserved policy file, and the brain and engine for a remote-only install. |
 | `retained` | What stays on disk beyond the active program: the full package contents, and a private Node runtime when the bootstrap downloaded one. |
 | `temporary` | The staging directory, the installer lock, and the bootstrap's downloaded helpers. |
@@ -106,7 +114,7 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/instal
   | bash -s -- --remote-only --read-only-commands --json
 ```
 
-`--remote-only` is the same package as every other install, with less around it:
+`--profile remote` is the same as `--remote-only`. It is the same package as every other install, with less around it:
 
 - **Installed:** the compiled package in `<install-root>/app`, the launcher `<install-root>/bin/jumpybrain`, `install-manifest.json`, and the rollback ledger `software-retention.json` (with its lock file) when Python 3 is available.
 - **Not installed:** no QMD search engine, no local brain, no agent integrations (it implies `--integrations none`, so `~/.claude`, `~/.agents` and `~/.pi` are untouched), no Mac app, and for a release install no `npm ci` and no `node_modules`. The compiled CLI already contains its WebSocket client; the one runtime dependency left out, `esbuild`, only compiles Mac app extensions. npm is therefore not required, and the free-space check asks for 256 MB instead of 1 GB.
@@ -117,7 +125,7 @@ Measured on macOS arm64 with the v0.3.26 package: a remote-only release install 
 
 Give the client its key at run time with `JUMPYBRAIN_API_KEY` or `~/.config/jumpybrain/.env`, then use the ordinary commands with `--target-url`. The CLI is the supported interface for agents, including remote ones. The HTTP routes it uses are an internal protocol that changes with jumpyBrain versions. The [implementer reference](shared-memory-protocol.md) describes them, but they are not a stable public API to build other clients against.
 
-The mode is fixed for an installation. Reruns and `jumpybrain update` keep it without repeating the flag. These combinations stop before anything is written: `--remote-only` with `--with-app`, with `--integrations auto|all` or with `--memory-root`; `--remote-only` on an existing local installation (its engine and brain would be orphaned); and `--with-app` on a remote-only installation. Use a separate `--install-root` to keep both kinds side by side.
+The mode is fixed for an installation. Reruns and `jumpybrain update` keep it without repeating the flag, and a rerun says so. Asking a remote-only installation for another profile or for smart search stops with that explanation. These combinations stop before anything is written: `--remote-only` with `--with-app`, with `--integrations auto|all` or with `--memory-root`; `--remote-only` on an existing local installation (its engine and brain would be orphaned); and `--with-app` on a remote-only installation. Use a separate `--install-root` to keep both kinds side by side.
 
 ### Project-local install
 
@@ -182,6 +190,11 @@ This is an explicit manual copy, not installer-managed ownership. Review before 
 --scope global|project       Default: global
 --memory-root <path>         Override the memory root
 --integrations auto|all|none Default: auto; auto installs detected harnesses
+--profile personal|mac-app|remote|browse
+                             What you want jumpyBrain for (default: personal); maps onto the options below
+--smart-search               Add smart search: download its 334 MB model, then index (personal/mac-app)
+--no-smart-search            On a rerun, turn smart search off and remove its downloaded model
+--yes                        Never ask; use the defaults or the recorded choices
 --with-app                  Install and verify the Mac app with the CLI
 --app-port <port>            Local Mac helper port; default 3787
 --remote-only               CLI only: no local QMD, memory, dependencies or integrations
@@ -194,9 +207,14 @@ This is an explicit manual copy, not installer-managed ownership. Review before 
 --read-only-commands         Block every state-changing CLI command on this device
 --allow-write-commands       Remove the read-only command mode
 --dry-run                    Print the exact filesystem plan; write nothing
+--skip-build                 Advanced: use the source's existing dist/ (trusted local --source only)
+--skip-qmd-install           Advanced: do not provision the search engine when none is found
+--skip-initial-index         Advanced: do not build the first index
 ```
 
-Use `--integrations all` to install every integration regardless of detection. Use `--integrations none` for CLI-only setup.
+Use `--integrations all` to install every integration regardless of detection. Use `--integrations none` for CLI-only setup. The three advanced `--skip-*` options exist for development and recovery; with them, local search is reported as not verified, and reruns and `jumpybrain update` keep them.
+
+Older options keep working and imply their profile: `--with-app` is `mac-app`, `--remote-only` is `remote`, neither is `personal`. Contradictions stop before anything is written, for example `--profile personal --with-app`, `--profile remote --smart-search` or `--profile browse` with any install option.
 
 ### Read-only remote targets
 
@@ -263,6 +281,8 @@ Preview the update without writing files:
 ```
 
 With the Mac app running (including window-closed/menu-bar mode), the CLI prepares through that app and reports **Prepared; restart needed**, never installed success. Use **Relaunch to apply update** in the app when ready. With the app quit, the CLI prepares and installs both components, reopens the app, and waits for verified startup and matching versions. Both entry points select the same immutable published release asset and digest.
+
+Reruns and updates keep the recorded profile and add-ons. A rerun in a terminal asks once whether to keep (or add) smart search, defaulting to its current state; `--smart-search` and `--no-smart-search` change it without asking. `jumpybrain update` never asks: it keeps the add-on as it is and prints how to change it. A plain rerun of a `mac-app` installation updates the CLI; the app updates itself (or add `--with-app`). The brain's own setting is the source of truth, so `jumpybrain smart-search on|off` between runs is respected.
 
 CLI-only installations retain their recorded distribution policy: new release-based installs select a verified published release, while older/source installs preserve their source/ref. They remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
 
@@ -341,6 +361,8 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/uninst
 
 `--delete-memory` refuses broad/unowned paths and requires a `jumpybrain.json` memory config.
 
+Uninstall leaves a downloaded smart search model in `~/.jumpybrain/models`. Remove it first with `jumpybrain smart-search off --remove-model`, or delete that file afterwards.
+
 ## Prerequisites and QMD behavior
 
 Local search requires **@tobilu/qmd@2.8.3**, including CLI and SDK from the same package. The installer validates both and provisions a pinned private engine when needed. It leaves unrelated global npm packages alone. Set `JUMPYBRAIN_QMD_BIN=/absolute/path/to/qmd` only to explicitly select your own supported installation; incompatible explicit selections fail visibly.
@@ -349,7 +371,7 @@ The managed launcher exports its recorded QMD path unless overridden. Runtime an
 
 `--remote-only` avoids local engine, brain and dependency provisioning; see [remote-only CLI](#remote-only-cli-for-a-shared-brain). Advanced `--skip-qmd-install` / `--skip-initial-index` paths report incomplete local verification rather than verified search readiness. Updates preserve canonical notes and use read-only recall verification where configured. Uninstall removes an owned private engine only when no installed Desktop depends on it; customized integrations and notes are preserved. Private Node runtime directories are retained for dependent apps and can be removed manually after all users are uninstalled.
 
-Indexing defaults to lexical; [explicit semantic setup](cli-commands.md#indexing-policy-and-recovery) persists policy in root `jumpybrain.json`. No model is downloaded by recall/status. QMD-derived files live under `<memory-root>/.jumpybrain/`; deleting them retains canonical Markdown and policy. Stop operations before deletion and follow [recovery limits](technical.md#readiness-and-recovery).
+Indexing defaults to lexical (keyword search); [smart search](#smart-search-optional) persists semantic policy in root `jumpybrain.json`. No model is downloaded by recall/status. QMD-derived files live under `<memory-root>/.jumpybrain/`; deleting them retains canonical Markdown and policy. Stop operations before deletion and follow [recovery limits](technical.md#readiness-and-recovery).
 
 ## Basic use
 
@@ -431,9 +453,19 @@ Mac app backends keep runtime-retention pins outside the signed bundle in privat
 cleanup previews preserve signed resources; moving an app retains live protection.
 Older bundles without this protocol remain retained for explicit inspection.
 
-## Optional semantic model setup
+## Smart search (optional)
 
-Local text search works without a model. To add semantic retrieval explicitly, run `jumpybrain index --root <brain> --setup-semantic` to review the preset's download cost and [Gemma model terms](https://ai.google.dev/gemma/terms). Repeat with `--download-model` to download and verify it, or `--model-file /absolute/embeddinggemma-300M-Q8_0.gguf` to select already-provisioned bytes. Setup then indexes that same brain; recall, status and doctor never download.
+Keyword search works without a model. **Smart search** also finds notes that say the same thing in other words. It runs only on this computer and sends none of your notes anywhere; only the one-time model download uses the internet.
+
+```bash
+jumpybrain smart-search --root <brain>                         # which search this brain uses, and whether the model is here
+jumpybrain smart-search on --root <brain>                      # explains the download and the model terms; downloads nothing
+jumpybrain smart-search on --root <brain> --download-model     # downloads and verifies the model, then indexes this brain
+jumpybrain smart-search off --root <brain>                     # back to keyword search; the model stays for other brains
+jumpybrain smart-search off --root <brain> --remove-model      # ... and frees its 334 MB
+```
+
+`--model-file /absolute/embeddinggemma-300M-Q8_0.gguf` selects already-provisioned bytes instead of downloading. These are the same steps as the older `index --setup-semantic [--download-model | --model-file]` and `index --lexical`, which keep working. Review the preset's [Gemma model terms](https://ai.google.dev/gemma/terms) before downloading. Recall, status and doctor never download; `status` and `doctor` say `Search: keyword search` or `Search: smart search` in plain words (`search` in `--json`). The installer's `--smart-search` runs the same download step for the installed brain (as `index --setup-semantic --download-model`, which older runtimes understand too); `--no-smart-search` returns it to keyword search and removes the model file. If indexing fails after the download, the brain is put back on keyword search and the retry is reported. Use `smart-search on --rebuild` when the brain was indexed with another model before.
 
 The pinned [upstream artifact](https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF/blob/0f741b5a6585bd53aeb15cd1372c56f2a0f65e12/embeddinggemma-300M-Q8_0.gguf) is 333,590,944 bytes (about 334 MB); allow up to twice that for temporary disk budgeting. Model-active RAM is additional and corpus/backend dependent, not the download size. This flow requires the supported QMD package and provisioned native runtime. Real-model verification here covers macOS ARM64; it is not a new Linux/Intel/Windows inference guarantee.
 
