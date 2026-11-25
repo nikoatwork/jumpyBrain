@@ -40,7 +40,7 @@ export async function smartSearchCli(args: ParsedCliArgs, localMemory: LocalMemo
     };
     const prepared = await cancelOnCliSignal(undefined, signal => prepareSemanticModel({ signal, onProgress, download: args["download-model"] === true, ...(args["model-file"] ? { file: String(args["model-file"]) } : {}) }));
     if (prepared.status === "consent_required") {
-      const nextAction = `Review the download and model terms, then run: jumpybrain smart-search on --root ${shellQuote(root)} --download-model (or --model-file /absolute/model.gguf for bytes you already have).`;
+      const nextAction = `Review the download and model terms, then run: jumpybrain smart-search on --root ${shellQuote(root)} --download-model${args.rebuild ? " --rebuild" : ""} (or --model-file /absolute/model.gguf for bytes you already have).`;
       print({ ...prepared, state: "consent_required", root, nextAction }, [...smartSearchExplanation(prepared.downloadBytes), `Model terms: ${prepared.terms}`, "", "Nothing was downloaded.", nextAction]);
       return;
     }
@@ -49,8 +49,11 @@ export async function smartSearchCli(args: ParsedCliArgs, localMemory: LocalMemo
     catch (error) {
       // The policy is saved before indexing; a brain that was on keyword search goes back to it.
       if (status.semanticSetup?.state !== "lexical") throw error;
-      await localMemory.indexMemory(root, { indexing: { mode: "lexical" } }).catch(() => undefined);
-      throw new Error(`Smart search could not index this brain, so it stays on keyword search; the model stays downloaded. Retry with smart-search on (add --rebuild if the error names a model change). ${(error as Error).message}`, { cause: error });
+      const restored = await localMemory.indexMemory(root, { indexing: { mode: "lexical" } }).then(() => true, () => false);
+      const now = restored ? (await localMemory.memoryRootStatus(root)).semanticSetup?.state : undefined;
+      throw new Error(now === "lexical"
+        ? `Smart search could not index this brain, so it stays on keyword search; the model stays downloaded. Retry with smart-search on (add --rebuild if the error names a model change). ${(error as Error).message}`
+        : `Smart search could not index this brain, and switching back to keyword search also failed; run smart-search off --root ${shellQuote(root)} to retry. ${(error as Error).message}`, { cause: error });
     }
     const after = await localMemory.memoryRootStatus(root);
     print({ state: "on", root, model: { ...prepared, policy: undefined }, documents: result.documents, readiness: result.readiness, semanticSetup: after.semanticSetup },

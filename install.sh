@@ -12,16 +12,20 @@ JSON_OUTPUT=0
 REMOTE_ONLY=0
 BROWSE_ONLY=0
 PROFILE_NEXT=0
+PROFILE=
+REMOTE_FLAG=0
 INSTALL_CHOICE=0
 for ARG in "$@"; do
   # The last --profile wins, as in the installer itself.
-  if [ "$PROFILE_NEXT" = 1 ]; then PROFILE_NEXT=0; BROWSE_ONLY=0; case "$ARG" in remote) REMOTE_ONLY=1;; browse) BROWSE_ONLY=1;; esac; continue; fi
-  case "$ARG" in --json) JSON_OUTPUT=1;; --remote-only) REMOTE_ONLY=1;; --with-app|--smart-search|--no-smart-search) INSTALL_CHOICE=1;; --profile) PROFILE_NEXT=1;; --profile=*) fail 'Use --profile <name> with a space.';; esac
+  if [ "$PROFILE_NEXT" = 1 ]; then PROFILE_NEXT=0; PROFILE=$ARG; continue; fi
+  case "$ARG" in --json) JSON_OUTPUT=1;; --remote-only) REMOTE_FLAG=1;; --with-app|--smart-search|--no-smart-search) INSTALL_CHOICE=1;; --profile) PROFILE_NEXT=1;; --profile=*) fail 'Use --profile <name> with a space.';; esac
 done
+[ "$PROFILE" = browse ] && BROWSE_ONLY=1
+{ [ "$REMOTE_FLAG" = 1 ] || [ "$PROFILE" = remote ]; } && REMOTE_ONLY=1
 # Browsing a team brain installs nothing, so nothing is downloaded either (same text as install-profiles.mjs).
 if [ "$BROWSE_ONLY" = 1 ]; then
   [ "$INSTALL_CHOICE" = 0 ] && case " $* " in *" --remote-only "*) false;; *) true;; esac || fail '--profile browse installs nothing; it cannot be combined with --with-app, --remote-only or --smart-search.'
-  if [ "$JSON_OUTPUT" = 1 ]; then printf '{"schemaVersion":1,"state":"not_needed","profile":"browse","plan":{"profile":"browse","label":"Browse a team brain in the browser","outcome":"Read a shared brain in your web browser. There is nothing to install.","addOns":{"smartSearch":false}},"remainingActions":["Open the team brain'"'"'s web address in your browser and choose Connect."]}\n'; fi
+  if [ "$JSON_OUTPUT" = 1 ]; then printf '{"schemaVersion":1,"state":"not_needed","profile":"browse","plan":{"profile":"browse","label":"Browse a team brain in the browser","outcome":"Read a shared brain in your web browser. There is nothing to install.","details":["Open the brain'"'"'s web address (the person who runs the server gives it to you), choose Connect and paste the access key they gave you.","Nothing is downloaded or written on this computer."],"addOns":{"smartSearch":false},"smartSearch":{"enabled":false,"action":"none","available":false},"existing":false},"remainingActions":["Open the team brain'"'"'s web address in your browser and choose Connect."]}\n'; fi
   printf '%s\n' "Browse a team brain in the browser: Read a shared brain in your web browser. There is nothing to install." \
     "- Open the brain's web address (the person who runs the server gives it to you), choose Connect and paste the access key they gave you." \
     "- Nothing is downloaded or written on this computer." \

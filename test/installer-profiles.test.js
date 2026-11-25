@@ -92,7 +92,7 @@ async function fixture(t) {
 fs.appendFileSync(${JSON.stringify(calls)}, args.join(' ')+'\\n');
 if(args[0]==='init'){fs.mkdirSync(root,{recursive:true});fs.writeFileSync(path.join(root,'jumpybrain.json'),JSON.stringify({canonical:'markdown',memoryDirs:['notes']}));}
 if(args[0]==='index'&&process.env.FIXTURE_FAIL==='index')process.exit(1);
-if(args[0]==='index'&&(args.includes('--setup-semantic')||args.includes('--lexical'))){if(process.env.FIXTURE_FAIL==='download'&&args.includes('--setup-semantic'))process.exit(1);const file=path.join(root,'jumpybrain.json');const config=JSON.parse(fs.readFileSync(file,'utf8'));config.indexing={mode:args.includes('--setup-semantic')?'semantic':'lexical'};fs.writeFileSync(file,JSON.stringify(config));if(process.env.FIXTURE_FAIL==='semantic'&&args.includes('--setup-semantic'))process.exit(1);process.exit(0);}
+if(args[0]==='index'&&(args.includes('--setup-semantic')||args.includes('--lexical'))){if(process.env.FIXTURE_FAIL==='download'&&args.includes('--setup-semantic'))process.exit(1);if(process.env.FIXTURE_FAIL==='kill'&&args.includes('--setup-semantic')){process.kill(process.ppid,'SIGKILL');process.exit(1);}const file=path.join(root,'jumpybrain.json');const config=JSON.parse(fs.readFileSync(file,'utf8'));config.indexing=args.includes('--setup-semantic')?{mode:'semantic',modelId:'sha256:${SMART_SEARCH_MODEL.sha256}'}:{mode:'lexical'};fs.writeFileSync(file,JSON.stringify(config));if(process.env.FIXTURE_FAIL==='semantic'&&args.includes('--setup-semantic'))process.exit(1);process.exit(0);}
 console.log(JSON.stringify(args[0]==='doctor'?{ok:true}:{retrieval:{status:'complete'},results:[]}));`);
   const { bin } = await installFakeQmd(base); await writeFile(bin, '#!/bin/sh\necho "qmd 2.8.3"\n', { mode: 0o755 });
   const env = { ...process.env, HOME: home, JUMPYBRAIN_QMD_BIN: bin };
@@ -134,6 +134,7 @@ test('a dry run shows the chosen plan and the model download, and writes nothing
   const browse = f.install(['--profile', 'browse', '--json']);
   assert.equal(browse.status, 0, browse.stderr);
   assert.deepEqual([browse.report.state, browse.report.profile], ['not_needed', 'browse']);
+  assert.deepEqual(browse.report.plan, describePlan({ profile: 'browse', smartSearch: false }));
   assert.match(browse.stderr, /nothing to install/i);
   assert.equal(existsSync(f.root), false);
   const conflict = f.install(['--profile', 'remote', '--smart-search', '--json']);
@@ -165,6 +166,14 @@ test('smart search chosen at install is turned on and recorded; reruns keep, rem
   assert.equal((await f.smartCalls()).at(-1), `index --root ${f.memory} --lexical`);
   assert.deepEqual([(await f.manifest()).addOns.smartSearch, await f.policy(), existsSync(model), existsSync(other)], [false, 'lexical', false, true]);
 
+  // A brain on a custom model path keeps the preset file: it is not that brain's managed model.
+  await writeFile(model, 'model');
+  const config = path.join(f.memory, 'jumpybrain.json');
+  await writeFile(config, JSON.stringify({ ...JSON.parse(await readFile(config, 'utf8')), indexing: { mode: 'semantic', model: '/absolute/custom.gguf' } }));
+  const custom = f.install(['--no-smart-search', '--json']);
+  assert.equal(custom.status, 0, custom.stderr);
+  assert.deepEqual([await f.policy(), existsSync(model)], ['lexical', true]);
+
   // A failed download leaves keyword search installed and names the retry.
   const failed = f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'download' });
   assert.equal(failed.status, 0, failed.stderr);
@@ -183,6 +192,10 @@ test('retrying an interrupted first install keeps the smart search choice', asyn
   const f = await fixture(t);
   const interrupted = f.install(['--smart-search', '--json'], { FIXTURE_FAIL: 'index' });
   assert.equal(interrupted.status, 1);
+  assert.deepEqual([(await f.manifest()).state, (await f.manifest()).addOns], ['installing', { smartSearch: true }]);
+  // A hard stop while the model downloads leaves the request pending, not a ready install without it.
+  const killed = f.install(['--json'], { FIXTURE_FAIL: 'kill' });
+  assert.notEqual(killed.status, 0);
   assert.deepEqual([(await f.manifest()).state, (await f.manifest()).addOns], ['installing', { smartSearch: true }]);
   const retry = f.install(['--json']);
   assert.equal(retry.status, 0, retry.stderr);
@@ -235,6 +248,7 @@ test('the bootstrap downloads nothing for --profile browse and skips local-only 
   const browse = bootstrap(['--profile', 'browse'], 'http://127.0.0.1:9/never-contacted');
   assert.equal(browse.status, 0, browse.stderr);
   assert.deepEqual([JSON.parse(browse.stdout).state, JSON.parse(browse.stdout).profile], ['not_needed', 'browse']);
+  assert.deepEqual(JSON.parse(browse.stdout).plan, describePlan({ profile: 'browse', smartSearch: false }), 'the shell fast path reports the same plan as the installer');
   assert.match(browse.stderr, /There is nothing to install/);
   assert.equal(bootstrap(['--profile', 'browse', '--with-app']).status, 1);
   const remote = bootstrap(['--profile', 'remote', '--dry-run', '--source', source, '--skip-build']);

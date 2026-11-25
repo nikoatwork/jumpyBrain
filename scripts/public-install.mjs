@@ -283,9 +283,10 @@ async function installManaged({ options, home, cwd, installRoot }) {
     manifest.installedVersion = await readInstalledVersion(appDir);
     await verifyInstallation({ options, cliPath, memoryRoot, runtime: { role: "installed", version: manifest.installedVersion } });
     if (options.withApp) await setupDesktop({ appDir, installRoot, home, memoryRoot, options });
-    manifest.state = "ready";
-    await atomicJSON(manifestPath, manifest);
+    // Before `ready`: an interrupted download leaves the request in the installing record, and a
+    // retry runs the same idempotent setup again (reusing a verified model, repairing a partial index).
     manifest.addOns.smartSearch = applySmartSearch({ action: smartSearchAction, cliPath, memoryRoot, options });
+    manifest.state = "ready";
     await atomicJSON(manifestPath, manifest);
   }
   Object.assign(resultReport, { version: manifest.installedVersion || selectedRelease?.version || null, integrations: summary.integrations, skippedIntegrations: summary.skippedIntegrations });
@@ -487,10 +488,11 @@ async function updateExistingInstall({
 }
 
 // The brain's own policy is the truth: `jumpybrain smart-search on|off` changes it without the installer.
-function smartSearchActive(memoryRoot) {
-  try { return JSON.parse(readFileSync(path.join(memoryRoot, "jumpybrain.json"), "utf8"))?.indexing?.mode === "semantic"; }
-  catch { return false; }
+function brainIndexingPolicy(memoryRoot) {
+  try { return JSON.parse(readFileSync(path.join(memoryRoot, "jumpybrain.json"), "utf8"))?.indexing; }
+  catch { return undefined; }
 }
+function smartSearchActive(memoryRoot) { return brainIndexingPolicy(memoryRoot)?.mode === "semantic"; }
 
 // Turning the add-on on or off never fails the installation: keyword search is already verified.
 // It uses the index flags every installed runtime since semantic setup understands
@@ -504,13 +506,19 @@ function applySmartSearch({ action, cliPath, memoryRoot, options }) {
   }
   log(action === "add" ? "Turning on smart search: downloading and verifying its 334 MB model, then indexing" : "Turning off smart search and removing its downloaded model");
   const index = flags => run(cliPath, ["index", "--root", memoryRoot, ...flags], { env: provisioningEnvironment(cliPath) });
+  // Only a model the brain selected by managed identity is removed; a custom model path is left alone.
+  const modelId = action === "remove" ? brainIndexingPolicy(memoryRoot)?.modelId : undefined;
   try {
     index(action === "add" ? ["--setup-semantic", "--download-model"] : ["--lexical"]);
-    if (action === "remove") {
-      const removed = removeSmartSearchModel(installationHome);
-      if (removed.removed) log(`Removed the smart search model ${removed.path}`);
-    }
     resultReport.smartSearch = { action, state: action === "add" ? "on" : "off" };
+    if (modelId) {
+      let removed;
+      try { removed = removeSmartSearchModel(installationHome, process.env, modelId); }
+      catch (error) { removed = { path: smartSearchModelPath(installationHome, process.env, modelId), removed: false, reason: error.message }; }
+      resultReport.smartSearch.model = removed;
+      if (removed.removed) log(`Removed the smart search model ${removed.path}`);
+      else if (removed.reason) resultReport.remainingActions.push(`Smart search is off, but its model was not removed (${removed.reason}). Delete ${removed.path} yourself to free the space.`);
+    }
   } catch (error) {
     // The policy can be saved before a failed index; put an added policy back to keyword search.
     if (action === "add" && smartSearchActive(memoryRoot)) { try { index(["--lexical"]); } catch { /* reported below by the observed state */ } }

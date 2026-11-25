@@ -60,17 +60,18 @@ export const SMART_SEARCH = Object.freeze({
 });
 
 /** Device-local model path, matching the CLI's model directory rule. */
-export function smartSearchModelPath(home, env = process.env) {
+export function smartSearchModelPath(home, env = process.env, modelId = `sha256:${SMART_SEARCH_MODEL.sha256}`) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(modelId)) throw new Error('Invalid device-local model identity.');
   const directory = env.JUMPYBRAIN_MODEL_DIRECTORY && path.isAbsolute(env.JUMPYBRAIN_MODEL_DIRECTORY) ? env.JUMPYBRAIN_MODEL_DIRECTORY : path.join(home, '.jumpybrain/models');
-  return path.join(directory, `${SMART_SEARCH_MODEL.sha256}.gguf`);
+  return path.join(directory, `${modelId.slice(7)}.gguf`);
 }
 
 /**
  * Frees the downloaded model after the brain is back on keyword search. Only the
- * regular file named by the pinned SHA-256 inside a real (unlinked) model directory.
+ * regular file named by the brain's managed SHA-256 identity inside a real (unlinked) model directory.
  */
-export function removeSmartSearchModel(home, env = process.env) {
-  const file = smartSearchModelPath(home, env);
+export function removeSmartSearchModel(home, env = process.env, modelId) {
+  const file = smartSearchModelPath(home, env, modelId);
   try {
     const directory = lstatSync(path.dirname(file));
     if (!directory.isDirectory() || directory.isSymbolicLink()) return { path: file, removed: false, reason: 'model directory is not a plain directory' };
