@@ -2,7 +2,7 @@
 
 One row per reviewed email. Work and verification stay in the linked task; this index prevents repeat triage. [Check routine](../docs/check-feedback.md) · [Residual follow-ups](todo/tasks-feedback-follow-ups.md).
 
-Last full live check **2026-11-25T08:28:19.141Z**. Received/non-spam, no date bounds, two pages, pagination complete. Scanned 79 messages and excluded two synthetic tests. Of the 77 feedback messages, 75 exact IDs were already indexed and two were newly reviewed in full. Received dates span October 20–November 24, 2026. Spam, trash and blocked mail are outside scope. [Previous release review](done/releases/v0.3.27.qa.md#feedback-and-limits).
+Last full live check **2026-11-25T11:11:53.066Z** (v0.3.28 release preparation). Received/non-spam, no date bounds, two pages, pagination complete. Scanned 79 messages and excluded two synthetic tests. All 77 feedback message IDs were already indexed; nothing new arrived since the 08:28 check. Received dates span October 20–November 24, 2026. Spam, trash and blocked mail are outside scope. [Previous release review](done/releases/v0.3.27.qa.md#feedback-and-limits).
 
 - **open**: reviewed; investigation or reproduction remains.
 - **covered**: linked implementation/verification covers the report scope. This does **not** claim release, installation or proof of every historical event.
