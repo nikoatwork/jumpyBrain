@@ -6,14 +6,15 @@ import path from 'node:path';
 
 export const DEFAULT_PROFILE = 'personal';
 
-// Outcome first, details underneath. Sizes are approximate, measured on one Mac
-// (macOS arm64, v0.3.27); they are guidance, not guarantees.
+// Outcome first, details underneath. Sizes are approximate, measured on a Mac
+// (macOS arm64, v0.3.27) and on Linux x64 (Ubuntu 24.04, v0.3.28, where the engine
+// also installs CUDA and Vulkan builds); they are guidance, not guarantees.
 export const PROFILES = Object.freeze({
   personal: {
     label: 'Personal memory for my agents',
     outcome: 'Your agents remember and recall notes on this computer, with keyword search.',
     details: [
-      'Installs: the jumpyBrain CLI (about 20 MB), a local search engine (QMD, about 205 MB), a Markdown folder for your notes and skills for the agents it detects.',
+      'Installs: the jumpyBrain CLI (about 20 MB), a local search engine (QMD, about 205 MB on a Mac, about 860 MB on Linux x64), a Markdown folder for your notes and skills for the agents it detects.',
       'Runs: on this computer, when you or an agent use jumpyBrain. Search reads your notes folder locally.',
       'Network: downloads the software once. Your notes stay in the folder on this computer; no account or server is needed.',
     ],

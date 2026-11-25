@@ -10,7 +10,7 @@ Choose what you want jumpyBrain for. Each choice is an installer **profile**; ru
 
 | Profile | You get | Installs (measured on one Mac, macOS arm64) |
 | --- | --- | --- |
-| `personal` (**default**) | Your agents remember and recall notes on this computer, with keyword search. | The CLI (about 20 MB), a private search engine (about 205 MB), a Markdown folder and skills for detected agents. |
+| `personal` (**default**) | Your agents remember and recall notes on this computer, with keyword search. | The CLI (about 20 MB), a private search engine (about 205 MB on a Mac; about 860 MB on Linux x64, which also gets GPU builds), a Markdown folder and skills for detected agents. |
 | `mac-app` (= `--with-app`) | Write and browse your brain in a Mac window; agents use the same folder. | Everything in `personal`, plus `~/Applications/jumpyBrain.app` (about 310 MB, built locally). |
 | `remote` (= `--remote-only`) | Your agents read and write a [shared brain on a server](#remote-only-cli-for-a-shared-brain); nothing is stored or searched locally. | The CLI only (about 10 MB): no engine, folder, dependencies or agent files. |
 | `browse` | Read a shared brain in your web browser. | Nothing. Open the brain's address, choose **Connect** and paste the access key you were given. |

@@ -415,6 +415,9 @@ test('paired CLI detection leaves CLI-only installs alone and protects pinned/so
   const app = path.join(f.home, 'Applications/jumpyBrain.app'); await mkdir(path.join(app, 'Contents'), { recursive: true });
   await writeFile(path.join(app, 'Contents/Info.plist'), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>local.jumpybrain.desktop</string><key>CFBundleShortVersionString</key><string>0.3.3</string></dict></plist>');
   assert.equal((await pairedInstallation(options)).appVersion, '0.3.3');
+  // `jumpybrain update` on a release install passes no ref; it must not be mistaken for a pin.
+  assert.equal((await pairedInstallation({ ...options, ref: '' })).appVersion, '0.3.3');
+  assert.equal((await pairedInstallation({ ...options, ref: undefined })).appVersion, '0.3.3');
   const before = await readFile(path.join(f.root, 'install-manifest.json'));
   await assert.rejects(pairedInstallation({ ...options, ref: 'v0.3.3' }), /Nothing was changed/);
   await assert.rejects(pairedInstallation({ ...options, source: '/developer/checkout' }), /Nothing was changed/);

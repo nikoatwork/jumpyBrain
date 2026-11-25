@@ -16,7 +16,9 @@ export async function pairedInstallation({ home, installRoot, source, ref, platf
   const { stdout } = await execute('/usr/bin/plutil', ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', path.join(appPath, 'Contents/Info.plist')], { timeout: 10000 });
   if (stdout.trim() !== 'local.jumpybrain.desktop') return null; // Legacy companion keeps its existing installer.
   const policy = await cliPolicy(home);
-  if (policy.kind !== 'managed' || source !== 'https://github.com/nikoatwork/jumpyBrain.git' || !['master', 'refs/heads/master'].includes(ref)) {
+  // Release installs follow published releases and carry no ref (`jumpybrain update` passes ''); source installs track master.
+  const defaultPolicy = ref == null || ref === '' || ['master', 'refs/heads/master'].includes(ref);
+  if (policy.kind !== 'managed' || source !== 'https://github.com/nikoatwork/jumpyBrain.git' || !defaultPolicy) {
     throw new Error('This Mac app has a custom, pinned, or unowned CLI policy. Update the app with its explicit “Update app only” action; use a separate CLI-only installation for developer source/ref updates. Nothing was changed.');
   }
   const { stdout: version } = await execute('/usr/bin/plutil', ['-extract', 'CFBundleShortVersionString', 'raw', '-o', '-', path.join(appPath, 'Contents/Info.plist')], { timeout: 10000 });

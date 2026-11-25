@@ -269,7 +269,12 @@ function parseBoundedReadArgs(argv: string[], operation: string): ParsedCliArgs 
     ? ["id", "if-match", "start-line", "end-line", "section-line"] : ["topic", "query", "limit", "depth", "from", "to", "reference-date", "order", "last-editor", "editor-id", "edited-from", "edited-to", "date-field", "time-zone", "sort", "offset"])]);
   for (let index = positional; index < argv.length; index++) {
     const token = argv[index];
-    if (!token.startsWith("--")) throw new Error(`Unexpected bounded-read argument: ${token}.`);
+    if (!token.startsWith("--")) {
+      // A bare phrase is the most common slip (`recall "what did we decide"`); name the flag that takes it.
+      throw new Error(operation === "expand"
+        ? `Unexpected argument: ${token}. Pass the memory with --id <id>.`
+        : `Unexpected argument: ${token}. Pass the text with --query ${JSON.stringify(token)}.`);
+    }
     const equal = token.indexOf("=");
     const key = token.slice(2, equal < 0 ? undefined : equal);
     if (!booleans.has(key) && !values.has(key)) throw new Error(`Unknown bounded-read flag --${key}.`);

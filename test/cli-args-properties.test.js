@@ -48,3 +48,9 @@ test("CLI number argument helper accepts positive integers and rejects invalid v
     assert.throws(() => numberArg({ _: [], limit: value }, "limit", 5), /--limit must be a positive integer/);
   }));
 });
+
+test("bounded reads name the flag for a bare phrase instead of rejecting it opaquely", () => {
+  assert.throws(() => parseArgs(["recall", "what did we decide"]), /Pass the text with --query "what did we decide"/);
+  assert.throws(() => parseArgs(["search", "--limit", "3", "releases"]), /Pass the text with --query "releases"/);
+  assert.throws(() => parseArgs(["expand", "mem_1"]), /Pass the memory with --id <id>/);
+});

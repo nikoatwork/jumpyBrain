@@ -12,7 +12,7 @@ export { startBackendControlProxy } from "../../adapters/backend-host/control-pr
 export async function claimRootBackend(rootArgument: string, options: { executable?: string } = {}) {
   const { root } = await backendPaths(rootArgument, true), identity = await currentBackendIdentity(options.executable);
   const lease = await acquireBackendLease(root, identity);
-  if (!lease) throw new BackendHostError("backend_already_running", "This brain already has a live backend owner. Stop it before starting another host.");
+  if (!lease) throw new BackendHostError("backend_already_running", `This brain already has a live backend owner. Stop it first with: jumpybrain backend stop --root ${JSON.stringify(root)}`);
   try { await pinBackendRuntime(root, lease); }
   catch (error) { await releaseBackendLease(root, lease.instanceId); throw error; }
   return {
