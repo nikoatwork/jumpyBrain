@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readControlKey, probeCompanion } from './host.mjs';
+import { nodeRuns } from './install-shim.mjs';
 
 export async function bundledHost(resources) {
   const config = JSON.parse(await readFile(path.join(resources, 'desktop.json'), 'utf8'));
@@ -41,7 +42,16 @@ export function desktopControl({ origin, key }, route, body, { timeoutMs = 22000
   });
 }
 
-export async function startDesktopHost(config, { spawnHost = spawn, probe = probeCompanion, deadlineMs = 25000, onExit = () => {}, instance = randomUUID(), readinessOnly = false } = {}) {
+// The native host runs the backend with the Node sealed into its configuration.
+// After a failed start, tell a missing/unloadable Node apart from other faults.
+export async function recordedNodeUnavailable(config, { probeNode } = {}) {
+  let node;
+  try { node = JSON.parse(await readFile(path.join(path.dirname(config.executable), '../Resources/Configuration.json'), 'utf8')).node; }
+  catch { return false; }
+  return !nodeRuns(node, probeNode ? { probe: probeNode } : {});
+}
+
+export async function startDesktopHost(config, { spawnHost = spawn, probe = probeCompanion, deadlineMs = 25000, onExit = () => {}, instance = randomUUID(), readinessOnly = false, probeNode } = {}) {
   if (!/^[0-9a-f-]{36}$/i.test(instance)) throw new Error('Invalid desktop instance.');
   const key = await readControlKey(config.supportDirectory);
   try { await probe(config.origin, key); }
@@ -77,6 +87,9 @@ export async function startDesktopHost(config, { spawnHost = spawn, probe = prob
           return { connection, stop, isAlive: () => !exited };
         } catch (error) { if (!['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT'].includes(error.code)) throw error; }
         await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (exited && await recordedNodeUnavailable(config, { probeNode })) {
+        throw Object.assign(new Error('The Node.js runtime jumpyBrain uses no longer starts.'), { code: 'ERR_DESKTOP_NODE_UNAVAILABLE' });
       }
       throw new Error('The local brain service could not start. Check the app logs or quit any older jumpyBrain app, then retry.');
     } catch (error) { await stop(); throw error; }

@@ -7,7 +7,8 @@ import { access, readFile, realpath } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { spawnSync, spawn } from 'node:child_process';
 import { desktopPrerequisites } from './desktop-prerequisites.mjs';
-import { classifyManifest, migrationCommand, runtimeCapabilities } from './install-compatibility.mjs';
+import { classifyManifest, migrationCommand, repairCommand, runtimeCapabilities } from './install-compatibility.mjs';
+import { nodeRuns } from '../integrations/electron/install-shim.mjs';
 import { checkQmdInstallation } from './qmd-install-check.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
@@ -114,26 +115,38 @@ async function preparedSetup(args) {
 }
 // Desktop reuses the CLI's recorded Node, engine and brain. Older managed installs
 // that predate those records migrate through the installer instead of guessing.
-export function desktopCompatibilityBlockers(manifest, installRoot, env = process.env) {
+export function desktopCompatibilityBlockers(manifest, installRoot, env = process.env, { probeNode } = {}) {
+  return desktopCompatibility(manifest, installRoot, env, { probeNode }).blockers;
+}
+function desktopCompatibility(manifest, installRoot, env = process.env, { probeNode } = {}) {
   classifyManifest(manifest, installRoot, { refuse: message => `The managed CLI installation cannot be used by Desktop: ${message} Repair it before continuing.` });
   const blockers = [];
+  let brokenNode = false;
   const capability = runtimeCapabilities(manifest.appDir);
   if (!capability.compatible) blockers.push(`The installed CLI (${capability.version || 'unknown version'}) lacks ${capability.missing.join(' and ')}.`);
   if (manifest.remoteOnly === true) blockers.push('The managed CLI is remote-only and has no local brain or engine for Desktop.');
   else if (typeof manifest.memoryRoot !== 'string') blockers.push('The managed CLI manifest records no brain folder.');
   if (typeof manifest.node !== 'string' || !path.isAbsolute(manifest.node) || typeof manifest.qmd !== 'string' || !path.isAbsolute(manifest.qmd)) {
     blockers.push(`The installed CLI (${capability.version || 'unknown version'}) predates recorded Node/engine selection, so Desktop cannot share its engine.`);
+  } else if (!nodeRuns(manifest.node, probeNode ? { probe: probeNode } : {})) {
+    // A Homebrew upgrade can leave a versioned Node path that no longer loads.
+    brokenNode = true;
+    blockers.push(`The Node.js recorded for the CLI no longer starts: ${manifest.node}. A Homebrew or other Node upgrade can remove it or a library it loads; Desktop setup will not reuse it.`);
   } else if (!checkQmdInstallation(manifest.qmd)) blockers.push(`The engine recorded for the CLI is no longer a compatible QMD CLI + SDK: ${manifest.qmd}.`);
   else {
     const explicit = env.JUMPYBRAIN_QMD_BIN?.trim();
     const resolve = file => { try { return realpathSync(file); } catch { return path.resolve(file); } };
     if (explicit && resolve(explicit) !== resolve(manifest.qmd)) blockers.push(`JUMPYBRAIN_QMD_BIN (${explicit}) differs from the engine recorded for the CLI (${manifest.qmd}); rerun the installer with that override so the CLI and app share one engine.`);
   }
-  return blockers;
+  return { blockers, brokenNode };
 }
 function assertDesktopCompatible(manifest, installRoot) {
-  const blockers = desktopCompatibilityBlockers(manifest, installRoot);
-  if (blockers.length) throw new Error(`Desktop setup cannot reuse this CLI installation:\n${blockers.map(item => '- ' + item).join('\n')}\nNothing was built or installed. Update the managed CLI and add the app with: ${migrationCommand({ withApp: true })}`);
+  const { blockers, brokenNode } = desktopCompatibility(manifest, installRoot);
+  if (!blockers.length) return;
+  const next = brokenNode && blockers.length === 1
+    ? `Repair the CLI's Node selection and add the app by rerunning the installer, which keeps your notes, settings and source: ${repairCommand({ withApp: true })}`
+    : `Update the managed CLI and add the app with: ${migrationCommand({ withApp: true })}`;
+  throw new Error(`Desktop setup cannot reuse this CLI installation:\n${blockers.map(item => '- ' + item).join('\n')}\nNothing was built or installed. ${next}`);
 }
 function run(command, commandArgs, cwd = repo) {
   const result = spawnSync(command, commandArgs, { cwd, stdio: 'inherit' });

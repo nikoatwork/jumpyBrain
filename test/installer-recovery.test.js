@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, link, copyFile, symlink, realpath } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
 import { installFakeQmd } from './fake-qmd-helper.js';
-import { extractRelease, preflight } from '../scripts/install-support.mjs';
+import { extractRelease, preflight, durableNode, nodeRuns, cliShim } from '../scripts/install-support.mjs';
+import { desktopCompatibilityBlockers } from '../scripts/setup-desktop.mjs';
 const repo = new URL('..', import.meta.url).pathname;
 async function fixture(t) {
   const base = await mkdtemp(path.join(os.tmpdir(), 'jb-install-recovery-'));
@@ -19,8 +20,8 @@ async function fixture(t) {
   const { bin } = await installFakeQmd(base); await writeFile(bin, '#!/bin/sh\necho "qmd 2.8.3"\n', { mode: 0o755 });
   const args = [path.join(repo, 'scripts/public-install.mjs'), '--source', source, '--home', home, '--install-root', root, '--skip-build', '--integrations', 'none', '--json'];
   const env = { ...process.env, HOME: home, JUMPYBRAIN_QMD_BIN: bin };
-  const run = (extra = [], moreEnv = {}) => spawnSync(process.execPath, [...args, ...extra], { env: { ...env, ...moreEnv }, encoding: 'utf8' });
-  return { base, home, source, root, env, run };
+  const run = (extra = [], moreEnv = {}, node = process.execPath) => spawnSync(node, [...args, ...extra], { env: { ...env, ...moreEnv }, encoding: 'utf8' });
+  return { base, home, source, root, env, run, bin };
 }
 test('failed first index is owned and retryable; existing canonical notes survive', async t => {
   const f = await fixture(t);
@@ -54,6 +55,88 @@ test('dead owned locks recover; live and unowned locks are preserved', async t =
   assert.notEqual(f.run().status, 0); assert.ok(existsSync(lock));
   await writeFile(path.join(lock, 'owner.json'), JSON.stringify({ pid: 2147483647, host: os.hostname() }));
   assert.equal(f.run().status, 0);
+});
+test('abandoned Mac app update locks are reclaimed only with proof; unprovable locks stay and say why', async t => {
+  const f = await fixture(t), lock = path.join(f.root, '.installer-lock');
+  const updates = path.join(f.home, 'Library/Application Support/jumpyBrain Updates'), directory = path.join(updates, 'update-abandoned');
+  const reset = async files => {
+    await rm(lock, { recursive: true, force: true }); await mkdir(lock, { recursive: true });
+    for (const [name, value] of Object.entries(files)) await writeFile(path.join(lock, name), typeof value === 'string' ? value : JSON.stringify(value));
+  };
+  const refused = async (pattern) => {
+    const result = f.run(); assert.equal(result.status, 1, result.stdout);
+    assert.match(JSON.parse(result.stdout).error, pattern); assert.ok(existsSync(lock), 'an unprovable lock is never removed');
+  };
+  await mkdir(directory, { recursive: true });
+  // Empty, foreign or unreadable records cannot be attributed to any process.
+  await reset({}); await refused(/has no owner record.*cannot be ruled out.*Nothing was changed.*remove that folder/s);
+  await reset({ 'owner.json': '{' }); await refused(/unreadable owner record/);
+  await reset({ 'owner.json': { pid: 2147483647, host: 'earlier-network-name.local' } }); await refused(/another host name \(earlier-network-name\.local\)/);
+  await reset({ 'desktop.json': { directory: path.join(f.base, 'elsewhere/update-x'), pid: 2147483647 } }); await refused(/unknown Mac app update folder/);
+  // A live updater or build, or a replacement awaiting recovery, is never taken over.
+  await reset({ 'desktop.json': { directory, pid: process.pid } }); await refused(/Mac app update is running/);
+  await writeFile(path.join(directory, 'child.json'), JSON.stringify({ pid: process.pid }));
+  await reset({ 'desktop.json': { directory, pid: 2147483647 } }); await refused(/Mac app update is running/);
+  await writeFile(path.join(directory, 'child.json'), '{');
+  await refused(/unreadable Mac app build record/);
+  await rm(path.join(directory, 'child.json'));
+  await writeFile(path.join(directory, 'transaction.json'), '{"phase":"published","exchanges":[]}');
+  await refused(/needs recovery first.*Recover/s);
+  // The worker never started (for example, dyld refused its Node): reclaim and install.
+  await writeFile(path.join(directory, 'transaction.json'), '{"phase":"rolled-back","exchanges":[]}');
+  let result = f.run(); assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /Recovered an abandoned Mac app update lock/);
+  assert.equal(existsSync(lock), false, 'the reclaimed lock is released after installation');
+  await rm(path.join(directory, 'transaction.json'));
+  await reset({ 'desktop.json': { directory, pid: 2147483647 } });
+  result = f.run(); assert.equal(result.status, 0, result.stderr); assert.equal(existsSync(lock), false);
+});
+test('Homebrew Node is pinned through its stable opt link, never a versioned Cellar keg', async t => {
+  const f = await fixture(t), prefix = path.join(await realpath(f.base), 'brew'); // process.execPath is a real path
+  // Brew layout: opt/node -> ../Cellar/node/<version>; bin/node -> ../Cellar/node/<version>/bin/node.
+  const keg = path.join(prefix, 'Cellar/node/26.8.1'), cellarNode = path.join(keg, 'bin/node');
+  await mkdir(path.dirname(cellarNode), { recursive: true }); await mkdir(path.join(prefix, 'opt'));
+  const real = await realpath(process.execPath);
+  try { await link(real, cellarNode); } catch { await copyFile(real, cellarNode); }
+  // A Homebrew node loads @rpath/libnode from ../lib; an official static binary ignores it.
+  if (existsSync(path.resolve(real, '../../lib'))) await symlink(path.resolve(real, '../../lib'), path.join(keg, 'lib'));
+  await symlink('../Cellar/node/26.8.1', path.join(prefix, 'opt/node'));
+  const stable = path.join(prefix, 'opt/node/bin/node');
+  assert.equal(durableNode(cellarNode), stable);
+  assert.equal(durableNode(path.join(prefix, 'Cellar/node@22/22.12.0/bin/node')), path.join(prefix, 'Cellar/node@22/22.12.0/bin/node'), 'no opt link: unchanged');
+  assert.equal(durableNode('/usr/local/bin/node'), '/usr/local/bin/node');
+  assert.equal(durableNode(path.join(f.root, 'runtimes/node-v24.0.0-darwin-arm64/bin/node')), path.join(f.root, 'runtimes/node-v24.0.0-darwin-arm64/bin/node'));
+  if (!nodeRuns(cellarNode)) return t.skip('this Node cannot run from a relocated hard link');
+  const installed = f.run([], {}, cellarNode); assert.equal(installed.status, 0, installed.stderr);
+  const manifest = JSON.parse(await readFile(path.join(f.root, 'install-manifest.json'), 'utf8'));
+  assert.equal(manifest.node, stable);
+  const launcher = await readFile(path.join(f.root, 'bin/jumpybrain'), 'utf8');
+  assert.equal(launcher, cliShim({ appDir: manifest.appDir, cliConfigPath: manifest.cliConfigPath, node: stable, qmd: manifest.qmd }));
+  assert.doesNotMatch(launcher, /Cellar/);
+});
+test('Desktop setup refuses a recorded Node that exists but no longer loads, with the installer repair', async t => {
+  const f = await fixture(t);
+  assert.equal(f.run().status, 0);
+  const manifest = JSON.parse(await readFile(path.join(f.root, 'install-manifest.json'), 'utf8'));
+  const appDir = manifest.appDir;
+  await mkdir(path.join(appDir, 'integrations/electron'), { recursive: true });
+  await writeFile(path.join(appDir, 'integrations/electron/package.json'), JSON.stringify({ version: '0.0.1' }));
+  const broken = path.join(f.base, 'Cellar/node/26.8.1/bin/node'); await mkdir(path.dirname(broken), { recursive: true });
+  await writeFile(broken, '#!/bin/sh\necho "dyld: Library not loaded: libsimdjson.33.dylib" >&2\nkill -ABRT $$\n', { mode: 0o755 });
+  const passes = () => ({ status: 0 });
+  assert.deepEqual(desktopCompatibilityBlockers(manifest, f.root, {}), []);
+  const blockers = desktopCompatibilityBlockers({ ...manifest, node: broken }, f.root, {});
+  assert.equal(blockers.length, 1); assert.match(blockers[0], /Node\.js recorded for the CLI no longer starts.*Homebrew.*will not reuse it/);
+  assert.equal(nodeRuns(broken), false); assert.equal(nodeRuns(process.execPath), true); assert.equal(nodeRuns('relative/node'), false);
+  assert.equal(nodeRuns(broken, { probe: passes }), true, 'the probe is injectable');
+  // The full setup path names the installer rerun rather than desktop:setup again.
+  await writeFile(path.join(f.root, 'install-manifest.json'), JSON.stringify({ ...manifest, node: broken }));
+  const setup = spawnSync(process.execPath, [path.join(repo, 'scripts/setup-desktop.mjs'), '--prepared', appDir, '--home', f.home], { env: { ...f.env, PATH: process.env.PATH }, encoding: 'utf8' });
+  assert.equal(setup.status, 1);
+  if (process.platform === 'darwin' && !/Desktop setup needs/.test(setup.stderr)) {
+    assert.match(setup.stderr, /no longer starts.*Nothing was built or installed\. Repair the CLI's Node selection.*install\.sh \| bash -s -- --with-app/s);
+    assert.doesNotMatch(setup.stderr, /--source release/);
+  }
 });
 test('bootstrap ignores an unrelated current-directory installer and downloads a consistent helper set', async t => {
   const f = await fixture(t); await mkdir(path.join(f.base, 'scripts'));

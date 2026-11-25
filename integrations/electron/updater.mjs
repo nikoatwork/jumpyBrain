@@ -7,6 +7,7 @@ import { discoverRelease, compareVersions } from './update-release.mjs';
 import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from './update-policy.mjs';
 import { atomicJSON } from './update-worker.mjs';
 import { maintainInstalledSoftware } from './software-maintenance.mjs';
+import { NODE_READY_PROBE } from './install-shim.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const execute = promisify(execFile);
 const files = ['install-shim.mjs', 'update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'update-retention.py', 'installation-retention.py', 'managed-integrations.mjs', 'desktop-host.mjs', 'host.mjs'];
@@ -23,7 +24,10 @@ export function needsUpdate(version, installed) {
     || (installed.cliPolicy.kind === 'managed' && compareVersions(version, installed.cli) > 0);
 }
 
-export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn, entrypoint = 'app' }) {
+const nodeStarts = node => execute(node, ['-e', NODE_READY_PROBE], { timeout: 15000 }).then(() => true, () => false);
+export const UPDATE_NODE_REPAIR = 'The Node.js runtime jumpyBrain uses no longer starts, often after a Homebrew upgrade. Nothing was changed. Quit jumpyBrain and repair the CLI and app together in Terminal: curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app';
+
+export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn, entrypoint = 'app', probeNode = nodeStarts }) {
   const appPath = path.join(home, 'Applications/jumpyBrain.app');
   const root = path.join(home, '.jumpybrain');
   const updates = path.join(home, 'Library/Application Support/jumpyBrain Updates');
@@ -130,6 +134,11 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     if (!recovering && versions.cliPolicy.kind === 'managed' && compareVersions(versions.cli, release.version) > 0) throw new Error('Your managed CLI is newer than this release. Wait for a matching published release; the GUI will not downgrade it.');
     if (!recovering && versions.cliPolicy.kind !== 'managed' && !appOnly) throw new Error('Choose “Update app only” to preserve the missing/custom/pinned CLI.');
     if (versions.cliPolicy.kind === 'managed' && appOnly) throw new Error('A supported managed CLI updates together with the app.');
+    const configFile = path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json');
+    const native = await readJSON(configFile);
+    if (!path.isAbsolute(native.node || '') || !path.isAbsolute(native.qmd || '')) throw new Error('Repair the app’s Node/QMD prerequisites before updating.');
+    // A worker that dyld refuses still emits spawn, then exits before releasing the lock.
+    if (!await probeNode(native.node)) throw new Error(UPDATE_NODE_REPAIR);
     await mkdir(updates, { recursive: true, mode: 0o700 });
     const stat = await regular(updates, { directory: true });
     if (stat.mode & 0o077) throw new Error('The Updates folder must be private to your user. Repair its permissions before updating.');
@@ -148,14 +157,18 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
         const journal = await readJSON(path.join(owner.directory, 'transaction.json')).catch(() => null);
         if (journal && !['success', 'rolled-back'].includes(journal.phase) && !recovering) throw new Error('An interrupted installation needs recovery first.');
         // Claim an abandoned, proven desktop lock without removing/recreating it.
-        await mkdir(path.join(lock, 'reclaim'), { mode: 0o700 }); acquired = true;
+        const claim = path.join(lock, 'reclaim');
+        await mkdir(claim, { mode: 0o700 });
+        const current = await readJSON(path.join(lock, 'desktop.json')).catch(() => null);
+        if (current?.pid !== owner.pid || current?.directory !== owner.directory) {
+          await rm(claim, { recursive: true, force: true });
+          throw new Error('Another installer/update changed the lock. Retry when it finishes.');
+        }
+        acquired = true;
         if (recovering) directory = owner.directory;
       }
       if (!recovering) directory = await mkdtemp(path.join(updates, 'update-'));
       if (!directory) throw new Error('No update is available to recover.');
-      const configFile = path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json');
-      const native = await readJSON(configFile);
-      if (!path.isAbsolute(native.node || '') || !path.isAbsolute(native.qmd || '')) throw new Error('Repair the app’s Node/QMD prerequisites before updating.');
       for (const preserved of [native.supportDirectory, native.memoryRoot]) {
         if (!path.isAbsolute(preserved || '') || [appPath, directory].some(p => overlaps(p, preserved) || overlaps(preserved, p))) throw new Error('App data overlaps the update destination. Move the installation before updating.');
       }

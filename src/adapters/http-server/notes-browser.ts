@@ -447,6 +447,7 @@ export const notesViews = String.raw`
       </div>
       <p id="note-message" class="status-text" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
+      <button id="note-connect" class="quiet-button" type="button" hidden>Connect</button>
       <div class="note-tool-row" role="group" aria-label="Writing tools">
         <button id="toggle-note-format" class="quiet-button quiet-button--plain button--sm button--toggle disclosure-trigger" type="button" aria-expanded="false" aria-controls="format-controls" hidden><span aria-hidden="true">Aa</span><span>Format</span>${browserChevronIcon}</button>
       </div>
@@ -1523,6 +1524,7 @@ async function showNote(documentId, focusEnd = false) {
     $("note-external-state").textContent = "";
     $("note-load-retry").hidden = true;
     $("note-load-retry").textContent = "Retry loading";
+    $("note-connect").hidden = true;
     $("note-message").hidden = false;
     $("note-message").dataset.error = "false";
     $("note-message").textContent = "Loading note…";
@@ -1555,11 +1557,21 @@ async function showNote(documentId, focusEnd = false) {
         editor.block("Saved content is shown. Check your connection and app/server versions, then retry editing.");
         return;
       }
-      if (Number(error.status) === 404) sidebarPages.remove(documentId);
-      noteLoadError(Number(error.status) === 404 ? "This note is no longer available. Use Search to find another note."
-        : Number(error.status) === 401 || Number(error.status) === 403 ? "Connect with an access key to open this note."
+      const status = Number(error.status);
+      if (status === 404) sidebarPages.remove(documentId);
+      // Hosted shared links: missing or rejected credentials offer Connect, which reopens
+      // this note after /session succeeds. A refusal for an accepted key is not a sign-in problem.
+      const hosted = !(typeof companionMode !== "undefined" && companionMode);
+      const authMissing = hosted && status === 401;
+      const forbidden = hosted && status === 403;
+      noteLoadError(status === 404 ? "This note is no longer available. Use Search to find another note."
+        : authMissing ? (activeApiKey ? "Your access key was not accepted. Connect again to open this note." : "Connect with an access key to open this note.")
+        : forbidden ? "This access key cannot open this note. Ask the server admin for access, or connect with another key."
+        : status === 401 || status === 403 ? "Connect with an access key to open this note."
         : "Could not load this note. Check your connection and retry.");
-      $("note-load-retry").hidden = false;
+      $("note-connect").textContent = forbidden ? "Use another key" : "Connect";
+      $("note-connect").hidden = !(authMissing || forbidden);
+      $("note-load-retry").hidden = authMissing || forbidden;
     }
   } finally { if (typeof companionMode !== "undefined" && companionMode) companionNoteLoading--; }
 }
@@ -1570,6 +1582,7 @@ function noteLoadError(message) {
   $("note-title").textContent = "Note unavailable";
 }
 $("note-load-retry").addEventListener("click", () => showNote(new URL(location.href).searchParams.get("note")));
+$("note-connect").addEventListener("click", () => openConnection(false));
 function sizeNoteName() {
   const field = $("note-name");
   if (field.hidden) return;

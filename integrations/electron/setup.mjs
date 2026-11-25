@@ -9,8 +9,13 @@ export const desktopRepairInstructions = 'Desktop setup needs repair. Ask your a
 
 // Raw host/filesystem errors can contain private paths. Keep them in main-process
 // startup state; show only actionable, known reasons on user-facing surfaces.
+// Rerunning the installer re-pins a working Node for both the CLI and the app;
+// desktop:setup alone would reuse the CLI's recorded, broken Node.
+export const desktopNodeRepairInstructions = 'jumpyBrain’s Node.js runtime no longer starts, often after a Homebrew upgrade. Your notes are unchanged. Quit jumpyBrain, run this in Terminal to repair the CLI and app together, then reopen jumpyBrain: curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app';
+
 export function desktopStartupMessage(error) {
   if (error?.code === 'ERR_DESKTOP_UPDATE_SOCKET_PATH') return error.message;
+  if (error?.code === 'ERR_DESKTOP_NODE_UNAVAILABLE') return desktopNodeRepairInstructions;
   const reason = /^Another jumpyBrain service|^The local port belongs/u.test(error?.message || '')
     ? error.message : 'The local brain service could not start.';
   return reason + ' ' + desktopRepairInstructions;

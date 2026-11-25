@@ -10,6 +10,7 @@ import { execFile, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { gzipSync } from 'node:zlib';
+import { durableNode } from '../scripts/install-support.mjs';
 import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { stopRootBackend } from '../dist/app/backend-host/index.js';
@@ -112,7 +113,7 @@ test('a remote-only consumer installs and reads a shared brain without QMD, npm,
   assert.ok(report.filesystem.changes.every(item => item.present && item.path.startsWith(f.root)));
   const untouched = Object.fromEntries(report.filesystem.untouched.map(item => [item.path, item.reason]));
   for (const name of ['.claude', '.agents', '.pi', '.codex', '.config/jumpybrain/.env', '.jumpybrain/memory', '.jumpybrain/engines']) assert.ok(untouched[path.join(f.home, name)], name);
-  assert.deepEqual(report.filesystem.node, { path: process.execPath, version: process.version, private: false });
+  assert.deepEqual(report.filesystem.node, { path: durableNode(process.execPath), version: process.version, private: false });
   assert.deepEqual(report.filesystem.network, [], 'a local source with --skip-build contacts nothing');
 
   // A real server with a reader key: remote reads work, and the server refuses a write.

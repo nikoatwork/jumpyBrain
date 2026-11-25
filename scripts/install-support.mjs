@@ -10,7 +10,8 @@ import { checkQmdInstallation, QMD_VERSION } from './qmd-install-check.mjs';
 import { desktopPrerequisites } from './desktop-prerequisites.mjs';
 import { discoverRelease, boundedFetch, verifyArtifact } from '../integrations/electron/update-release.mjs';
 
-export { cliShim } from '../integrations/electron/install-shim.mjs';
+import { durableNode } from '../integrations/electron/install-shim.mjs';
+export { cliShim, durableNode, nodeRuns } from '../integrations/electron/install-shim.mjs';
 export function run(command, args, { cwd, env = process.env, capture = false, timeout = 600000 } = {}) {
   const result = spawnSync(command, args, { cwd, env, timeout, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024,
     stdio: capture ? 'pipe' : ['ignore', 2, 2] });
@@ -47,7 +48,7 @@ export async function preflight({ options, installRoot, memoryRoot, source, home
 // Exact filesystem effects of the CLI installer: a plan before any write, then the
 // observed outcome. Only path existence is inspected; nothing is created here.
 export function filesystemReport({ dryRun, home, installRoot, appDir, cliPath, cliConfigPath, manifestPath, memoryRoot, remoteOnly, existing, reuseApp,
-  policy, engine, integrations, agentDirs, skipInitialIndex, withApp, dependencies, source, bootstrapDir, rootExisted, node = process.execPath }) {
+  policy, engine, integrations, agentDirs, skipInitialIndex, withApp, dependencies, source, bootstrapDir, rootExisted, node = durableNode() }) {
   const changes = [], retained = [], untouched = [], temporary = [], network = [];
   const change = (role, file, action, note) => changes.push({ role, path: file, action, ...(note ? { note } : {}) });
   const skip = (file, reason) => untouched.push({ path: file, reason });

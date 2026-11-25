@@ -76,6 +76,12 @@ export function migrationCommand({ withApp = false } = {}) {
   return `curl -fsSL ${BOOTSTRAP_URL} | bash -s -- --source release${withApp ? ' --with-app' : ''} --json`;
 }
 
+// Rerunning the installer keeps the recorded source/ref policy and re-pins the
+// Node that runs it (a private Node when none on PATH works).
+export function repairCommand({ withApp = false } = {}) {
+  return `curl -fsSL ${BOOTSTRAP_URL} | bash${withApp ? ' -s -- --with-app' : ''}`;
+}
+
 export function incompatibleRuntimeError({ installedVersion, required, withApp, policy }) {
   const keep = policy && ['custom', 'pinned'].includes(policy.kind)
     ? ` To keep the recorded ${policy.kind} source instead, pass it explicitly: --source ${policy.source}${policy.ref ? ` --ref ${policy.ref}` : ''}.` : '';

@@ -59,7 +59,7 @@ bash jumpybrain-install.sh --json
 
 All downloaded helpers come from one resolved installer commit. The current working directory never implicitly selects executable installer code. Inspecting the shell file alone is not an audit of downloaded dependencies. For trusted local development, invoke `node scripts/public-install.mjs --source "$PWD"` explicitly.
 
-Repeat the same command after correcting a reported failure. Fresh installs record ownership/progress before publishing program files, so a failed build/index/app setup can be retried without deleting notes or manually removing the app. Unknown layouts/locks and live concurrent installations are refused; do not remove a live lock. A lock with a verifiably dead local owner can be recovered automatically. This is process-failure recovery, not a guarantee against disk corruption or power loss.
+Repeat the same command after correcting a reported failure. Fresh installs record ownership/progress before publishing program files, so a failed build/index/app setup can be retried without deleting notes or manually removing the app. Unknown layouts/locks and live concurrent installations are refused; do not remove a live lock. A lock with a verifiably dead local owner can be recovered automatically, including a Mac app update whose helper exited before it started (its own update folder, no live updater or build, and no replacement awaiting **Recover**). An empty lock, an unreadable owner or one recorded under another host name cannot be attributed to any process; the installer names which case it found and leaves the lock. Remove it yourself only after quitting jumpyBrain and confirming no installer or update is still running. This is process-failure recovery, not a guarantee against disk corruption or power loss.
 
 ### macOS desktop app (beta)
 
@@ -89,7 +89,7 @@ Every run reports its exact filesystem effects: as text at the end of the output
 | `untouched` | Paths the run leaves alone, with the reason: agent configuration folders that receive no integration (`~/.claude`, `~/.agents`, `~/.pi`, `~/.codex`), the access-key file `~/.config/jumpybrain/.env`, a preserved policy file, and the brain and engine for a remote-only install. |
 | `retained` | What stays on disk beyond the active program: the full package contents, and a private Node runtime when the bootstrap downloaded one. |
 | `temporary` | The staging directory, the installer lock, and the bootstrap's downloaded helpers. |
-| `node` | The Node executable the launcher pins, its version, and whether it is the private runtime. An existing Node is reused and never modified; reinstall if that path later disappears. |
+| `node` | The Node executable the launcher pins, its version, and whether it is the private runtime. An existing Node is reused and never modified. When Homebrew's stable `opt` link points to the running executable, the installer pins that link (such as `/opt/homebrew/opt/node/bin/node`) so the launcher follows typical upgrades within the same Node major version. See [repair after a Node upgrade](#repair-after-a-node-upgrade). |
 | `network` | Hosts the run contacts and why. |
 | `runtimeDependencies` | `installed` (`npm ci`), `omitted` (remote-only release), `source` (`--skip-build`) or `reused`. |
 
@@ -248,7 +248,7 @@ GUI updates download one published GitHub release (including 0.x beta releases),
 
 This supports `~/Applications/jumpyBrain.app` on macOS 13+, with Node 22.12+, npm, Python 3.9+, Xcode Command Line Tools, working external QMD, and at least 3 GB free. It needs no checkout or GitHub login after initial setup. Builds are locally signed, not publicly signed/notarized. Older apps without the shared updater need one source setup (`npm run desktop:setup`, after quitting the app) to obtain this capability. This bootstrap is separate from normal future updates. The next release must contain the desktop updater resources; incomplete releases fail before installation.
 
-Failures show a shared notification and remain available in the icon tooltip with retry guidance. An interrupted replacement opens a dedicated **Recover previous installation** surface with **Show update log**, then a safe restart. Previous components and journals remain under `~/Library/Application Support/jumpyBrain Updates`; keep them until the update is verified. Unknown installer locks require repair rather than automatic deletion. See the [Mac app guide](../integrations/electron/README.md#gui-updates-and-recovery).
+Failures show a shared notification and remain available in the icon tooltip with retry guidance. An interrupted replacement opens a dedicated **Recover previous installation** surface with **Show update log**, then a safe restart. Previous components and journals remain under `~/Library/Application Support/jumpyBrain Updates`; keep them until the update is verified. Unknown installer locks require repair rather than automatic deletion. Before taking the installer lock, the updater checks that the app's recorded Node still starts; if not, it changes nothing and names the [Node repair](#repair-after-a-node-upgrade). See the [Mac app guide](../integrations/electron/README.md#gui-updates-and-recovery).
 
 The CLI uses the same paired operation for an existing standard Mac installation:
 
@@ -265,6 +265,18 @@ Preview the update without writing files:
 With the Mac app running (including window-closed/menu-bar mode), the CLI prepares through that app and reports **Prepared; restart needed**, never installed success. Use **Relaunch to apply update** in the app when ready. With the app quit, the CLI prepares and installs both components, reopens the app, and waits for verified startup and matching versions. Both entry points select the same immutable published release asset and digest.
 
 CLI-only installations retain their recorded distribution policy: new release-based installs select a verified published release, while older/source installs preserve their source/ref. They remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
+
+### Repair after a Node upgrade
+
+Installs made by v0.3.27 and earlier pinned a Homebrew Node by its versioned `Cellar` path. After `brew upgrade` that path can disappear, or still exist while a library it loads is gone (for example `dyld: Library not loaded: …/libsimdjson.33.dylib`). Then `jumpybrain` aborts, and the Mac app reports that its Node.js runtime no longer starts. Your notes are unaffected.
+
+Quit the Mac app, then rerun the installer. It keeps your brain, settings, integrations and recorded source/ref, re-pins the Node that runs it (downloading a private Node when none on `PATH` works) and rebuilds the app's configuration:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app
+```
+
+Omit `-s -- --with-app` for a CLI-only installation, and repeat any non-default options such as `--install-root`. `npm run desktop:setup` and GUI updates point to this repair when the recorded Node fails to start. The stable Homebrew `opt` link handles the path change during typical upgrades within the same Node major version. After a major Node upgrade, rerun the installer and check local search, since native QMD dependencies may need a compatible rebuild.
 
 ### Migrate an older managed CLI
 

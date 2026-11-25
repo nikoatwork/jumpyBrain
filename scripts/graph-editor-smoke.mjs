@@ -340,15 +340,15 @@ async function validateMobile() {
     await assertFullPageEditor(page, fixture);
     const beforeFailure = await readFile(path.join(root, fixture.file), "utf8");
 
-    // A rejected key locks live editing with an explicit explanation and retry;
-    // nothing is written and navigation (including Connect) stays usable.
+    // A rejected key locks live editing with an explicit explanation and an inline Connect;
+    // nothing is written and navigation stays usable.
     const connectionCheck = page.waitForResponse(rejectedKeyRead);
     await setConnectionKey(page, wrongKey);
     await connectionCheck;
-    await page.locator("#note-load-retry").waitFor({ state: "visible" });
+    await page.locator("#note-connect").waitFor({ state: "visible" });
     assert.equal(await page.locator("#note-editor").getAttribute("contenteditable"), "false", "a rejected key cannot edit");
     assert.match(await page.locator("#connection-message").textContent(), /access key was not accepted/i);
-    await assertMobileLayout(page, { failureControl: "#note-load-retry" });
+    await assertMobileLayout(page, { failureControl: "#note-connect" });
     await capture(page, "notes-mobile-auth-failure.png");
 
     // Connect is itself one of the wrapped controls; the accepted key reopens editing.

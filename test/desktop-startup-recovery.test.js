@@ -29,3 +29,34 @@ test('overlong update socket paths fail actionably before filesystem mutation', 
   await assert.rejects(requestDesktopUpdate(home, 'status'), check);
   assert.equal(existsSync(home), false);
 });
+
+test('a host whose recorded Node no longer loads gets the installer repair, not desktop:setup', async t => {
+  const { EventEmitter } = await import('node:events');
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const { startDesktopHost } = await import('../integrations/electron/desktop-host.mjs');
+  const { desktopNodeRepairInstructions } = await import('../integrations/electron/setup.mjs');
+  const base = await mkdtemp(path.join(os.tmpdir(), 'jb-node-startup-'));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const supportDirectory = path.join(base, 'support'); await mkdir(supportDirectory, { mode: 0o700 });
+  await writeFile(path.join(supportDirectory, 'api-key'), 'a'.repeat(64), { mode: 0o600 });
+  const host = path.join(base, 'native/jumpyBrain Host.app/Contents');
+  await mkdir(path.join(host, 'Resources'), { recursive: true });
+  // Homebrew upgrade shape: the versioned path exists, but dyld refuses it.
+  const broken = path.join(base, 'Cellar/node/26.8.1/bin/node'); await mkdir(path.dirname(broken), { recursive: true });
+  await writeFile(broken, '#!/bin/sh\necho "dyld: Library not loaded: libsimdjson.33.dylib" >&2\nkill -ABRT $$\n', { mode: 0o755 });
+  const config = { supportDirectory, executable: path.join(host, 'MacOS/jumpyBrain'), origin: 'http://127.0.0.1:3787' };
+  const start = () => startDesktopHost(config, { deadlineMs: 2000,
+    spawnHost: () => { const child = new EventEmitter(); child.kill = () => {}; setTimeout(() => child.emit('exit', 1, null), 20); return child; },
+    probe: async () => { throw Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }); } });
+  for (const [node, expected] of [[broken, 'ERR_DESKTOP_NODE_UNAVAILABLE'], [process.execPath, undefined]]) {
+    await writeFile(path.join(host, 'Resources/Configuration.json'), JSON.stringify({ node }));
+    const error = await start().then(() => assert.fail('the host must not start'), error => error);
+    assert.equal(error.code, expected);
+    const message = desktopStartupMessage(error);
+    if (expected) {
+      assert.equal(message, desktopNodeRepairInstructions);
+      assert.match(message, /no longer starts.*Homebrew.*notes are unchanged.*install\.sh \| bash -s -- --with-app/);
+      assert.doesNotMatch(message, /desktop:setup|Cellar|\/Users\//);
+    } else assert.ok(message.includes(desktopRepairInstructions), 'other startup failures keep the existing guidance');
+  }
+});

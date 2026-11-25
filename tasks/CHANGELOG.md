@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-25 — Homebrew recovery and shared note links
+
+- Managed installs follow a verified Homebrew Node link across typical upgrades. Desktop gives repair guidance when its Node cannot start, and the installer can reclaim a verifiably abandoned app-update lock. Shared note links offer key entry and reopen the requested note using the existing browser session. [Verification and limits](done/2026-11-25_tasks-november-feedback-fixes.md).
+
 ## 2026-11-22 — v0.3.27 beta published
 
 - Shipped server-role access, shared-brain migration and CLI setup, headless installer fixes, trusted project memory and the compact sidebar. The editor stayed below its existing size ceiling, and all three release assets were verified. [Published notes](done/releases/v0.3.27.md) · [Release verification](done/releases/v0.3.27.qa.md).

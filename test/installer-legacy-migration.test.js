@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { installFakeQmd } from './fake-qmd-helper.js';
 import { classifyManifest, classifyVerification, sourcePolicy } from '../scripts/install-compatibility.mjs';
-import { selectEngineWithSource } from '../scripts/install-support.mjs';
+import { durableNode, selectEngineWithSource } from '../scripts/install-support.mjs';
 import { QMD_VERSION } from '../scripts/qmd-install-check.mjs';
 import { desktopCompatibilityBlockers } from '../scripts/setup-desktop.mjs';
 
@@ -166,7 +166,7 @@ test('explicit release migration replaces legacy software, keeps notes/config/in
     const manifest = JSON.parse(await readFile(f.manifestPath, 'utf8'));
     assert.equal(manifest.distribution, 'release'); assert.equal(manifest.ref, null); assert.equal(manifest.release.version, RELEASE);
     assert.equal(manifest.installedVersion, RELEASE); assert.equal(manifest.state, 'ready'); assert.equal(manifest.memoryRoot, f.memory);
-    assert.equal(typeof manifest.qmd, 'string'); assert.equal(manifest.node, process.execPath);
+    assert.equal(typeof manifest.qmd, 'string'); assert.equal(manifest.node, durableNode(process.execPath));
     // A pre-existing config is used but only becomes owned if an earlier manifest recorded it.
     assert.equal(manifest.cliConfigPath, shape === 'legacy-configured' ? path.join(f.root, 'cli-config.json') : undefined);
     assert.deepEqual(await tree(f.memory), notes);

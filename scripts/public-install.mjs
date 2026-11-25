@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
 import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
 import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
-import { atomicJSON, cliShim, preflight, selectEngineWithSource, discoverRelease, installRelease, filesystemReport, observeFilesystem, formatFilesystem } from "./install-support.mjs";
+import { atomicJSON, cliShim, durableNode, preflight, selectEngineWithSource, discoverRelease, installRelease, filesystemReport, observeFilesystem, formatFilesystem } from "./install-support.mjs";
 import { classifyManifest, classifyVerification, DEFAULT_REPO, incompatibleRuntimeError, INSTALLER_NAME, MANIFEST_VERSION, migrationBlockers, migrationCommand, runtimeCapabilities, sourcePolicy } from "./install-compatibility.mjs";
 import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
 
@@ -129,7 +129,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
   await preflight({ options, installRoot, memoryRoot, source, home });
   const rootExisted = existsSync(installRoot);
   if (!options.dryRun) {
-    unlock = await lockInstallation(installRoot);
+    unlock = await lockInstallation(installRoot, home);
     const lockedManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
     if (JSON.stringify(lockedManifest) !== JSON.stringify(previousManifest)) throw new Error("Installation changed while waiting for its lock. Rerun the same command.");
   }
@@ -208,7 +208,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     createdAt: previousManifest?.createdAt ?? now, updatedAt: now,
     source: manifestSource, distribution: source === "release" ? "release" : "source", release: selectedRelease || null, ref: ref ?? null,
     scope, installRoot, appDir, binDir, cliPath, cliConfigPath, memoryRoot,
-    node: process.execPath, qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest?.desktopPort, remoteOnly, integrationMode: integrations,
+    node: durableNode(), qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest?.desktopPort, remoteOnly, integrationMode: integrations,
     integrations: integrationPlan.install.map(({ kind, path }) => ({ kind, path })),
     installerOptions: { skipBuild: Boolean(options.skipBuild), skipQmdInstall: Boolean(options.skipQmdInstall), skipInitialIndex: Boolean(options.skipInitialIndex) },
     files: [cliPath, ...integrationPlan.install.map(item => item.path)],
@@ -254,10 +254,11 @@ async function installManaged({ options, home, cwd, installRoot }) {
   printSummary(summary);
 }
 
-async function lockInstallation(installRoot) {
+async function lockInstallation(installRoot, home) {
   await mkdir(installRoot, { recursive: true });
   if ((await lstat(installRoot)).isSymbolicLink()) throw new Error("Install root must be a real directory, not a symlink.");
   const lock = path.join(installRoot, ".installer-lock");
+  const owned = { pid: process.pid, host: os.hostname(), token: installerToken };
   try { await mkdir(lock, { mode: 0o700 }); }
   catch (error) {
     if (error.code !== "EEXIST") throw error;
@@ -265,18 +266,68 @@ async function lockInstallation(installRoot) {
     try { await mkdir(recovery, { mode: 0o700 }); }
     catch { throw new Error("Another installer is recovering its lock. Retry when it finishes."); }
     try {
-      const owner = JSON.parse(await readFile(path.join(lock, "owner.json"), "utf8").catch(() => "null"));
-      if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid < 2 || owner.host !== os.hostname()) throw new Error("Installer lock has no verifiable owner. Verify no install is running before manually removing .installer-lock.");
-      let alive = true;
-      try { process.kill(owner.pid, 0); } catch (e) { if (e.code === "ESRCH") alive = false; else throw e; }
-      if (alive) throw new Error("Another installer/update is active. Wait for it to finish.");
-      if ((await lstat(lock)).isSymbolicLink()) throw new Error("Refusing a linked installer lock.");
+      const stat = await lstat(lock);
+      if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error("Refusing a linked installer lock.");
+      const owner = await readLockRecord(path.join(lock, "owner.json"));
+      if (owner === undefined) {
+        // The Mac app's updater records its owner as desktop.json instead.
+        await reclaimAbandonedAppUpdate({ lock, installRoot, home, owned });
+        return () => rm(lock, { recursive: true });
+      }
+      if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid < 2) throw unverifiableLock(lock, "has an unreadable owner record");
+      if (owner.host !== os.hostname()) throw unverifiableLock(lock, `was created under another host name (${String(owner.host).slice(0, 64)}). It may be this Mac under an earlier network name, but that cannot be proven`);
+      if (processAlive(owner.pid)) throw new Error("Another installer/update is active. Wait for it to finish.");
       await rm(lock, { recursive: true });
       await mkdir(lock, { mode: 0o700 });
     } finally { await rm(recovery, { recursive: true }); }
   }
-  await atomicJSON(path.join(lock, "owner.json"), { pid: process.pid, host: os.hostname(), token: installerToken });
+  await atomicJSON(path.join(lock, "owner.json"), owned);
   return () => rm(lock, { recursive: true });
+}
+
+// undefined: absent. null: present but unreadable or malformed.
+async function readLockRecord(file) {
+  try { return JSON.parse(await readFile(file, "utf8")); }
+  catch (error) { return error.code === "ENOENT" ? undefined : null; }
+}
+function processAlive(pid) {
+  if (!Number.isSafeInteger(pid) || pid < 2) return false;
+  try { process.kill(pid, 0); return true; }
+  catch (error) { if (error.code === "ESRCH") return false; throw error; }
+}
+function unverifiableLock(lock, reason) {
+  return new Error(`Installer lock ${lock} ${reason}, so a running jumpyBrain installer, update or Mac app setup cannot be ruled out. Nothing was changed. `
+    + "Quit jumpyBrain and make sure no jumpyBrain installer or update is still running in a Terminal; then remove that folder and rerun the same command.");
+}
+
+// A Mac app update whose worker never started (for example because its Node no
+// longer loads) leaves desktop.json behind. Reclaim it only with the same proof
+// the app's updater uses: its own update directory, no live owner or build, and no
+// interrupted replacement awaiting recovery. Claimed in place, like the app does.
+async function reclaimAbandonedAppUpdate({ lock, installRoot, home, owned }) {
+  const updates = path.join(home, "Library/Application Support/jumpyBrain Updates");
+  const owner = await readLockRecord(path.join(lock, "desktop.json"));
+  if (installRoot !== path.join(home, ".jumpybrain") || owner === undefined) throw unverifiableLock(lock, "has no owner record");
+  if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid < 2 || typeof owner.directory !== "string") throw unverifiableLock(lock, "has an unreadable Mac app update record");
+  if (path.dirname(owner.directory) !== updates || !/^update-[\w-]+$/.test(path.basename(owner.directory))) throw unverifiableLock(lock, "names an unknown Mac app update folder");
+  const child = await readLockRecord(path.join(owner.directory, "child.json"));
+  if (child !== undefined && (!child || !Number.isSafeInteger(child.pid) || child.pid < 2)) throw unverifiableLock(lock, "has an unreadable Mac app build record");
+  if (processAlive(owner.pid) || processAlive(child?.pid)) throw new Error("A Mac app update is running. Wait for it to finish, then rerun the same command.");
+  const journal = await readLockRecord(path.join(owner.directory, "transaction.json"));
+  if (journal === null || (journal && !["success", "rolled-back"].includes(journal.phase))) {
+    throw new Error("An interrupted Mac app update needs recovery first. Open jumpyBrain and choose Recover in its update panel; the previous installation is retained. Nothing was changed.");
+  }
+  try { await mkdir(path.join(lock, "reclaim"), { mode: 0o700 }); }
+  catch { throw new Error("Another installer is recovering its lock. Retry when it finishes."); }
+  try {
+    const current = await readLockRecord(path.join(lock, "desktop.json"));
+    if (current?.pid !== owner.pid || current?.directory !== owner.directory) throw new Error("Another installer/update changed the lock. Retry when it finishes.");
+    await atomicJSON(path.join(lock, "owner.json"), owned);
+    await rm(path.join(lock, "desktop.json"), { force: true });
+  } finally {
+    await rm(path.join(lock, "reclaim"), { recursive: true, force: true });
+  }
+  log(`Recovered an abandoned Mac app update lock (owner process ${owner.pid} has exited).`);
 }
 
 async function updateExistingInstall({
@@ -353,7 +404,7 @@ async function updateExistingInstall({
     source: manifestSource,
     distribution: source === "release" ? "release" : "source",
     release: selectedRelease || null,
-    node: process.execPath, qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest.desktopPort,
+    node: durableNode(), qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest.desktopPort,
     ref: ref ?? null,
     scope,
     installRoot,

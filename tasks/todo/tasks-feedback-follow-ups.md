@@ -2,6 +2,8 @@
 
 Canonical owner for the residual email items below. [Email index](../feedback.md) records which messages have been reviewed; reading is not resolution. This list records follow-up scope, not authorization to implement every item now. Existing specialist lists retain their own broader unfinished work.
 
+- [November 23–24 feedback fixes](../done/2026-11-25_tasks-november-feedback-fixes.md) records Homebrew Node recovery and shared note link verification.
+
 ## New remote access feedback (November 19–20)
 
 Reviewed and implemented after the owner's nine product answers. [Implementation, verification and limits](../done/2026-11-20_tasks-remote-feedback-implementation.md); exact email IDs remain in the [email index](../feedback.md). Source work is complete and pending release.

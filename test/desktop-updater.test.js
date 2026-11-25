@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { selectRelease, discoverRelease, verifyArtifact, compareVersions, SOURCE } from '../integrations/electron/update-release.mjs';
 import { cliPolicy } from '../integrations/electron/update-policy.mjs';
-import { createDesktopUpdater, needsUpdate, startUpdatePolling } from '../integrations/electron/updater.mjs';
+import { createDesktopUpdater, needsUpdate, startUpdatePolling, UPDATE_NODE_REPAIR } from '../integrations/electron/updater.mjs';
 import { createQuitFlow } from '../integrations/electron/lifecycle.mjs';
 import { runWorker } from '../integrations/electron/update-worker.mjs';
 import { nativeUpdateAction } from '../integrations/electron/update-inline.mjs';
@@ -91,6 +91,9 @@ test('checking is observational and duplicate clicks share one operation', async
   const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
   await mkdir(path.join(resources, 'runtime'), { recursive: true });
   await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+  const native = path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources');
+  await mkdir(native, { recursive: true });
+  await writeFile(path.join(native, 'Configuration.json'), JSON.stringify({ node: process.execPath, qmd: '/external/qmd' }));
   const before = await readFile(path.join(f.root, 'install-manifest.json'));
   let checks = 0;
   const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => { checks++; return selectRelease([release('0.3.4')]); } });
@@ -327,6 +330,30 @@ test('one-click update skips intermediate versions, pins the latest release and 
       assert.equal(checks, 1); assert.equal(launches, 1);
     }
   }
+});
+
+test('a recorded Node that no longer loads stops preparation before any worker or lingering lock', { skip: process.platform !== 'darwin' }, async t => {
+  // Homebrew upgrade shape: the versioned Node exists, but dyld aborts it. Such a
+  // worker still emits 'spawn' and then dies, which used to strand desktop.json.
+  const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
+  const broken = path.join(f.home, 'Cellar/node/26.8.1/bin/node');
+  await mkdir(path.dirname(broken), { recursive: true });
+  await writeFile(broken, '#!/bin/sh\necho "dyld: Library not loaded: libsimdjson.33.dylib" >&2\nkill -ABRT $$\n', { mode: 0o755 });
+  await mkdir(path.join(resources, 'runtime'), { recursive: true });
+  await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+  await mkdir(path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources'), { recursive: true });
+  await writeFile(path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json'), JSON.stringify({ node: broken, qmd: '/external/qmd', memoryRoot: path.join(f.home, 'memory'), supportDirectory: path.join(f.home, 'support') }));
+  const { spawn } = await import('node:child_process');
+  let launches = 0;
+  const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => selectRelease([release('0.3.4')]),
+    spawnWorker: (...args) => { launches++; return spawn(...args); } });
+  const result = await updater.action('update');
+  assert.equal(result.phase, 'failed');
+  assert.equal(result.detail, UPDATE_NODE_REPAIR);
+  assert.match(result.detail, /no longer starts.*Homebrew.*install\.sh \| bash -s -- --with-app/);
+  assert.equal(launches, 0, 'no worker is started with an unloadable Node');
+  await assert.rejects(readFile(path.join(f.root, '.installer-lock/desktop.json')), { code: 'ENOENT' });
+  await assert.rejects(readFile(path.join(f.root, '.installer-lock')), { code: 'ENOENT' });
 });
 
 test('private desktop channel accepts only fixed actions and shares the app operation', async t => {
