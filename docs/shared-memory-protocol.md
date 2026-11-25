@@ -336,7 +336,7 @@ These unauthenticated browser entrypoints serve the same content-free, nonce-CSP
 
 The content-free `/favicon.svg` supports public GET/HEAD with a one-day cache and remains same-origin under CSP.
 
-`/` is the primary entrance; `/graph` and `/graph/` remain compatible map entrypoints. A note opens at `/?note=mem_<uuid>` and uses authenticated document GET/PUT with `If-Match`. API keys must never appear in query parameters or generated links. The ordinary shell prompts for a key; local smoke fixtures may supply `#apiKey=<key>`, which is not sent to the server. Companion mode uses its separate gateway session.
+`/` is the primary entrance; `/graph` and `/graph/` remain compatible map entrypoints. A note opens at `/?note=mem_<uuid>` and uses authenticated document GET/PUT with `If-Match`. API keys must never appear in query parameters or generated links. The ordinary shell prompts for a key or accepts an invite link `#invite=<code>` ([browser sessions](#browser-sessions)); local smoke fixtures may supply `#apiKey=<key>`, which is not sent to the server. Companion mode uses its separate gateway session.
 
 Editor/save/conflict behavior, exact-title references, Ember System/Light/Dark appearance, guarded navigation, search freshness, and companion state are owned by the [browser contract](../src/adapters/http-server/browser.docs.md). Public document/title/notes endpoint schemas below remain authoritative. The resettable demo's admission, rate limits, and reseeding remain deployment concerns.
 
@@ -860,6 +860,23 @@ Access-key management for this brain needs the `manage_access` capability (an ad
 
 The CLI, the hosted browser dialog and the Mac app's Settings panel use these routes; see [Separate access](collaboration.md#separate-access).
 
+`DELETE /access/:id` also ends that key's browser sessions and unused invite links. The admin routes below serve the hosted dialog and the Mac app's Settings (the gateway allowlists the same paths); they need `manage_access` too:
+
+- `POST /access/:id/invites` returns **201** `{ "code", "expiresAt", "credential": { "id", "name", "role" } }` for an active issued key, or **404 `not_found`**. The `jbi_` code is single-use, valid for 7 days and tied to that one key; only its SHA-256 is stored. More than 1024 open invites returns **409 `invite_limit`**. Clients build the link as `<address>/#invite=<code>`: the fragment never reaches the server, proxy logs or `Referer`.
+- `GET /access/sessions` returns `{ "sessions": [{ "id", "keyId", "role", "label", "createdAt", "lastSeenAt", "current"? }] }`, most recently used first. `id` is a public handle, never the secret; `label` is a short device description such as `Safari on iPhone`; `current` marks the session making the request.
+- `DELETE /access/sessions/:id` ends one session (`{ "ended": true|false }`). `DELETE /access/:id/sessions` signs a key out everywhere: every session and open invite for it (`{ "ended": <count> }`). The key itself keeps working.
+
+### Browser sessions
+
+The hosted browser never keeps an access key. `GET /session` with `Authorization: Bearer <key>` (the Connect dialog) starts a session; `POST /session/invite` with `{ "code" }` exchanges an invite code for one. Both return `{ "protocol": 2, "principal", "session"? }` and set `jumpybrain_session_v3_<brain>`: an opaque `jbs_` secret, `HttpOnly; SameSite=Strict; Path=/`, `Secure` behind HTTPS (`X-Forwarded-Proto: https`), `Max-Age` 400 days (the browser maximum). A new session replaces this browser's previous one in the same change; signing in again with the same key keeps the current session. Each key keeps at most 32 sessions (its least recently used one ends first; other keys are never affected); a brain-wide limit of 4096 returns **503 `session_limit`**.
+
+- **Storage.** Private `.jumpybrain/sessions.json` keeps per session the SHA-256 of the secret, the key ID, role, a device label and created/last-used times, and per invite only the code's hash. It is operational state beside `access.json`: back it up with it; deleting it signs every browser out.
+- **Authorization.** Every request and every live-socket revalidation resolves the session and then re-reads its key, so revoking the key ends the session at once. A session secret is not a bearer credential.
+- **Renewal and expiry.** Use renews the session: last use is written, and the cookie re-issued with a fresh 400 days, at most once a day. A session unused for 400 days ends. There is no other limit; sign-out (`DELETE /session`, exact Origin) and admin sign-out end it server-side, so a copied cookie stops working too. A request with a dead session gets 401 but its cookie is left alone (a late reply must not erase a newer session another tab installed); the next sign-in overwrites it.
+- **Invites.** `POST /session/invite` is public but needs the exact browser Origin (login CSRF protection). The shell redeems a link only after `GET /session` answers 401; a signed-in browser keeps its identity, says so, and leaves the code unused. A fresh browser that opens someone else's link is signed in as that link's key: send links privately. A browser with a live session gets **409 `already_signed_in`** and the code stays unused. Unknown, used or expired codes, and codes for a revoked key, return **410 `invite_invalid`**; a redeemed code is deleted at once. The Origin comparison includes the scheme (`https` when the socket is TLS or `X-Forwarded-Proto: https`).
+- **Writes.** Cookie-authenticated mutations require the exact Origin (**403 `untrusted_origin`**); reader keys stay view-only (**403 `read_only`**).
+- **Upgrade from v2.** Before 2026-11-25 the cookie `jumpybrain_session_v2_<brain>` held the raw key for 24 hours. Such cookies still authenticate until they expire; the shell's `GET /session` exchanges one for a v3 session and clears it. The v2 path is to be removed in a later release.
+
 ## Error codes
 
 | HTTP | Code | Meaning |
@@ -909,7 +926,7 @@ Safety baseline:
 
 - Run the server on localhost or a private interface; put HTTPS, compression, rate limits, and request-size limits at the reverse proxy.
 - Keep API keys only in private host/provider secret storage; do not commit them, pass them in shell history/process arguments for production, or write them to memory Markdown.
-- Back up canonical Markdown, canonical boards/configuration, and private operational state. `.jumpybrain/access.json` contains individually revocable credential hashes; `.jumpybrain/recovery/` contains unique retained versions. Both are durable data, not disposable index/cache. Include interrupted `.pending` recovery directories in backups.
+- Back up canonical Markdown, canonical boards/configuration, and private operational state. `.jumpybrain/access.json` contains individually revocable credential hashes; `.jumpybrain/sessions.json` holds browser session and invite hashes; `.jumpybrain/recovery/` contains unique retained versions. Both are durable data, not disposable index/cache. Include interrupted `.pending` recovery directories in backups.
 - Rotate configured bootstrap/operator API keys through server env/config and restart. Named reader/writer credentials are individually revocable through the authenticated access commands; revocation is checked on each HTTP/WS operation and active WS sessions are revalidated, without restarting the server.
 - Run one server process against one local disk memory root for V1; do not horizontally scale this server yet.
 - Server auto-indexing is enabled by default and checks stale remote memory every 5 minutes. Manual `POST /memories/all/index` is still useful when operators want an immediate update.

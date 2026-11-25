@@ -367,18 +367,26 @@ ${noteAttentionMarkup}
 <dialog id="connection" aria-labelledby="connection-title">
   <form id="connection-form">
     <div class="dialog-heading"><h2 id="connection-title">Connect to your memory</h2></div>
-    <p class="field-help">Use the access key for this server. It stays in this browser; only enter it on a server you trust.</p>
+    <p class="field-help">Use the access key for this server, or open an invite link. This browser then stays signed in; the key itself is not stored here. Only enter it on a server you trust.</p>
     <label class="field"><span class="field-label">Access key</span><input id="api-key" class="input--entry" data-testid="api-key" type="password" autocomplete="off" /></label>
     <button id="toggle-api-key" class="quiet-button" type="button" aria-controls="api-key">Show key</button>
     <p id="connection-message" class="status-text" role="status" aria-live="polite"></p>
     <div class="dialog-actions">
       <button id="open-access-keys" class="quiet-button" type="button" aria-haspopup="dialog" hidden>Access keys</button>
-      <button id="disconnect" class="quiet-button" type="button" hidden>Disconnect</button>
+      <button id="disconnect" class="quiet-button" type="button" hidden>Sign out</button>
       <button id="close-connection" class="quiet-button" type="button">Cancel</button>
       <button id="connection-submit" class="button button-primary" type="submit">Connect</button>
     </div>
     <p class="app-version" data-app-version></p>
   </form>
+</dialog>
+<dialog id="invite-problem" aria-labelledby="invite-problem-title">
+  <div class="dialog-heading"><h2 id="invite-problem-title">This invite link no longer works</h2></div>
+  <p id="invite-problem-message"></p>
+  <div class="dialog-actions">
+    <button id="invite-problem-key" class="quiet-button" type="button">I have an access key</button>
+    <button id="invite-problem-close" class="button button-primary" type="button">OK</button>
+  </div>
 </dialog>
 `;
 
@@ -1142,11 +1150,15 @@ function renderConnection() {
   $("connection-submit").textContent = connected ? "Update key" : "Connect";
   $("disconnect").hidden = !activeApiKey;
   $("open-access-keys").hidden = !connected;
-  $("connection-message").textContent = connected ? "Connected to this server."
+  const who = hostedPrincipal && typeof hostedPrincipal.name === "string" ? hostedPrincipal : null;
+  $("connection-message").textContent = connected ? (who ? "Signed in as “" + who.name + "” · " + ({reader: "Reader, view only", writer: "Writer", admin: "Admin"}[who.role] || who.role) + "." : "Connected to this server.")
     : connectionStatus === "checking" ? "Checking your connection…"
     : connectionStatus === "unavailable" ? "Could not reach the server. Retry connecting."
     : activeApiKey ? "The access key was not accepted. Update it to reconnect." : "Not connected.";
   $("connection-message").dataset.error = String(connectionStatus === "unavailable" || (!connected && connectionStatus !== "checking" && Boolean(activeApiKey)));
+  // A refused sign-in stays explained until the dialog closes or another attempt starts.
+  const failure = $("connection-message").dataset.failure;
+  if (failure) { $("connection-message").textContent = failure; $("connection-message").dataset.error = "true"; }
 }
 function maskApiKey() {
   apiKeyInput.type = "password";
@@ -1173,6 +1185,7 @@ function openConnection(fromSearch) {
 $("open-connection").addEventListener("click", () => openConnection(false));
 $("search-connect").addEventListener("click", () => openConnection(true));
 function closeConnection() {
+  delete $("connection-message").dataset.failure;
   apiKeyInput.value = activeApiKey === "browser-session" ? "" : activeApiKey;
   maskApiKey();
   connectionDialog.close();
@@ -1189,14 +1202,26 @@ async function setConnectionKey(key) {
   referenceCreation.reset();
   cancelReferenceInteraction();
   key = key.trim();
-  try {
-    await fetch("/session", {method:"DELETE"});
-    const response = key ? await fetch("/session", {headers:{Authorization:"Bearer " + key}}) : null;
-    if (key && response?.ok) {hostedPrincipalId = (await response.json()).principal?.id; key = "browser-session";}
-    else hostedPrincipalId = null;
-  } catch { /* A disconnected credential remains session-only until reconnect. */ }
+  delete $("connection-message").dataset.failure;
+  // Signing out must end the server-side session; otherwise a reload would find it still signed in.
+  if (!key) {
+    const ended = await fetch("/session", {method:"DELETE"}).then(response => response.ok, () => false);
+    if (!ended) throw Object.assign(new Error("Sign out failed."), {code: "sign_out_failed"});
+  }
+  if (key) {
+    // The server swaps this browser's session only once the new key is accepted; until then
+    // nothing here changes, so a mistyped key leaves the current sign-in as it was.
+    const response = await fetch("/session", {headers:{Authorization:"Bearer " + key}}).catch(() => null);
+    if (!response?.ok) {
+      const code = response ? (await Promise.resolve().then(() => response.json()).catch(() => null))?.error?.code : undefined;
+      throw Object.assign(new Error(response?.status === 401 ? "The access key was not accepted. Check it and try again."
+        : code === "session_limit" ? "This brain has too many signed-in browsers. Ask an admin to sign some out."
+        : "Could not reach the server. Retry connecting."), {code: "sign_in_failed"});
+    }
+    hostedPrincipal = (await Promise.resolve().then(() => response.json()).catch(() => null))?.principal || null; hostedPrincipalId = hostedPrincipal?.id || null; key = "browser-session";
+  } else {hostedPrincipalId = null; hostedPrincipal = null;}
   activeApiKey = key;
-  hostedIdentityChannel?.postMessage({principalId: hostedPrincipalId});
+  hostedIdentityChannel?.postMessage({principalId: hostedPrincipalId, principal: hostedPrincipal});
   credentialRevision++;
   hostedAccess = null; void accessRefresh();
   systemMessages.sync();
@@ -1219,6 +1244,7 @@ async function setConnectionKey(key) {
 if (hostedIdentityChannel) hostedIdentityChannel.onmessage = async (event) => {
   if (event.data?.principalId === hostedPrincipalId) return;
   hostedPrincipalId = event.data?.principalId || null;
+  hostedPrincipal = event.data?.principal || null;
   credentialRevision++;
   hostedAccess = null;
   const editor = state.editor;
@@ -1240,13 +1266,16 @@ if (hostedIdentityChannel) hostedIdentityChannel.onmessage = async (event) => {
 $("connection-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const key = apiKeyInput.value;
+  let failure = null;
   const changed = await requestEditorNavigation(async () => {
     state.editor?.cancel();
-    await setConnectionKey(key);
+    try { await setConnectionKey(key); } catch (error) { failure = error; }
   });
   if (!changed) {$("connection-message").textContent = "Resolve or recover the pending draft before changing credentials."; $("connection-message").dataset.error = "true"; return;}
+  // Sign-in refused: the dialog stays open with the reason, and the view reopens with the previous identity.
+  if (failure) {apiKeyInput.value = key; $("connection-message").dataset.failure = failure.message; renderConnection();}
   if (state.view === "home") recentNotes.load();
-  if (reopenSearch) openSearch(searchMode, referenceSelection);
+  if (reopenSearch && !failure) openSearch(searchMode, referenceSelection);
   if (typeof drawingsUI !== "undefined") drawingsUI.connectionChanged();
   if (state.view === "note") {
     await showNote(new URL(location.href).searchParams.get("note"));
@@ -1257,19 +1286,32 @@ $("disconnect").addEventListener("click", async () => {
   $("disconnect").disabled = true;
   try {
     // Save with the current key before clearing credentials or rendered memory.
+    let signOutFailed = false;
     const disconnected = await navigation.navigate(async () => {
-      await setConnectionKey("");
+      try { await setConnectionKey(""); } catch (error) { signOutFailed = true; throw error; }
       noteSearch.query("");
       $("note-search-input").value = "";
       state.graphToken++;
       state.graph = null;
       $("viewport").replaceChildren();
       return "/";
-    });
-    if (!disconnected) { $("connection-message").textContent = "Could not disconnect. Save your pending note and try again."; $("connection-message").dataset.error = "true"; }
+    }).catch(() => false);
+    if (!disconnected) { $("connection-message").textContent = signOutFailed ? "Could not sign out. Check the connection and try again." : "Could not sign out. Save your pending note and try again."; $("connection-message").dataset.error = "true"; }
   } finally { $("disconnect").disabled = false; }
 });
 renderConnection();
+// Invite links that were used, expired or could not be checked land here instead of a bare Connect.
+function showInviteProblem(kind) {
+  $("invite-problem-message").textContent = kind === "offline"
+    ? "Could not reach the server to check this link. Check your connection, then open the link again."
+    : kind === "used" ? "Invite links work once and expire after 7 days. Ask the person who shared this brain for a new link."
+    : "The server could not sign you in with this link. Ask the person who shared this brain for a new link.";
+  const dialog = $("invite-problem");
+  if (!dialog.open) dialog.showModal();
+  $("invite-problem-close").focus();
+}
+$("invite-problem-close").addEventListener("click", () => $("invite-problem").close());
+$("invite-problem-key").addEventListener("click", () => { $("invite-problem").close(); openConnection(false); });
 
 function shellUrl() { return location.pathname + location.search; }
 const initialEntry = { url: shellUrl(), index: Number.isSafeInteger(history.state?.jumpyBrainIndex) ? history.state.jumpyBrainIndex : 0 };
@@ -1790,7 +1832,7 @@ function syncEditorUi(editorState) {
   const liveFeedback = cleanUnavailable ? "Editing unavailable"
     : editorState.liveStatus === "offline" ? !editorState.dirty ? "Offline · saved note shown" : editorState.durableDraft === false ? "Offline · keep this window open" : "Offline · draft kept on this device"
     : editorState.liveStatus === "connecting" ? "Connecting…"
-    : editorState.liveStatus === "readonly" ? editorState.dirty ? feedback : editorState.loaded ? "Saved" : ""
+    : editorState.liveStatus === "readonly" ? editorState.dirty ? feedback : editorState.loaded ? (accessBlocked() ? "View only" : "Saved") : ""
     : editorState.liveStatus === "conflict" ? "Changes need review"
     : editorState.liveStatus === "saving" && editorState.title !== editorState.savedTitle && !editorState.title.trim() ? "Enter a page name to save" : null;
   $("note-save-state").textContent = liveFeedback || feedback;

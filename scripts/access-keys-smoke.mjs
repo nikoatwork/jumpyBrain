@@ -103,7 +103,7 @@ try {
     assert.doesNotMatch(await text(hosted, "access-keys-intro"), /setup key/);
     const own = activeRow(hosted, "Ada");
     assert.match(await own.textContent(), /This key/);
-    assert.equal(await own.getByRole("button").isDisabled(), true);
+    assert.equal(await own.getByRole("button", { name: "Revoke key Ada" }).isDisabled(), true);
     await hosted.locator("#access-keys-close").click();
     await connectAs(bobKey);
     await openHosted();
@@ -175,7 +175,7 @@ try {
     await settings.locator('[data-settings-section="access"]').click();
     await activeRow(settings, "Laptop agent").waitFor();
     settings.once("dialog", dialog => dialog.accept());
-    await activeRow(settings, "Laptop agent").getByRole("button").click();
+    await activeRow(settings, "Laptop agent").getByRole("button", { name: "Revoke key Laptop agent" }).click();
     await settings.waitForFunction(() => /Revoked “Laptop agent”/.test(document.getElementById("access-keys-message").textContent));
     assert.equal((await fetch(remote.url + "/capabilities", { headers: { Authorization: "Bearer " + token } })).status, 401);
     await shot(settings, "app-list");

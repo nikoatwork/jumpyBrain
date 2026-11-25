@@ -134,6 +134,10 @@ function allowedMemoryRoute(method, pathname) {
   if (method === 'GET' && pathname === '/access') return { write: false, capability: 'manage_access' };
   if (method === 'POST' && pathname === '/access') return { write: true, capability: 'manage_access' };
   if (method === 'DELETE' && /^\/access\/[0-9a-f-]{36}$/.test(pathname)) return { write: true, capability: 'manage_access' };
+  // Browser invite links and sessions for the active brain's keys (also admin-only on the server).
+  if (method === 'POST' && /^\/access\/[0-9a-f-]{36}\/invites$/.test(pathname)) return { write: true, capability: 'manage_access' };
+  if (method === 'GET' && pathname === '/access/sessions') return { write: false, capability: 'manage_access' };
+  if (method === 'DELETE' && /^\/access\/(?:sessions\/[0-9a-f-]{36}|[0-9a-f-]{36}\/sessions)$/.test(pathname)) return { write: true, capability: 'manage_access' };
   if (method === 'POST' && pathname === '/memories/all/files/operations') return { write: true };
   if (method === 'GET' && /^\/memories\/all\/boards(?:\/[0-9a-f-]+(?:\/status)?)?$/.test(pathname)) return { write: false };
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };

@@ -13,6 +13,8 @@ export interface LiveServerOptions {
   hub: CollaborationHub;
   authenticate: (token: string) => Promise<CollaborationPrincipal | undefined>;
   sessionToken?: (request: IncomingMessage) => string | undefined;
+  /** Checks the `sessionToken` value of a `browser-session` hello, on hello and every revalidation. Defaults to `authenticate`. */
+  authenticateSession?: (value: string) => Promise<CollaborationPrincipal | undefined>;
   allowedOrigin?:
     | string
     | ((origin: string, request: IncomingMessage) => boolean);
@@ -130,6 +132,7 @@ export function createLiveServer(options: LiveServerOptions) {
     sockets.add(socket);
     let principal: CollaborationPrincipal | undefined,
       token = "",
+      check = options.authenticate,
       pending = 0,
       queuedBytes = 0,
       finished = false,
@@ -194,7 +197,7 @@ export function createLiveServer(options: LiveServerOptions) {
       try {
         current = token
           ? await Promise.race([
-              options.authenticate(token),
+              check(token),
               new Promise<undefined>((resolve) => {
                 timer = setTimeout(
                   () => resolve(undefined),
@@ -213,7 +216,10 @@ export function createLiveServer(options: LiveServerOptions) {
         (principal && current.id !== principal.id) ||
         (principal && principal.role !== "reader" && current.role === "reader")
       ) {
-        if (principal)
+        // A browser session can end (sign-out) while its key stays valid for other clients:
+        // closing this socket leaves only its own subscriptions. Key-level failures on bearer
+        // sockets retire the principal everywhere.
+        if (principal && check === options.authenticate)
           void options.hub.revokePrincipal(principal.id).catch(() => {});
         close(1008, "Credential revoked");
         return undefined;
@@ -289,6 +295,7 @@ export function createLiveServer(options: LiveServerOptions) {
               throw new CollaborationError("authentication_required");
             const key = options.sessionToken?.(upgradeRequest) ?? "";
             token = key;
+            check = options.authenticateSession ?? options.authenticate;
           } else token = params.token;
           if (!(await authenticate())) return;
           clearTimeout(authenticationTimer);

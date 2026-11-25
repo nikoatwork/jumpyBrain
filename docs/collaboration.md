@@ -84,10 +84,12 @@ environment, never appear in the key list and cannot be revoked there: keep one
 for recovery and use a named admin key day to day.
 
 Hosted browser authentication uses a brain-scoped HttpOnly, SameSite=Strict cookie
-with a 24-hour lifetime. The key is removed from the URL after entry and is not
-stored in JavaScript storage. Credential revocation applies to the cookie too.
-Cookie-authenticated mutations require the exact browser origin. Disconnect
-clears this browser's cookie. The desktop continues to use its gateway session
+holding an opaque server-side session, never the key. It lasts 400 days and renews
+on use ([browser sessions](shared-memory-protocol.md#browser-sessions)). The key or
+invite code is removed from the URL after entry and is not stored in JavaScript
+storage. Credential revocation ends the key's sessions. Cookie-authenticated
+mutations require the exact browser origin. Sign out ends this browser's session
+on the server. The desktop continues to use its gateway session
 and native credential storage.
 
 ## Streaming agents

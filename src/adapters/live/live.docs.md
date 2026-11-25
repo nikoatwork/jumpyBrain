@@ -10,7 +10,7 @@ For transport/editor changes, [select the matching WebSocket failure/recovery ch
 ## Responsibilities
 
 
-`createLiveServer` attaches protocol 2 at `/ws` to an existing HTTP server. Authentication is the first JSON `hello` frame; tokens never enter URLs. Every request revalidates the credential, and an idle timer disconnects revoked sockets. Browser origins are exact-host checked unless the host supplies an explicit origin policy. Native clients may omit Origin.
+`createLiveServer` attaches protocol 2 at `/ws` to an existing HTTP server. Authentication is the first JSON `hello` frame; tokens never enter URLs. Every request revalidates the credential, and an idle timer disconnects revoked sockets. A `browser-session` hello takes the host's `sessionToken(upgradeRequest)` value and checks it, on hello and every revalidation, with the optional `authenticateSession` (default `authenticate`); the hosted server uses it for cookie sessions so ending a session or revoking its key closes the socket. A failed session check closes only that socket; principal-wide `revokePrincipal` stays with bearer/key checks, so signing one browser out leaves the key's other clients and presence alone. Browser origins are exact-host checked unless the host supplies an explicit origin policy. Native clients may omit Origin.
 
 Each connection has one ordered request queue, bounded frames, subscriptions, connection count and outgoing buffered bytes. Slow or oversized clients disconnect and must reopen from a canonical snapshot. No mutation is blindly replayed on reconnect. The hub atomically opens a subscription and snapshot, publishes before acknowledging, and keeps document policy independent from this adapter.
 

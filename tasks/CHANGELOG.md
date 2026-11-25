@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-25 — Browsers stay signed in to shared brains
+
+- Hosted browsers use opaque server-side sessions instead of a key-holding cookie: 400 days, renewed on use, ended by sign-out, admin sign-out or key revocation. Admins copy single-use one-click invite links per key and see signed-in browsers; readers see who they are and **View only**. [Outcome, decisions, checks and limits](done/2026-11-25_tasks-web-viewer-access.md)
+
 ## 2026-11-25 — Homebrew recovery and shared note links
 
 - Managed installs follow a verified Homebrew Node link across typical upgrades. Desktop gives repair guidance when its Node cannot start, and the installer can reclaim a verifiably abandoned app-update lock. Shared note links offer key entry and reopen the requested note using the existing browser session. [Verification and limits](done/2026-11-25_tasks-november-feedback-fixes.md).

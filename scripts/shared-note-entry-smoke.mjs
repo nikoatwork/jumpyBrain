@@ -61,9 +61,12 @@ try {
     await page.locator('#close-connection').click();
     assert.equal(await page.locator('#note-connect').isVisible(),true);
 
-    // 3. A rejected key reports that and keeps Connect available.
+    // 3. A rejected key is explained in the dialog, which stays open; nothing else changes.
     await connect(page,'jb_not_a_real_key_fixture');
-    await unavailable(page,'Your access key was not accepted. Connect again to open this note.');
+    await page.waitForFunction(()=>document.querySelector('#connection-message')?.textContent==='The access key was not accepted. Check it and try again.');
+    assert.equal(await page.locator('#connection').isVisible(),true);
+    await page.locator('#close-connection').click();
+    await unavailable(page,'Connect with an access key to open this note.');
     assert.equal(await page.locator('#note-connect').isVisible(),true);
     assert.equal(await page.locator('#note-load-retry').isVisible(),false);
 
@@ -85,9 +88,9 @@ try {
     await sibling.goto(link);
     await opened(sibling);
     const cookies=await context.cookies();
-    const session=cookies.find(cookie=>cookie.name.startsWith('jumpybrain_session_v2_'));
+    const session=cookies.find(cookie=>cookie.name.startsWith('jumpybrain_session_v3_'));
     assert.ok(session&&session.httpOnly&&session.sameSite==='Strict','session cookie is HttpOnly SameSite=Strict');
-    assert.ok(session.expires>0&&session.expires-Date.now()/1000<=86400+5,'session lasts at most 24 hours');
+    assert.ok(session.expires>0&&session.expires-Date.now()/1000<=400*86400+5&&session.expires-Date.now()/1000>399*86400,'session lasts 400 days, the browser maximum');
     const other=await freshPage(width);
     await other.page.goto(link);
     await unavailable(other.page,'Connect with an access key to open this note.');

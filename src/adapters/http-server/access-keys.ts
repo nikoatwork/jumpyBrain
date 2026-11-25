@@ -6,6 +6,7 @@ type Role = "reader" | "writer" | "admin";
 type Capability = "read" | "write" | "manage_access";
 interface Credential { id: string; name: string; role: Role; createdAt: string; revokedAt?: string }
 interface Principal { id: string; name: string; role: Role }
+interface Session { id: string; keyId: string; label: string; createdAt: string; lastSeenAt: string; current?: boolean }
 export interface AccessKeysContext {
   /** `local` brains need no keys; `none` means there is no usable connection. */
   kind: "local" | "remote" | "hosted" | "none";
@@ -43,6 +44,11 @@ export function accessKeyInvite(address: string, token: string): string {
     "Keep this key private. It is yours alone and can be revoked."].join("\n");
 }
 
+/** A one-click browser sign-in link. The code rides in the fragment, so it never reaches server or proxy logs. */
+export function accessInviteLink(address: string, code: string): string {
+  return address.replace(/\/+$/, "") + "/#invite=" + encodeURIComponent(code);
+}
+
 export function accessKeyErrorText(error: unknown, action: string): string {
   const code = (error as { code?: unknown } | null)?.code;
   if (code === "read_only") return "Your key has reader access, which cannot make changes.";
@@ -51,6 +57,7 @@ export function accessKeyErrorText(error: unknown, action: string): string {
   if (code === "cannot_revoke_current") return "You are using this key. Connect with another admin key to revoke it.";
   if (code === "credential_limit") return "This brain has reached its access key limit. Ask the person who runs the server to tidy up old keys.";
   if (code === "invalid_credential") return "Use a name of up to 100 characters and choose a role.";
+  if (code === "invite_limit") return "Too many invite links are open. Wait for older ones to expire, or revoke keys you no longer need.";
   if (code === "not_found") return "Update jumpyBrain on the server and this device to manage keys here.";
   return "Could not " + action + ". Check the connection and try again.";
 }
@@ -72,7 +79,10 @@ export function installAccessKeys(options: {
   const list = element("access-keys-list"), revoked = element<HTMLDetailsElement>("access-keys-revoked"), revokedList = element("access-keys-revoked-list");
   const effective = element("access-effective"), effectiveSummary = element("access-effective-summary"), effectiveList = element("access-effective-list");
   let sequence = 0, loadedScope: string | null = null, busy = false;
-  let principal: Principal | null = null, credentials: Credential[] = [], issued: { name: string; token: string; address: string } | null = null;
+  let principal: Principal | null = null, credentials: Credential[] = [], issued: { id: string; name: string; token: string; address: string } | null = null;
+  // Browser sessions per key; null when the server predates sessions or did not list them.
+  let sessions: Session[] | null = null;
+  const linkPanel = element("access-keys-link"), linkInput = element<HTMLInputElement>("access-keys-link-url");
   // null: nothing to show yet. Otherwise what the server (or this device, for a local folder) grants.
   let granted: Capability[] | null = null, grantedSummary = "";
   prepareDropdown(roleSelect);
@@ -87,16 +97,48 @@ export function installAccessKeys(options: {
     const current = credential.id === principal?.id;
     if (current) title.append(badge("This key"));
     detail.textContent = credential.revokedAt ? "Revoked " + date(credential.revokedAt) + " · created " + date(credential.createdAt) : "Created " + date(credential.createdAt);
-    text.append(title, detail); item.append(text);
+    text.append(title, detail);
+    const signedIn = credential.revokedAt ? [] : (sessions ?? []).filter(session => session.keyId === credential.id);
+    if (signedIn.length) text.append(sessionList(credential, signedIn, canChange));
+    item.append(text);
     if (!credential.revokedAt) {
+      const actions = document.createElement("div"); actions.className = "access-key-actions";
+      if (sessions !== null) {
+        const invite = document.createElement("button"); invite.type = "button"; invite.className = "quiet-button"; invite.textContent = "Invite link";
+        invite.title = "Copies a one-click browser sign-in link for this key. It works once, within 7 days.";
+        invite.setAttribute("aria-label", "Copy invite link for " + credential.name);
+        invite.disabled = busy || !canChange;
+        invite.addEventListener("click", () => void inviteLink(credential.id, credential.name));
+        actions.append(invite);
+      }
       const button = document.createElement("button"); button.type = "button"; button.className = "quiet-button button--danger"; button.textContent = "Revoke";
       button.setAttribute("aria-label", "Revoke key " + credential.name);
       button.disabled = busy || current || !canChange;
       if (current) button.title = "You are using this key. Connect with another admin key to revoke it.";
       button.addEventListener("click", () => void revoke(credential));
-      item.append(button);
+      actions.append(button); item.append(actions);
     }
     return item;
+  }
+  function sessionList(credential: Credential, signedIn: Session[], canChange: boolean) {
+    const list = document.createElement("ul"); list.className = "access-key-sessions";
+    list.setAttribute("aria-label", "Browsers signed in with " + credential.name);
+    for (const session of signedIn) {
+      const entry = document.createElement("li"), label = document.createElement("span");
+      label.textContent = session.label + (session.current ? " · this browser" : "") + " · last used " + date(session.lastSeenAt);
+      const end = document.createElement("button"); end.type = "button"; end.className = "quiet-button quiet-button--plain button--sm"; end.textContent = "Sign out";
+      end.setAttribute("aria-label", "Sign out " + session.label + " for " + credential.name); end.disabled = busy || !canChange;
+      end.addEventListener("click", () => void endSessions("/access/sessions/" + session.id, credential.name, session.current ? "this browser" : session.label));
+      entry.append(label, end); list.append(entry);
+    }
+    if (signedIn.length) {
+      const entry = document.createElement("li"), all = document.createElement("button");
+      all.type = "button"; all.className = "quiet-button quiet-button--plain button--sm"; all.textContent = "Sign out everywhere"; all.disabled = busy || !canChange;
+      all.setAttribute("aria-label", "Sign out every browser for " + credential.name);
+      all.addEventListener("click", () => void endSessions("/access/" + credential.id + "/sessions", credential.name, "every browser"));
+      entry.append(all); list.append(entry);
+    }
+    return list;
   }
   function renderEffective() {
     effective.hidden = granted === null;
@@ -117,6 +159,7 @@ export function installAccessKeys(options: {
     // Key creation stays visible to every signed-in key; without admin access it explains itself.
     form.hidden = !served || !principal; list.hidden = !admin;
     created.hidden = !issued;
+    element("access-keys-copy-link").hidden = !issued?.id || sessions === null;
     if (issued) {
       element("access-keys-new-title").textContent = "New key for “" + issued.name + "”";
       secret.value = issued.token;
@@ -133,7 +176,8 @@ export function installAccessKeys(options: {
     revokedList.replaceChildren(...old.map(item => row(item, false)));
   }
   function reset() {
-    sequence++; loadedScope = null; busy = false; principal = null; credentials = []; issued = null; granted = null; grantedSummary = "";
+    sequence++; loadedScope = null; busy = false; principal = null; credentials = []; issued = null; granted = null; grantedSummary = ""; sessions = null;
+    linkPanel.hidden = true; linkInput.value = "";
     name.value = ""; roleSelect.value = "writer"; prepareDropdown(roleSelect); intro.textContent = ""; say(""); render();
   }
   async function refresh(force = false) {
@@ -170,6 +214,10 @@ export function installAccessKeys(options: {
       if (!current()) return;
       if (!Array.isArray(packet?.credentials) || !packet.credentials.every(validCredential)) throw Object.assign(new Error("unsupported"), { code: "not_found" });
       credentials = packet.credentials.slice().sort((left: Credential, right: Credential) => right.createdAt.localeCompare(left.createdAt));
+      // Older servers have no browser sessions or invite links; their keys still list.
+      const listed = await options.request("/access/sessions").catch(() => null);
+      if (!current()) return;
+      sessions = Array.isArray(listed?.sessions) ? listed.sessions.filter((item: any) => item && typeof item.id === "string" && typeof item.keyId === "string" && typeof item.label === "string" && typeof item.lastSeenAt === "string") : null;
       loadedScope = context.scope;
       // From the Mac app the keys belong to another machine: say so, or the panel reads as local key storage.
       intro.textContent = (context.kind === "remote" ? "You are managing the server at " + context.address + " from this device. Its keys are kept on the server, not here, and changes apply there right away. Give each person and agent their own key."
@@ -199,6 +247,35 @@ export function installAccessKeys(options: {
     if (options.context().scope !== scope) return;
     if (failure) say(accessKeyErrorText(failure, "revoke the key"), true); else say("Revoked “" + credential.name + "”.");
   }
+  async function endSessions(path: string, name: string, where: string) {
+    if (busy || !options.confirm("Sign out " + where + " for “" + name + "”?" + (where === "every browser" ? " Unused invite links for this key stop working too." : "") + " The key keeps working; a browser needs a new invite link or the key to sign in again.")) return;
+    const scope = options.context().scope;
+    busy = true; say("Signing out…"); render();
+    let failure: unknown;
+    try { await options.request(path, { method: "DELETE" }); } catch (error) { failure = error; }
+    if (options.context().scope !== scope) return;
+    busy = false;
+    await refresh(true);
+    if (options.context().scope !== scope) return;
+    if (failure) say(accessKeyErrorText(failure, "sign out"), true); else say("Signed out " + where + " for “" + name + "”.");
+  }
+  // A link for people: the server issues a single-use code tied to this key, never the key itself.
+  async function inviteLink(id: string, name: string) {
+    if (busy) return;
+    const context = options.context();
+    busy = true; say("Creating invite link…"); render();
+    let packet: any, failure: unknown;
+    try { packet = await options.request("/access/" + id + "/invites", { method: "POST" }); } catch (error) { failure = error; }
+    if (options.context().scope !== context.scope) return;
+    busy = false; render();
+    if (failure || typeof packet?.code !== "string") { say(accessKeyErrorText(failure, "create an invite link"), true); return; }
+    const link = accessInviteLink(context.address, packet.code);
+    element("access-keys-link-title").textContent = "Invite link for “" + name + "”";
+    element("access-keys-link-expiry").textContent = "Works once, until " + date(packet.expiresAt) + ". Opening it signs that browser in with this key. Send it privately.";
+    linkInput.value = link; linkPanel.hidden = false;
+    try { await options.copy(link); say("Invite link copied."); }
+    catch { linkInput.focus(); linkInput.select(); say("Copying is blocked here. Select the link and copy it yourself.", true); }
+  }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const label = name.value.trim(), chosen = roleSelect.value;
@@ -212,7 +289,7 @@ export function installAccessKeys(options: {
     if (options.context().scope !== context.scope) return;
     busy = false;
     const token = packet?.token;
-    if (!failure && typeof token === "string" && token) { issued = { name: label, token, address: context.address }; name.value = ""; }
+    if (!failure && typeof token === "string" && token) { issued = { id: String(packet?.credential?.id ?? ""), name: label, token, address: context.address }; name.value = ""; }
     await refresh(true);
     if (options.context().scope !== context.scope) return;
     if (issued) { say(""); secret.focus(); secret.select(); }
@@ -227,7 +304,12 @@ export function installAccessKeys(options: {
     catch { secret.focus(); secret.select(); say("Copying is blocked here. Select the key and copy it yourself.", true); }
   }
   element("access-keys-copy").addEventListener("click", () => { if (issued) void copy(issued.token, "Key copied."); });
-  element("access-keys-copy-invite").addEventListener("click", () => { if (issued) void copy(accessKeyInvite(issued.address, issued.token), "Invite copied. Send it over a private channel."); });
+  element("access-keys-copy-invite").addEventListener("click", () => { if (issued) void copy(accessKeyInvite(issued.address, issued.token), "Agent setup copied. Send it over a private channel."); });
+  element("access-keys-copy-link").addEventListener("click", () => { if (issued?.id) void inviteLink(issued.id, issued.name); });
+  element("access-keys-link-copy").addEventListener("click", async () => {
+    try { await options.copy(linkInput.value); say("Invite link copied."); } catch { linkInput.focus(); linkInput.select(); say("Copying is blocked here. Select the link and copy it yourself.", true); }
+  });
+  element("access-keys-link-done").addEventListener("click", () => { linkPanel.hidden = true; linkInput.value = ""; say(""); });
   element("access-keys-done").addEventListener("click", () => { issued = null; say(""); render(); name.focus(); });
   render();
   return { refresh, reset, hasSecret: () => Boolean(issued) };

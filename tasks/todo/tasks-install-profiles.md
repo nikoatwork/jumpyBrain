@@ -1,6 +1,6 @@
 # Install only what each person needs
 
-Priority: proposed, to confirm. Status: planned 2026-11-25, nothing started. Sibling list: [web viewer access](tasks-web-viewer-access.md).
+Priority: proposed, to confirm. Status: planned 2026-11-25, nothing started. Sibling list: [web viewer access](../done/2026-11-25_tasks-web-viewer-access.md).
 
 ## Goal
 
@@ -24,7 +24,7 @@ Make installation match what someone wants to do. The installer offers a few cle
 
 | Profile | Who it is for | Installs |
 | --- | --- | --- |
-| Browse only | Reads a team brain in the browser | Nothing; see [web viewer access](tasks-web-viewer-access.md) |
+| Browse only | Reads a team brain in the browser | Nothing; see [web viewer access](../done/2026-11-25_tasks-web-viewer-access.md) |
 | Connect my agents to a team brain | Agents use a shared brain | CLI only, remote-only (exists today) |
 | Personal memory for my agents (**default CLI**) | Notes and recall on this machine | CLI + QMD with keyword search |
 | Mac app | Writing and browsing on a Mac | Above + Mac app |
