@@ -2,7 +2,7 @@
 
 ## Responsibilities
 
-Own private local descriptor/lease files, canonical root identity, process launch and readiness verification. Publish a fully written/fsynced lease candidate through an exclusive hard link, avoiding an empty lock window. Reap a confirmed dead generation under a generation-specific recovery guard. Release only this process's exact instance after its work drains.
+Own private local descriptor/lease files, canonical root identity, process launch and readiness verification. Detached backends start through `launchedNode()`: the absolute Node path this process was launched by (`process.argv0`) when it resolves to `process.execPath`. A process started through Homebrew's `opt/node` link therefore starts backends through that link, not through the versioned `Cellar` path a `brew upgrade` deletes. Publish a fully written/fsynced lease candidate through an exclusive hard link, avoiding an empty lock window. Reap a confirmed dead generation under a generation-specific recovery guard. Release only this process's exact instance after its work drains.
 
 Descriptors contain a local administrative capability and require private file permissions. Root aliases resolve to one identity. The endpoint must be loopback with no redirect/query/userinfo; its authenticated response must match every registered ownership field.
 

@@ -83,6 +83,60 @@ class Transactions(unittest.TestCase):
         tx.atomic(directory / 'request.json', request)
         return directory, root, app, support, memory
 
+    def homebrew_migration_fixture(self):
+        directory, root, app, support, memory = self.publication_fixture()
+        brew = self.root / 'brew'; cellar = brew / 'Cellar/node/26.7.0/bin/node'
+        cellar.parent.mkdir(parents=True); cellar.write_text(''); (brew / 'opt').mkdir(); (brew / 'opt/node').symlink_to('../Cellar/node/26.7.0')
+        manifest = root / 'install-manifest.json'; manifest.write_text(json.dumps(dict(source='preserved', ref='master', node=str(cellar))))
+        (root / 'bin/jumpybrain').write_text(f'exec {cellar} cli.js'); (root / 'bin/jumpybrain').chmod(0o755)
+        request = json.loads((directory / 'request.json').read_text())
+        request['cli'] = dict(manifestHash=hashlib.sha256(manifest.read_bytes()).hexdigest(), shimHash=hashlib.sha256((root/'bin/jumpybrain').read_bytes()).hexdigest())
+        request['cliNode'] = dict(**{'from': str(cellar)}, to=str(brew / 'opt/node/bin/node'), shim=f"exec {brew / 'opt/node/bin/node'} cli.js")
+        tx.atomic(directory / 'request.json', request)
+        return directory, root, app, request['cliNode']
+
+    def publish_quietly(self, directory, **patches):
+        with patch.dict(sys.modules, lifecycle=types.SimpleNamespace(companion_lock=lambda *a, **k: contextlib.nullcontext())), patch.object(tx.subprocess, 'run'):
+            if patches:
+                with patch.object(tx, 'swap', **patches): tx.publish(directory)
+            else: tx.publish(directory)
+
+    def test_homebrew_launcher_migration_publishes_and_rolls_back_with_the_cli(self):
+        directory, root, app, migration = self.homebrew_migration_fixture()
+        launcher, manifest = root / 'bin/jumpybrain', root / 'install-manifest.json'
+        before = (launcher.read_text(), manifest.read_text())
+        self.publish_quietly(directory)
+        self.assertEqual(launcher.read_text(), migration['shim'])
+        self.assertEqual(launcher.stat().st_mode & 0o777, 0o755); self.assertEqual(launcher.stat().st_nlink, 1)
+        self.assertEqual(json.loads(manifest.read_text())['node'], migration['to'])
+        tx.rollback(directory)
+        self.assertEqual((launcher.read_text(), manifest.read_text()), before)
+        self.assertEqual(tx.version(app), '0.3.3')
+
+    def test_homebrew_launcher_migration_failure_at_each_exchange_restores_everything(self):
+        directory, root, app, migration = self.homebrew_migration_fixture()
+        launcher, manifest = root / 'bin/jumpybrain', root / 'install-manifest.json'
+        before = (launcher.read_text(), manifest.read_text())
+        original = tx.swap
+        for fail_at in [1, 2, 3, 4]:
+            calls = 0
+            def fail(a, b):
+                nonlocal calls
+                calls += 1
+                if calls == fail_at: raise OSError('simulated publication failure')
+                original(a, b)
+            with self.assertRaisesRegex(OSError, 'publication failure'): self.publish_quietly(directory, side_effect=fail)
+            self.assertEqual((launcher.read_text(), manifest.read_text()), before)
+            self.assertEqual(tx.version(app), '0.3.3'); self.assertTrue((root / 'app/old.txt').exists())
+
+    def test_homebrew_launcher_migration_refuses_a_changed_node(self):
+        directory, root, app, migration = self.homebrew_migration_fixture()
+        manifest = root / 'install-manifest.json'
+        request = json.loads((directory / 'request.json').read_text())
+        request['cliNode']['to'] = '/usr/bin/node'; tx.atomic(directory / 'request.json', request)
+        with self.assertRaisesRegex(ValueError, 'CLI Node changed'): self.publish_quietly(directory)
+        self.assertEqual(json.loads(manifest.read_text())['node'], migration['from']); self.assertEqual(tx.version(app), '0.3.3')
+
     def test_publication_failure_at_each_component_restores_every_component(self):
         directory, root, app, support, memory = self.publication_fixture()
         original = tx.swap

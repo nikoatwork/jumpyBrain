@@ -437,6 +437,34 @@ test('release-managed private Node/QMD launcher remains eligible for paired upda
   assert.equal((await cliPolicy(f.home)).kind, 'managed');
 });
 
+test('updates move a launcher pinned to a Homebrew Cellar Node to its stable opt link, and nothing else', async t => {
+  const f = await fixture(t);
+  const { cliShim } = await import('../integrations/electron/install-shim.mjs');
+  const { cliNodeMigration } = await import('../integrations/electron/updater.mjs');
+  // The default fixture launcher finds node on PATH: nothing is pinned, nothing to move.
+  assert.equal((await cliPolicy(f.home)).shimForm, 'legacy');
+  assert.equal(cliNodeMigration(await cliPolicy(f.home), f.root), null);
+  const brew = path.join(f.home, 'brew'), cellar = path.join(brew, 'Cellar/node/26.7.0/bin/node'), stable = path.join(brew, 'opt/node/bin/node');
+  await mkdir(path.dirname(cellar), { recursive: true }); await writeFile(cellar, ''); await mkdir(path.join(brew, 'opt'));
+  await symlink('../Cellar/node/26.7.0', path.join(brew, 'opt/node'));
+  f.manifest.distribution = 'release'; f.manifest.ref = null; f.manifest.node = cellar; f.manifest.qmd = path.join(f.root, 'engines/qmd/bin/qmd'); await f.save();
+  const shim = node => cliShim({ appDir: f.app, cliConfigPath: path.join(f.root, 'cli-config.json'), node, qmd: f.manifest.qmd });
+  await writeFile(f.manifest.cliPath, shim(cellar));
+  const policy = await cliPolicy(f.home);
+  assert.deepEqual([policy.kind, policy.shimForm, policy.node], ['managed', 'pinned', cellar]);
+  assert.deepEqual(cliNodeMigration(policy, f.root), { from: cellar, to: stable, shim: shim(stable) });
+  // After migration the launcher is the current pinned form again, so the next update leaves it alone.
+  f.manifest.node = stable; await f.save(); await writeFile(f.manifest.cliPath, shim(stable));
+  assert.equal(cliNodeMigration(await cliPolicy(f.home), f.root), null);
+  // An opt link that points at another keg, a customized launcher or an app-only update never migrate.
+  f.manifest.node = cellar; await f.save(); await writeFile(f.manifest.cliPath, shim(cellar));
+  await rm(path.join(brew, 'opt/node')); await symlink('../Cellar/node/27.0.0', path.join(brew, 'opt/node'));
+  assert.equal(cliNodeMigration(await cliPolicy(f.home), f.root), null);
+  assert.equal(cliNodeMigration({ ...policy, kind: 'custom' }, f.root), null);
+  await writeFile(f.manifest.cliPath, shim(cellar) + '# edited\n');
+  assert.equal((await cliPolicy(f.home)).kind, 'unmanaged');
+});
+
 test('release-native assets select only this supported architecture with verified fixed-origin metadata', () => {
   const r = release('0.3.20');
   const helper = arch => ({ id: 20, name: `jumpybrain-native-0.3.20-darwin-${arch}.json`, state: 'uploaded', size: 500000,

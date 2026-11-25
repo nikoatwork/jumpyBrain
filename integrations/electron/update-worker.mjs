@@ -157,6 +157,8 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       if (await installedVersion(path.join(request.appPath, 'Contents/Resources/runtime')) !== expected
         || (request.updateCLI && await installedVersion(path.join(root, 'app')) !== expected)) throw new Error('Installed component versions do not match. Restoring the previous installation.');
       if (request.updateCLI) await run(request.node, [path.join(root, 'app/dist/cli.js'), '--version'], directory, 20000);
+      // A migrated launcher must start through its new Node path, or the transaction rolls back.
+      if (request.updateCLI && request.cliNode) await run(path.join(root, 'bin/jumpybrain'), ['--version'], directory, 20000);
       await measure('installed-readiness', async () => {
         const installedHost = await startDesktopHost(await bundledHost(path.join(request.appPath, 'Contents/Resources')), { readinessOnly: true });
         await installedHost.stop();

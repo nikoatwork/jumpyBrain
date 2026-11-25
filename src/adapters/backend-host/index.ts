@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { mkdir, lstat, open, readFile, realpath, rename, unlink, link, rmdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -152,13 +153,22 @@ export async function verifyBackendReady(descriptor: BackendDescriptor, timeoutM
   if (options.detachedOnly && Object.keys(ready).some(field => !["protocol", "instanceId", "rootId", "pid", "executable", "executableHash", "build", "version", "runtimeGeneration"].includes(field))) return false;
   return true;
 }
+/**
+ * The Node path this process was started through. Node resolves `process.execPath`
+ * to the real file, so a launcher pinned to Homebrew's stable `opt/node` link would
+ * otherwise start backends through the versioned Cellar path a `brew upgrade` deletes.
+ */
+export function launchedNode(execPath = process.execPath, argv0 = process.argv0, resolve: (file: string) => string = realpathSync): string {
+  if (!path.isAbsolute(argv0) || argv0 === execPath) return execPath;
+  try { return resolve(argv0) === resolve(execPath) ? argv0 : execPath; } catch { return execPath; }
+}
 export async function spawnRootBackend(root: string, identity: BackendIdentity): Promise<void> {
   const paths = await backendPaths(root, true);
   const stat = await lstat(paths.log).catch(error => { if (error.code === "ENOENT") return undefined; throw error; });
   if (stat && (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || (stat.mode & 0o077) !== 0)) throw new BackendHostError("backend_state_unsafe", "Backend log destination is unsafe.");
   const log = await open(paths.log, stat && stat.size > 256 * 1024 ? "w" : "a", 0o600);
   try {
-    const child = spawn(process.execPath, [identity.executable], {
+    const child = spawn(launchedNode(), [identity.executable], {
       env: { ...process.env, JUMPYBRAIN_BACKEND_ROOT: paths.root, JUMPYBRAIN_BACKEND_GENERATION: identity.runtimeGeneration }, detached: true,
       stdio: ["ignore", log.fd, log.fd],
     });

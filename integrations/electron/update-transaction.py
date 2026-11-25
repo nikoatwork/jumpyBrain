@@ -125,9 +125,20 @@ def publish(directory):
                     raise ValueError('CLI executable changed during preparation.')
                 manifest = json.loads(manifest_file.read_text())
                 manifest.update(installedVersion=request['release']['version'], release=request['release'], updatedAt=request['preparedAt'])
+                migration = request.get('cliNode')
+                if migration:
+                    # Pin the stable Homebrew link recorded by the updater; rollback swaps the old launcher back.
+                    if manifest.get('node') != migration['from'] or not os.path.isabs(migration['to']) or os.path.realpath(migration['to']) != os.path.realpath(migration['from']):
+                        raise ValueError('CLI Node changed during preparation.')
+                    manifest['node'] = migration['to']
+                    launcher, temporary = directory / 'new-launcher', directory / 'new-launcher.tmp'
+                    with open(temporary, 'w') as stream:
+                        stream.write(migration['shim']); stream.flush(); os.fsync(stream.fileno())
+                    temporary.chmod(0o755); os.replace(temporary, launcher)
                 atomic(directory / 'new-manifest.json', manifest)
                 exchange(root / 'app', source)
                 exchange(manifest_file, directory / 'new-manifest.json')
+                if migration: exchange(root / 'bin/jumpybrain', launcher)
             exchange(app, staged)
             state['phase'] = 'published'; atomic(journal, state)
         except BaseException:

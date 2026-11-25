@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import secrets
 import shutil
 import stat
@@ -25,6 +26,18 @@ from uninstall import owned_loaded_job
 DESKTOP = 'local.jumpybrain.desktop'
 LEGACY = 'local.jumpybrain.companion'
 SoftwareStore = runpy.run_path(str(Path(__file__).with_name('installation-retention.py')))['Store']
+HOMEBREW_CELLAR_NODE = re.compile(r'^(.+)/Cellar/(node(?:@\d+)?)/[^/]+/bin/node$')
+
+def durable_node(executable):
+    # Twin of durableNode in install-shim.mjs. Homebrew upgrades replace the versioned
+    # Cellar keg, so pin the formula's stable opt link, but only when it resolves to
+    # this exact executable. Every other Node keeps its path.
+    match = HOMEBREW_CELLAR_NODE.match(executable or '')
+    if not match: return executable
+    stable = f'{match.group(1)}/opt/{match.group(2)}/bin/node'
+    # Python 3.9 support: no realpath(strict=True); a missing target never matches.
+    if not (os.path.exists(stable) and os.path.exists(executable)): return executable
+    return stable if os.path.realpath(stable) == os.path.realpath(executable) else executable
 
 def info(app):
     if app.is_symlink() or not app.is_dir():
@@ -128,6 +141,9 @@ def trim_prepared_cli(source):
 
 def prepare(bundle, home, source=SOURCE):
     config = configuration(home)
+    # Only the new build moves to the stable link. configuration() keeps reporting the
+    # installed value, which an older updater's transaction compares unchanged.
+    config['node'] = durable_node(config['node'])
     resources = bundle / 'Contents/Resources'
     runtime = resources / 'runtime'
     runtime.mkdir()

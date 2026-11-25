@@ -189,4 +189,48 @@ class InstallerLockHandoffTests(unittest.TestCase):
                     with self.assertRaisesRegex(installer.SafetyError, 'records no Node/engine'):
                         installer.configuration(home)
 
+class DurableNodeTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix='jb-durable-node-')
+        self.addCleanup(self.temporary.cleanup)
+        self.prefix = Path(self.temporary.name)
+        self.cellar = self.prefix / 'Cellar/node/26.7.0/bin/node'
+        self.cellar.parent.mkdir(parents=True); self.cellar.write_text('#!/bin/sh\n'); self.cellar.chmod(0o755)
+        (self.prefix / 'opt').mkdir(); (self.prefix / 'opt/node').symlink_to('../Cellar/node/26.7.0')
+        self.stable = str(self.prefix / 'opt/node/bin/node')
+
+    def test_homebrew_cellar_node_moves_to_its_opt_link(self):
+        self.assertEqual(installer.durable_node(str(self.cellar)), self.stable)
+        self.assertEqual(installer.durable_node(self.stable), self.stable)
+
+    def test_other_nodes_keep_their_path(self):
+        other = self.prefix / 'Cellar/node@22/22.12.0/bin/node'
+        other.parent.mkdir(parents=True); other.write_text('')
+        self.assertEqual(installer.durable_node(str(other)), str(other), 'no opt link')
+        (self.prefix / 'opt/node').unlink(); (self.prefix / 'opt/node').symlink_to('../Cellar/node/27.0.0')
+        self.assertEqual(installer.durable_node(str(self.cellar)), str(self.cellar), 'opt link points elsewhere')
+        for value in ('/usr/bin/node', '/Users/x/.nvm/versions/node/v22.12.0/bin/node', '', None):
+            self.assertEqual(installer.durable_node(value), value)
+
+    def test_prepare_seals_the_stable_link_but_configuration_reports_the_installed_value(self):
+        source, bundle, home = self.prefix / 'source', self.prefix / 'built.app', self.prefix / 'home'
+        (source / 'dist').mkdir(parents=True); (source / 'package.json').write_text('{}')
+        companion = source / 'integrations/macos-companion'; companion.mkdir(parents=True)
+        for name in ('gateway.mjs', 'extensions-gateway.mjs', 'live-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs', 'MenuBarBrain.png'):
+            (companion / name).write_text('')
+        electron = source / 'integrations/electron'; electron.mkdir(parents=True)
+        for name in ('installation-retention.py', 'update-retention.py'): (electron / name).write_text('')
+        (bundle / 'Contents/Resources').mkdir(parents=True)
+        installed = dict(node=str(self.cellar), qmd='/usr/bin/qmd', memoryRoot=str(home / 'memory'), supportDirectory=str(home / 'support'),
+                         launchAgent=str(home / 'agent.plist'), port=3787)
+        sealed = {}
+        def build_app(_source, scratch, config, **_options):
+            sealed.update(config)
+            helper = Path(scratch) / 'Host.app'; helper.mkdir(); return helper
+        with patch.object(installer, 'configuration', lambda _home: dict(installed)), \
+             patch.object(installer, 'build_app', build_app), patch.object(installer, 'copy_extension_compiler', lambda *_: None):
+            installer.prepare(bundle, home, source)
+        self.assertEqual(sealed['node'], self.stable)
+        self.assertEqual(installed['node'], str(self.cellar), 'the installed configuration is not rewritten')
+
 if __name__ == '__main__': unittest.main()

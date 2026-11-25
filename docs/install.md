@@ -296,7 +296,7 @@ Quit the Mac app, then rerun the installer. It keeps your brain, settings, integ
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app
 ```
 
-Omit `-s -- --with-app` for a CLI-only installation, and repeat any non-default options such as `--install-root`. `npm run desktop:setup` and GUI updates point to this repair when the recorded Node fails to start. The stable Homebrew `opt` link handles the path change during typical upgrades within the same Node major version. After a major Node upgrade, rerun the installer and check local search, since native QMD dependencies may need a compatible rebuild.
+From the update after v0.3.28, app updates do this move by themselves while the old path still works: the rebuilt app pins the stable link, and the CLI follows once an update is started by an app that has this change (the second update, or now with the command above). Omit `-s -- --with-app` for a CLI-only installation, and repeat any non-default options such as `--install-root`. `npm run desktop:setup` and GUI updates point to this repair when the recorded Node fails to start. The stable Homebrew `opt` link handles the path change during typical upgrades within the same Node major version. After a major Node upgrade, rerun the installer and check local search, since native QMD dependencies may need a compatible rebuild.
 
 ### Migrate an older managed CLI
 

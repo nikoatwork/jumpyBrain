@@ -52,7 +52,9 @@ export async function cliPolicy(home) {
       const resolved = await realpath(p).catch(() => p);
       if (!path.isAbsolute(p) || overlaps(app, p) || overlaps(p, app) || overlaps(app, resolved) || overlaps(resolved, app)) throw new Error('Preserved data overlaps CLI');
     }
-    return { ...base, kind: 'managed', shimHash: digest(shimBytes), detail: 'The managed CLI will update with the Mac app. Its source policy, memory, targets, and integrations are preserved.' };
+    // `pinned` launchers exec the recorded Node; legacy ones find node on PATH.
+    const launcher = shimBytes.toString() === current ? { shimForm: 'pinned', node: manifest.node, qmd: manifest.qmd ?? null } : { shimForm: 'legacy' };
+    return { ...base, kind: 'managed', shimHash: digest(shimBytes), ...launcher, detail: 'The managed CLI will update with the Mac app. Its source policy, memory, targets, and integrations are preserved.' };
   } catch {
     return { ...base, kind: 'unmanaged', detail: 'The CLI files are customized or overlap preserved data. Update the Mac app only; the CLI will be left unchanged.' };
   }

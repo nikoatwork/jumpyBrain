@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-25 — Updates move Homebrew installs to the stable Node link
+
+- App updates now rebuild the app with Homebrew's stable `opt/node` link, and the update transaction moves a pinned CLI launcher and its install record to that link with journaled rollback. Background services start through the path they were launched by. An update started by v0.3.28 or older moves the app only; the CLI follows on the next update. [Outcome, checks and limits](done/2026-11-25_tasks-updater-durable-node.md)
+
 ## 2026-11-25 — v0.3.28 in real use on the Mac and on Linux
 
 - Updated the owner's Mac to the published v0.3.28 and used it on the real brain. A throwaway Linux install on the VPS covered the installer, a real smart-search model download, browser sessions and invite links on a temporary server, and the hosted Docker image; all of it was removed afterwards. Fixed `jumpybrain update` refusing release-installed Macs, two unclear CLI errors and the Linux engine size estimate. Open: app updates keep the versioned Homebrew Node path, smart search reloads its model per query, and backend processes left behind. [Tests and fixes](done/2026-11-25_tasks-v0.3.28-real-use-fixes.md) · [Follow-ups](todo/tasks-v0.3.28-real-use-follow-ups.md)

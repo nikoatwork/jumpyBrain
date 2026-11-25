@@ -7,7 +7,7 @@ import { discoverRelease, compareVersions } from './update-release.mjs';
 import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from './update-policy.mjs';
 import { atomicJSON } from './update-worker.mjs';
 import { maintainInstalledSoftware } from './software-maintenance.mjs';
-import { NODE_READY_PROBE } from './install-shim.mjs';
+import { NODE_READY_PROBE, durableNode, cliShim } from './install-shim.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const execute = promisify(execFile);
 const files = ['install-shim.mjs', 'update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'update-retention.py', 'installation-retention.py', 'managed-integrations.mjs', 'desktop-host.mjs', 'host.mjs'];
@@ -26,6 +26,16 @@ export function needsUpdate(version, installed) {
 
 const nodeStarts = node => execute(node, ['-e', NODE_READY_PROBE], { timeout: 15000 }).then(() => true, () => false);
 export const UPDATE_NODE_REPAIR = 'The Node.js runtime jumpyBrain uses no longer starts, often after a Homebrew upgrade. Nothing was changed. Quit jumpyBrain and repair the CLI and app together in Terminal: curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app';
+
+// A launcher pinned to a versioned Homebrew Cellar Node breaks on the next
+// `brew upgrade`. Move it to the formula's stable opt link, which resolves to the
+// same executable today, inside the same journaled transaction as the CLI runtime.
+export function cliNodeMigration(policy, root, { stable = durableNode } = {}) {
+  if (policy?.kind !== 'managed' || policy.shimForm !== 'pinned' || typeof policy.node !== 'string') return null;
+  const to = stable(policy.node);
+  if (to === policy.node) return null;
+  return { from: policy.node, to, shim: cliShim({ appDir: path.join(root, 'app'), cliConfigPath: path.join(root, 'cli-config.json'), node: to, qmd: policy.qmd }) };
+}
 
 export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn, entrypoint = 'app', probeNode = nodeStarts }) {
   const appPath = path.join(home, 'Applications/jumpyBrain.app');
@@ -177,7 +187,8 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
       }
       const configuration = { ...native, legacyLaunchAgent: native.legacyLaunchAgent ?? native.launchAgent ?? path.join(home, 'Library/LaunchAgents/local.jumpybrain.companion.plist'), label: 'local.jumpybrain.companion', launchAgent: path.join(home, 'Library/LaunchAgents/local.jumpybrain.desktop.plist') };
       let request = recovering ? await readJSON(path.join(directory, 'request.json')) : { home, appPath, node: native.node, release, configuration,
-        installed: versions, cli: versions.cliPolicy, updateCLI: versions.cliPolicy.kind === 'managed', entrypoint, preparedAt: new Date().toISOString() };
+        installed: versions, cli: versions.cliPolicy, updateCLI: versions.cliPolicy.kind === 'managed', cliNode: cliNodeMigration(versions.cliPolicy, root),
+        entrypoint, preparedAt: new Date().toISOString() };
       // A GUI recovery of an interrupted CLI transaction must use the app's
       // safe shutdown handoff rather than retain the old CLI parent policy.
       request = { ...request, parentPid: process.pid, entrypoint };

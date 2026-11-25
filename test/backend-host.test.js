@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { acquireBackendLease, backendPaths, currentBackendIdentity, readBackendLease, releaseBackendLease, readBackendDescriptor, verifyBackendReady, processAlive } from "../dist/adapters/backend-host/index.js";
+import { acquireBackendLease, backendPaths, currentBackendIdentity, readBackendLease, releaseBackendLease, readBackendDescriptor, verifyBackendReady, processAlive, launchedNode } from "../dist/adapters/backend-host/index.js";
 import { backendStatus, ensureRootBackend, stopRootBackend } from "../dist/app/backend-host/index.js";
 
 async function fixture(t) {
@@ -95,4 +95,13 @@ test("a backend that cannot start inside the Codex sandbox says so", async () =>
   const { sandboxHint } = await import("../dist/app/backend-host/index.js");
   assert.equal(sandboxHint({}), "");
   assert.match(sandboxHint({ CODEX_SANDBOX: "seatbelt" }), /Codex sandbox.*escalation/);
+});
+
+test("backends start through the Node path this process was launched by, never a resolved Homebrew keg", () => {
+  const resolve = file => ({ "/brew/opt/node/bin/node": "/brew/Cellar/node/26.7.0/bin/node" })[file] ?? file;
+  assert.equal(launchedNode("/brew/Cellar/node/26.7.0/bin/node", "/brew/opt/node/bin/node", resolve), "/brew/opt/node/bin/node");
+  assert.equal(launchedNode("/usr/bin/node", "node", resolve), "/usr/bin/node", "relative argv0 is not a path");
+  assert.equal(launchedNode("/usr/bin/node", "/other/node", resolve), "/usr/bin/node", "another executable is ignored");
+  assert.equal(launchedNode("/usr/bin/node", "/missing/node", () => { throw new Error("ENOENT"); }), "/usr/bin/node");
+  assert.equal(launchedNode(), process.execPath === process.argv0 || !path.isAbsolute(process.argv0) ? process.execPath : launchedNode());
 });

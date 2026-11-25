@@ -4,13 +4,14 @@ import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
 import net from 'node:net';
-import { mkdtemp, realpath, mkdir, cp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, realpath, mkdir, cp, readFile, writeFile, rm, readdir, symlink } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServerMemoryRuntime } from '../dist/server/index.js';
 import { stopRootBackend } from '../dist/app/backend-host/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
+import { cliShim } from '../integrations/electron/install-shim.mjs';
 import { installExtension } from '../dist/app/extensions/index.js';
 import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
 import { softwareStorage } from './installation-storage.mjs';
@@ -20,14 +21,14 @@ const mode = process.argv[2] || 'success';
 const options = process.argv.slice(3);
 function flag(name) { const index=options.indexOf(name); if(index<0)return false; options.splice(index,1); return true; }
 function value(name) { const index=options.indexOf(name); if(index<0)return null; const selected=options[index+1]; if(!selected||selected.startsWith('--'))throw new Error(name+' requires a path'); options.splice(index,2); return path.resolve(selected); }
-const existingClient = flag('--client-v0.3.7'), coldNative = flag('--cold-native'), corruptNativeHelper = flag('--corrupt-native-helper');
+const existingClient = flag('--client-v0.3.7'), homebrewClient = flag('--client-v0.3.28'), coldNative = flag('--cold-native'), corruptNativeHelper = flag('--corrupt-native-helper');
 const sourcePackage = value('--package'), nativeHelperSource = value('--native-helper');
 const baseline = value('--baseline') || path.join(repo, '.local-pack/desktop/jumpyBrain.app');
-if (options.length || ((existingClient || coldNative) && mode !== 'success') || corruptNativeHelper && !nativeHelperSource) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7] [--cold-native] [--package <tarball>] [--native-helper <artifact.json>] [--corrupt-native-helper] [--baseline <app>]');
+if (options.length || existingClient && homebrewClient || ((existingClient || homebrewClient || coldNative) && mode !== 'success') || corruptNativeHelper && !nativeHelperSource) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 | --client-v0.3.28] [--cold-native] [--package <tarball>] [--native-helper <artifact.json>] [--corrupt-native-helper] [--baseline <app>]');
 if (!['success','app-only','relaunch-failure','helper-crash','app-crash','cli-open','cli-closed'].includes(mode)) throw new Error('Unsupported smoke mode');
 const asar = await import(path.join(repo, 'integrations/electron/node_modules/@electron/asar/lib/asar.js'));
 const home = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-update-smoke-')));
-const artifactRoot = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : nativeHelperSource ? (corruptNativeHelper ? 'native-corrupt' : coldNative ? 'native-cold' : 'native-reuse') : coldNative ? 'cold-native' : mode);
+const artifactRoot = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : homebrewClient ? 'client-v0.3.28' : nativeHelperSource ? (corruptNativeHelper ? 'native-corrupt' : coldNative ? 'native-cold' : 'native-reuse') : coldNative ? 'cold-native' : mode);
 await mkdir(artifactRoot, { recursive: true });
 const artifactDir = await mkdtemp(path.join(artifactRoot, new Date().toISOString().replaceAll(':', '-') + '-'));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -70,7 +71,16 @@ try {
 
   const launchAgent = path.join(home, 'Library/LaunchAgents/local.jumpybrain.desktop.plist'); await mkdir(path.dirname(launchAgent), { recursive: true });
   await writeFile(launchAgent, loginPlist(path.join(appPath, 'Contents/MacOS/jumpyBrain')));
-  await json(nativeFile, { ...native, supportDirectory: support, memoryRoot: memory, port, launchAgent });
+  // Success mode models a v0.3.27-era Homebrew install: app and CLI pinned to a versioned
+  // Cellar Node whose stable opt link resolves to the same executable. The update must
+  // move both to the opt link (app via the new build, CLI via the journaled transaction).
+  const homebrew = mode === 'success' && !existingClient, cliMigrates = homebrew && !homebrewClient;
+  const brew = path.join(home, 'brew'), cellarNode = path.join(brew, 'Cellar/node/26.7.0/bin/node'), stableNode = path.join(brew, 'opt/node/bin/node');
+  if (homebrew) {
+    await mkdir(path.dirname(cellarNode), { recursive: true }); await symlink(process.execPath, cellarNode);
+    await mkdir(path.join(brew, 'opt')); await symlink('../Cellar/node/26.7.0', path.join(brew, 'opt/node'));
+  }
+  await json(nativeFile, { ...native, ...(homebrew ? { node: cellarNode } : {}), supportDirectory: support, memoryRoot: memory, port, launchAgent });
   await json(path.join(resources, 'desktop.json'), { schema: 1, supportDirectory: support, launchAgent, port });
   // Reuse an immutable package for matched trials even if the shared checkout
   // changes. Keep the exact input bytes after the disposable HOME is removed.
@@ -97,11 +107,13 @@ try {
   // The incoming release remains node_modules-free and installs only Electron dependencies.
   await cp(path.join(resources, 'runtime/node_modules'), path.join(root, 'app/node_modules'), { recursive: true });
   const cliPath = path.join(root, 'bin/jumpybrain'), cliConfigPath = path.join(root, 'cli-config.json');
-  await writeFile(cliPath, `#!/usr/bin/env sh\nif [ -z "\${JUMPYBRAIN_CLI_CONFIG+x}" ]; then\n  export JUMPYBRAIN_CLI_CONFIG='${cliConfigPath}'\nfi\nexec node ${JSON.stringify(path.join(root, 'app/dist/cli.js'))} "$@"\n`, { mode: 0o755 });
+  if (homebrew) await writeFile(cliPath, cliShim({ appDir: path.join(root, 'app'), cliConfigPath, node: cellarNode, qmd: native.qmd }), { mode: 0o755 });
+  else await writeFile(cliPath, `#!/usr/bin/env sh\nif [ -z "\${JUMPYBRAIN_CLI_CONFIG+x}" ]; then\n  export JUMPYBRAIN_CLI_CONFIG='${cliConfigPath}'\nfi\nexec node ${JSON.stringify(path.join(root, 'app/dist/cli.js'))} "$@"\n`, { mode: 0o755 });
   await json(cliConfigPath, { schemaVersion: 1, remoteTargets: [{ origin: 'https://example.invalid', access: 'read-only' }] });
   const integration = path.join(home, 'agent-skill.md'); await writeFile(integration, 'Preserve agent integration');
   await json(path.join(root, 'install-manifest.json'), { version: 1, installer: 'jumpybrain-installer', source: 'https://github.com/nikoatwork/jumpyBrain.git', ref: mode === 'app-only' ? 'v0.3.3' : 'master', scope: 'global', integrationMode: 'auto', installRoot: root,
-    appDir: path.join(root, 'app'), binDir: path.join(root, 'bin'), cliPath, cliConfigPath, memoryRoot: memory, integrations: [{ kind: 'fixture', path: integration }], installedVersion: oldVersion });
+    appDir: path.join(root, 'app'), binDir: path.join(root, 'bin'), cliPath, cliConfigPath, memoryRoot: memory, integrations: [{ kind: 'fixture', path: integration }], installedVersion: oldVersion,
+    ...(homebrew ? { node: cellarNode, qmd: native.qmd } : {}) });
   // Optional compatibility gate executes the exact published worker, never a
   // repaired candidate worker. It still installs only the incoming Electron lock.
   const workerFile = path.join(source, 'integrations/electron/update-worker.mjs');
@@ -113,8 +125,18 @@ try {
     assert.equal(clientWorkerDigest, '9d184e089d493220ffff00ed3d0def06424e99f26949575add64a60b76750858');
     await writeFile(workerFile, publishedWorker);
   }
+  // --client-v0.3.28: the installed app runs the published v0.3.28 updater, which
+  // predates the CLI launcher migration; only the incoming build can move the app.
+  const clientFiles = homebrewClient ? ['updater.mjs', 'update-policy.mjs', 'update-transaction.py', 'update-worker.mjs', 'install-shim.mjs'] : [];
+  const candidates = new Map();
+  for (const file of clientFiles) {
+    const target = path.join(source, 'integrations/electron', file);
+    candidates.set(target, await readFile(target));
+    await writeFile(target, execFileSync('git', ['show', `v0.3.28:integrations/electron/${file}`], { cwd: repo }));
+  }
   await rm(path.join(resources, 'app.asar')); await asar.createPackage(path.join(source, 'integrations/electron'), path.join(resources, 'app.asar'));
   await writeFile(workerFile, candidateWorker);
+  for (const [target, bytes] of candidates) await writeFile(target, bytes);
 
   execFileSync('/usr/libexec/PlistBuddy', ['-c', `Set :CFBundleShortVersionString ${oldVersion}`, path.join(appPath, 'Contents/Info.plist')]);
   // Resources/native is not a standard nested-code location: outer --deep
@@ -247,6 +269,14 @@ try {
   assert.ok(cliExtension.prepared.revision, 'installed CLI must compile a fresh TS/UI extension after upgrade');
   const manifest = JSON.parse(await readFile(path.join(root, 'install-manifest.json')));
   assert.equal(manifest.source, 'https://github.com/nikoatwork/jumpyBrain.git'); assert.equal(manifest.ref, mode === 'app-only' ? 'v0.3.3' : 'master');
+  if (homebrew) {
+    // A v0.3.28 updater leaves the CLI on its working Cellar launcher; the next update moves it.
+    const cliNode = cliMigrates ? stableNode : cellarNode;
+    assert.equal(manifest.node, cliNode, cliMigrates ? 'the CLI moves to the stable Homebrew link' : 'an older updater leaves the CLI launcher unchanged');
+    assert.equal(await readFile(cliPath, 'utf8'), cliShim({ appDir: path.join(root, 'app'), cliConfigPath, node: cliNode, qmd: native.qmd }));
+    const installedNative = JSON.parse(await readFile(path.join(appPath, 'Contents/Resources/native/jumpyBrain Host.app/Contents/Resources/Configuration.json'), 'utf8'));
+    assert.equal(installedNative.node, stableNode, 'the rebuilt app pins the stable Homebrew link');
+  }
   if (mode === 'success' && !existingClient) {
     const deadline = Date.now() + 30000;
     while (Date.now() < deadline && await readFile(path.join(root, '.installer-lock/desktop.json')).catch(() => null)) await pause(100);
@@ -272,7 +302,7 @@ try {
     assert.equal(storage.lastCleanup.removed.length, 1);
     await json(path.join(artifactDir, 'storage.json'), storage);
   }
-  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), nativeHelper: Boolean(nativeHelperSource), corruptNativeHelper, probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), coldNative, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
+  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), nativeHelper: Boolean(nativeHelperSource), corruptNativeHelper, probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), coldNative, existingClient: existingClient ? 'v0.3.7' : homebrewClient ? 'v0.3.28' : undefined, clientWorkerDigest, homebrewNode: homebrew ? (cliMigrates ? 'app+cli' : 'app') : undefined });
   let performanceResult;
   const updateDirectories = await readdir(path.join(home, 'Library/Application Support/jumpyBrain Updates'));
   for (const name of updateDirectories) {
