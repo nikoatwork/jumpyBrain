@@ -4,13 +4,41 @@ Keep the local CLI/runtime distribution small. `npm test` checks the actual npm
 manifest and byte budgets after building; `npm run cli:pack` applies the same
 checks to its real tarball before recording successful package metadata.
 
+## 2026-11-25 browser sessions, install profiles and the licence-notice fix
+
+Measured on `master` after merging install profiles and long-lived browser
+sessions (server-side sessions, invite links and their access-key UI), on macOS
+arm64 with Node 26.7.0: `npm pack --dry-run --json` reports 3,309,296 B packed,
+9,198,620 B unpacked, 7,504,908 B under `dist/` and 793 files. No runtime
+dependency is added.
+
+The install-profiles figures below were taken in a worktree whose
+`node_modules` is a symlink. esbuild reports real paths there
+(`../…/node_modules/pkg/…`), which `scripts/build-editor.mjs` did not match, so
+that build wrote **empty** `editor-LICENSES.txt` and `drawing-app/LICENSES.txt`
+files (87,751 B missing) without an error. The build now matches the package
+path anywhere in the input path and fails rather than write an empty notices
+file. With the notices restored, `master` was already 9,088,683 B unpacked
+before these merges; install profiles add about 50 KB of installer scripts and
+docs, and browser sessions about 60 KB.
+
+The inlined note editor bundle grows from 186,346 B to 187,431 B gzip (563,694 B
+to 567,510 B minified) for invite links, signed-in browsers and sign-out in the
+access-key controller and the reader identity line. Raise its gate in
+`test/lexical-bundle.test.js` from 186,500 B to 187,750 B.
+
+Raise the package ceilings to 3,400,000 packed bytes, 9,300,000 unpacked bytes,
+7,600,000 runtime bytes and 800 files, leaving about 90 KB packed and 100 KB
+unpacked of headroom.
+
 ## 2026-11-25 install profiles and smart search
 
 Install profiles add `scripts/install-profiles.mjs` (also an install.sh helper)
 and the `smart-search` CLI command with its plain-words search wording, two
 JavaScript/declaration pairs. `npm pack --dry-run --json` measured 3,276,800 B
 packed, 9,034,222 B unpacked, 7,365,011 B under `dist/` and 789 files on macOS
-arm64 with Node 26.7.0. Raise the file-count ceiling from 788 to 796 for these
+arm64 with Node 26.7.0 (on a build missing its licence notices; see the entry
+above for corrected figures). Raise the file-count ceiling from 788 to 796 for these
 five files and the existing headroom; the byte ceilings stay unchanged and no
 runtime dependency is added.
 

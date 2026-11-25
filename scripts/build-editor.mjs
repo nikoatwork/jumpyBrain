@@ -74,9 +74,14 @@ const drawingFonts = "node_modules/@excalidraw/excalidraw/dist/prod/fonts";
 for (const family of await readdir(drawingFonts)) {
   if (family !== "Xiaolai") await cp(`${drawingFonts}/${family}`, `${drawingOut}/fonts/${family}`, { recursive: true });
 }
+// esbuild reports real paths, so a symlinked node_modules (as in worktrees)
+// yields "../…/node_modules/pkg/…" inputs. Never ship an empty notices file.
+const requireNotices = (label, count) => {
+  if (count === 0) throw new Error(`${label}: no bundled package licences found; refusing to write an empty notices file.`);
+};
 const noticePackages = (inputs) => new Set(Object.keys(inputs).flatMap((file) => {
-  const match = file.match(/^node_modules\/(?:@[^/]+\/[^/]+|[^/]+)/);
-  return match ? [match[0]] : [];
+  const match = file.match(/(?:^|\/)(node_modules\/(?:@[^/]+\/[^/]+|[^/]+))/);
+  return match ? [match[1]] : [];
 }));
 const drawingNotices = [];
 for (const folder of [...noticePackages(drawingResult.metafile.inputs)].sort()) {
@@ -85,6 +90,7 @@ for (const folder of [...noticePackages(drawingResult.metafile.inputs)].sort()) 
     : `License: ${JSON.parse(await readFile(`${folder}/package.json`, "utf8")).license ?? "see package"}`;
   drawingNotices.push(`${folder}\n\n${text}`);
 }
+requireNotices("Drawing editor", drawingNotices.length);
 await writeFile(`${drawingOut}/LICENSES.txt`, drawingNotices.join("\n\n---\n\n"));
 let drawingBytes = 0;
 for (const name of await readdir(drawingOut, { recursive: true })) {
@@ -93,10 +99,11 @@ for (const name of await readdir(drawingOut, { recursive: true })) {
 }
 const drawingEntry = await readFile(`${drawingOut}/drawing.js`);
 const packages = new Set(Object.keys(result.metafile.inputs).flatMap((file) => {
-  const match = file.match(/^node_modules\/(?:@[^/]+\/[^/]+|[^/]+)/);
-  return match ? [match[0]] : [];
+  const match = file.match(/(?:^|\/)(node_modules\/(?:@[^/]+\/[^/]+|[^/]+))/);
+  return match ? [match[1]] : [];
 }));
 const notices = await Promise.all([...packages].sort().map(async (folder) => `${folder}\n\n${await readFile(`${folder}/LICENSE`, "utf8")}`));
+requireNotices("Note editor", notices.length);
 await writeFile("dist/adapters/http-server/editor-LICENSES.txt", notices.join("\n\n---\n\n"));
 console.log(`Lexical editor: ${Buffer.byteLength(bundle)} bytes minified, ${gzipSync(bundle).length} bytes gzip (${packages.size} bundled packages).`);
 console.log(`Drawing editor (lazy frame): ${drawingBytes} bytes on disk, entry ${drawingEntry.length} bytes minified, ${gzipSync(drawingEntry).length} bytes gzip.`);

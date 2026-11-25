@@ -12,7 +12,8 @@ test("editor bundle is self-contained, production-sized, and safe to inline unde
   assert.doesNotMatch(bundle, /<\/script/i);
   // Tree-shaken Lexical plus feature headroom; see docs/build-footprint.md.
   // Reviewed 2026-11-20: +0.5 KB for role-based effective access in the access-key controller; see docs/build-footprint.md.
-  assert.ok(gzipSync(bundle).length < 186_500, "review editor weight if the production bundle exceeds 186.5 KB gzip");
+  // Reviewed 2026-11-25: +1.1 KB for invite links, signed-in browsers and sign-out in the access-key controller and the reader identity line; see docs/build-footprint.md.
+  assert.ok(gzipSync(bundle).length < 187_750, "review editor weight if the production bundle exceeds 187.75 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);
