@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-25 — v0.3.29 beta published
+
+- A second same-day release at the owner's request. It ships the `jumpybrain update` fix for release-installed Macs, clearer CLI errors, the Linux engine size estimate, and app updates that move Homebrew installs to the stable Node link. All three assets were verified. [Published notes](done/releases/v0.3.29.md) · [Release verification](done/releases/v0.3.29.qa.md)
+
 ## 2026-11-25 — Updates move Homebrew installs to the stable Node link
 
 - App updates now rebuild the app with Homebrew's stable `opt/node` link, and the update transaction moves a pinned CLI launcher and its install record to that link with journaled rollback. Background services start through the path they were launched by. An update started by v0.3.28 or older moves the app only; the CLI follows on the next update. [Outcome, checks and limits](done/2026-11-25_tasks-updater-durable-node.md)
