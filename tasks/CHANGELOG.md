@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-26 — Run another brain on the same VPS
+
+- Added systemd and Coolify guides for hosting independent brains behind one proxy. A disposable second brain passed HTTPS, WebSocket, isolation, and restart checks on the shared VPS. Its resources were removed after the drill. [Outcome and limits](done/2026-11-26_tasks-multi-brain-hosting.md)
+
 ## 2026-11-25 — v0.3.29 beta published
 
 - A second same-day release at the owner's request. It ships the `jumpybrain update` fix for release-installed Macs, clearer CLI errors, the Linux engine size estimate, and app updates that move Homebrew installs to the stable Node link. All three assets were verified. [Published notes](done/releases/v0.3.29.md) · [Release verification](done/releases/v0.3.29.qa.md)

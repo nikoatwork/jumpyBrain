@@ -168,6 +168,144 @@ https://memory.example.com
 
 Coolify should route external HTTPS traffic to the container's internal port `3001`. You do not need to publish host port `3001` manually when using a Coolify domain/proxy; the important setting is that Coolify knows the app listens on container port `3001`. Verify same-origin WSS `/ws` upgrade, the public Host, forwarded HTTPS scheme and suitable idle timeouts through the actual proxy; public health does not check live editing. Keep the backend port private with the host firewall.
 
+## Add another brain on the same server
+
+A second brain is a second Coolify application: its own container, storage,
+bootstrap key and hostname behind the same Coolify proxy. One process still
+serves one root. Do not add a second root to the existing application, scale it
+to two replicas or point the new application at the existing storage.
+
+Leave the existing application untouched: its source/image, environment,
+storage, domain, credentials and deployment settings stay as they are. Adding
+the new brain does not need a maintenance window for the original one. If you
+want the original brain re-created under a new definition instead, that is a
+separate [drained replacement](cloud-shared-memory.md#drain-writers-before-migration-or-replacement),
+not part of this recipe.
+
+### 1. Pick an explicit reviewed build
+
+Use a build that you have reviewed and that is compatible with the clients that
+will connect to both brains; the simplest choice is the same release the
+original application runs. Either:
+
+- use the **Docker Image** build pack with the digest that passed the
+  [container gate](#clean-context-container-gate), for example
+  `registry.example.com/jumpybrain@sha256:<digest>` from your own registry
+  (jumpyBrain does not publish a container image). If your Coolify version
+  does not accept a digest, push that image under a unique tag that is never
+  reused, and record the digest beside it; or
+- use the **Dockerfile** build pack as in [Application settings](#application-settings),
+  pinned to the reviewed release commit or tag rather than a moving branch,
+  then record the resulting image ID.
+
+Keep Auto Deploy disabled. Never use `latest` or a branch head for this
+application, so a later push cannot redeploy it unreviewed.
+
+### 2. Create isolated storage and keys
+
+Create the application in the same Coolify project/server with its own name,
+for example `jumpybrain-it`, and give it:
+
+```text
+Persistent storage (new, empty):  jumpybrain-it-memory -> /data/jumpybrain/memory
+Optional index storage (new):     jumpybrain-it-index  -> /data/jumpybrain-index
+Port / Exposed port:              3001 (no host port mapping)
+Replicas:                         1
+```
+
+With a host bind mount, use a new private directory such as
+`/srv/jumpybrain-it/memory`, created with
+`install -d -o 1000 -g 1000 -m 0700`; never a path inside or above the
+existing root. The container path can stay `/data/jumpybrain/memory`; each
+container sees only its own mount.
+
+Set the [environment variables](#environment-variables) in this application's
+private secret UI with a **newly generated** bootstrap key, for example from
+`openssl rand -hex 32`. Never copy the original brain's key, environment or
+issued credentials: keys, browser sessions, invites and revocations are stored
+in each root and only work for the brain that issued them. If you set
+`JUMPYBRAIN_INDEX_DIR`, point it at this application's own index storage. The
+per-root index key is derived from the container root path, which is the same
+in both containers, so two brains must never share an index volume.
+
+### 3. Route privately by hostname
+
+Attach a separate hostname, for example `https://it.example.com`, through the
+same Coolify proxy. Do not publish host ports; both containers keep port `3001`
+internal and only the proxy reaches them. Keep the host firewall closed for the
+backend ports.
+
+Route by hostname, not by a path prefix on the existing domain. The editor,
+API and `/ws` paths are served from the origin root, and browser sessions are
+host-only cookies checked against the exact browser origin, so a separate
+hostname keeps the two brains' sessions apart. Apply your proxy's rate limits
+and idle timeouts to the new route as for the original one.
+
+Containers on Coolify's shared Docker network can reach each other's port
+internally. Each brain still rejects the other brain's keys, but do not treat
+the network as an access boundary. Use separate Coolify networks if your
+policy requires it.
+
+### 4. Deploy and verify
+
+Deploy the new application only. Before inviting anyone, run from a client
+machine, with each key in a private environment variable (`$ORIGINAL_KEY` and
+`$NEW_KEY` are placeholders for your own secret handling):
+
+```bash
+# The original brain is unaffected.
+curl -fsS https://memory.example.com/health
+JUMPYBRAIN_API_KEY="$ORIGINAL_KEY" jumpybrain status --target-url https://memory.example.com
+
+# The new brain is up, writable and searchable.
+curl -fsS https://it.example.com/health
+JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain status --target-url https://it.example.com
+printf 'Second brain smoke body\n' | JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain remember --target-url https://it.example.com --type finding --title 'Second brain smoke'
+JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain index --target-url https://it.example.com
+JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain recall --target-url https://it.example.com --topic 'Second brain smoke' --limit 5
+
+# Each key is rejected by the other brain (expect authentication failure, HTTP 401).
+JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain status --target-url https://memory.example.com
+JUMPYBRAIN_API_KEY="$ORIGINAL_KEY" jumpybrain status --target-url https://it.example.com
+```
+
+Also check, on the new origin: the mount is persistent (recreate the container
+and recall the smoke note again), the smoke note does not appear in the
+original brain, browser sign-in and live editing over WSS `/ws` work, an issued
+[reader/writer key](collaboration.md#separate-access) and its invite open the
+new origin, and revoking that key ends its access. Re-check the original
+origin's authenticated status and an open browser session after the new
+application starts. Then issue named keys and share the new hostname.
+
+### 5. Roll back the new brain alone
+
+Rollback touches only the new application:
+
+1. Remove its domain, or stop the application. The original application,
+   storage, route and keys are not involved.
+2. Keep its storage. Stopping does not delete volumes; when deleting a Coolify
+   application, do not select volume deletion unless you have a verified backup
+   and mean to discard that brain.
+3. To return to an earlier build, redeploy the previous reviewed image digest
+   or commit of this application only, after the
+   [drain](cloud-shared-memory.md#drain-writers-before-migration-or-replacement)
+   for this brain. Do not restore an older access file over newer revocations.
+4. Verify the original origin's health and authenticated status again.
+
+### Per-brain operations
+
+Each brain has its own backup, restart and upgrade cycle. Follow the
+[backup and recovery procedure](cloud-shared-memory.md#backups-and-recovery)
+per storage volume, keep each application's secrets and Coolify settings in
+your private backup, and run the upgrade helper against one brain at a time.
+Restarting or redeploying one application does not stop the other, but
+upgrading both shares one host's CPU, memory and disk. Set resource limits on
+each application and leave room for overlapping indexing.
+
+The two-brain HTTPS, WebSocket, credential isolation and restart checks ran
+on a Linux VPS with systemd and Traefik. Run the steps above to verify storage
+and routing on your Coolify installation.
+
 ## Cutover from the temporary systemd deployment
 
 A temporary `systemd` service may already be running on the VPS from manual smoke

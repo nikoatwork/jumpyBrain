@@ -11,6 +11,7 @@ Read the [shared-memory quickstart](cloud-shared-memory.md) first. Route schemas
 - A local HTTP server on `127.0.0.1:3787`.
 - Public HTTPS through nginx/Caddy/another reverse proxy.
 - CLI access from agents with `--target-url` and `JUMPYBRAIN_API_KEY`.
+- Optionally, more independent brains on the same host, one service and HTTPS hostname each ([section 10](#10-run-another-brain-on-the-same-vps)).
 
 ## Prerequisites
 
@@ -275,6 +276,303 @@ revocation before admitting clients. A server upgrade does not update remote
 CLI/app clients. Keep the previous release and backup until verification passes;
 never restore an older access file over newer revocations. A one-time upgrade
 backup does not replace recurring encrypted off-host backups.
+
+## 10. Run another brain on the same VPS
+
+Each brain is a separate server process with its own canonical root, bootstrap
+key, loopback port, HTTPS hostname, access keys, browser sessions, index and
+backups. One process serves exactly one root. Nothing is shared between brains
+except the installed release, the reverse proxy and the host's CPU, memory
+and disk.
+
+```text
+https://memory.example.com   -> 127.0.0.1:3787 -> jumpybrain.service          -> /srv/jumpybrain/memory
+https://product.example.com  -> 127.0.0.1:3788 -> jumpybrain-brain@product    -> /srv/jumpybrain/brains/product/memory
+https://it.example.com       -> 127.0.0.1:3789 -> jumpybrain-brain@it         -> /srv/jumpybrain/brains/it/memory
+```
+
+The brain from sections 1–9 keeps its `jumpybrain.service`, user, root, env
+file, port, hostname and keys. Its clients, browser sessions and links keep
+working while you add a service. If you later replace the original service
+definition, preserve its canonical root and public hostname and follow the
+[drained replacement procedure](cloud-shared-memory.md#drain-writers-before-migration-or-replacement).
+
+Before you start:
+
+- Choose a short brain name of lowercase letters, digits and hyphens, for example
+  `product`. It becomes the systemd instance, user, path and env file name.
+- Pick an unused loopback port (`ss -ltn` lists ports in use) and a DNS
+  hostname that already points at this VPS.
+- Use the same verified release in `/opt/jumpybrain/current`, or check that the
+  new brain and its clients work with it. All brains on that symlink upgrade
+  together when it switches, so drain every brain for an upgrade (section 9).
+
+### Add the per-brain service template once
+
+Create `/etc/systemd/system/jumpybrain-brain@.service`. `%i` is the brain name.
+It runs a dedicated user per brain, so one brain's process cannot read another
+brain's files. The root path is fixed by the instance name, so an env file
+cannot point two services at the same root.
+
+```ini
+[Unit]
+Description=jumpyBrain shared memory server (%i)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=jumpybrain-%i
+Group=jumpybrain-%i
+WorkingDirectory=/opt/jumpybrain/current
+StateDirectory=jumpybrain-%i
+StateDirectoryMode=0700
+Environment=HOME=/var/lib/jumpybrain-%i
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/etc/jumpybrain/brains/%i.env
+ExecStart=/usr/bin/env node /opt/jumpybrain/current/dist/cli.js serve --root /srv/jumpybrain/brains/%i/memory
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/jumpybrain/brains/%i/memory
+MemoryHigh=1536M
+MemoryMax=2G
+CPUQuota=200%
+TasksMax=256
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`StartLimitBurst` stops a brain that keeps crashing instead of restarting it
+indefinitely. `StateDirectory` gives each brain its own private home. Add a
+drop-in (`systemctl edit jumpybrain-brain@<name>`) to change one brain's limits.
+Do not edit the template for a single brain.
+
+### Provision one brain
+
+Run in a private administrator shell with the name and port filled in:
+
+```bash
+set -eu
+BRAIN='product'
+PORT='3788'
+if ! [[ "$BRAIN" =~ ^[a-z0-9][a-z0-9-]{0,20}$ ]]; then
+  echo 'Use 1–21 lowercase letters, digits or hyphens, starting with a letter or digit.' >&2
+  exit 1
+fi
+ROOT="/srv/jumpybrain/brains/$BRAIN/memory"
+ENV_FILE="/etc/jumpybrain/brains/$BRAIN.env"
+test ! -e "$ROOT"
+test ! -e "$ENV_FILE"
+if ss -ltnH "sport = :$PORT" | grep -q .; then echo "port $PORT is in use" >&2; exit 1; fi
+
+useradd --system --no-create-home --home-dir "/var/lib/jumpybrain-$BRAIN" \
+  --shell /usr/sbin/nologin "jumpybrain-$BRAIN"
+install -d -o "jumpybrain-$BRAIN" -g "jumpybrain-$BRAIN" -m 0700 "/var/lib/jumpybrain-$BRAIN"
+install -d -o root -g root -m 0755 /srv/jumpybrain/brains
+install -d -o "jumpybrain-$BRAIN" -g "jumpybrain-$BRAIN" -m 0700 \
+  "/srv/jumpybrain/brains/$BRAIN" "$ROOT"
+install -d -o root -g root -m 0700 /etc/jumpybrain/brains
+install -m 0600 -o root -g root /dev/null "$ENV_FILE"
+```
+
+Edit `$ENV_FILE` with `sudoedit`. Use a new bootstrap key from your secret
+store. Never reuse another brain's key.
+
+```bash
+JUMPYBRAIN_SERVER_HOST=127.0.0.1
+JUMPYBRAIN_SERVER_PORT=3788
+# Replace ... through private secret storage; unique to this brain.
+JUMPYBRAIN_SERVER_API_KEYS=...
+JUMPYBRAIN_QMD_BIN=/opt/jumpybrain/current/scripts/engine/node_modules/.bin/qmd
+```
+
+Leave `JUMPYBRAIN_SERVER_ROOT` out because the unit passes `--root`. If you use
+`JUMPYBRAIN_INDEX_DIR`, give each brain its own directory that its user can
+write, and add it to that brain's `ReadWritePaths` with a drop-in.
+
+Initialize and index the empty root as that brain's user, then start the service:
+
+```bash
+CLI=/opt/jumpybrain/current/dist/cli.js
+QMD=/opt/jumpybrain/current/scripts/engine/node_modules/.bin/qmd
+sudo -H -u "jumpybrain-$BRAIN" -- node "$CLI" init --root "$ROOT"
+sudo -H -u "jumpybrain-$BRAIN" -- env JUMPYBRAIN_QMD_BIN="$QMD" \
+  node "$CLI" index --root "$ROOT"
+sudo -H -u "jumpybrain-$BRAIN" -- node "$CLI" backend stop --root "$ROOT"
+systemctl daemon-reload
+systemctl enable --now "jumpybrain-brain@$BRAIN"
+systemctl status "jumpybrain-brain@$BRAIN"
+curl -fsS "http://127.0.0.1:$PORT/health"
+```
+
+As in section 2, stop the on-demand owner that `index` started before the
+service claims the root. For semantic retrieval, give this brain's user read
+access to the GGUF and pass `--semantic-model` to its own `index` command.
+
+Each `serve` process also uses a private loopback control listener on an
+ephemeral port. Keep only the proxy public. If the proxy runs in a container,
+bind the backend to the private bridge interface and restrict access to that
+proxy on the brain's specific port. Test connectivity from the proxy network
+before adding the route.
+
+### Route the hostname
+
+Add one `server` block per brain to the nginx configuration from section 5.
+Keep the single `map` from section 5; nginx rejects a duplicate `map` for the
+same variable. Give each brain its own `limit_req_zone` so traffic on one brain
+cannot use up another brain's request budget:
+
+```nginx
+# http context, next to the existing zone and map
+limit_req_zone $binary_remote_addr zone=jumpybrain_product:10m rate=30r/m;
+
+server {
+  listen 443 ssl http2;
+  server_name product.example.com;
+  # ssl_certificate / ssl_certificate_key from your TLS automation
+
+  client_max_body_size 1m;
+
+  location / {
+    limit_req zone=jumpybrain_product burst=20 nodelay;
+    limit_req_status 429;
+    proxy_pass http://127.0.0.1:3788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 610s;
+    proxy_send_timeout 610s;
+    proxy_buffering off;
+  }
+}
+```
+
+Copy the `location` settings exactly. WebSocket upgrade headers are required
+for live editing, and `Host` must be the public hostname. Browser mutations
+check the exact Origin, and session cookies are host-only, so each brain needs
+its own hostname. A path prefix such as `/product` on a shared hostname is not
+supported. Issue the certificate first, then run `nginx -t` before
+`systemctl reload nginx`. A failed `nginx -t` leaves the running configuration
+unchanged. Caddy users add one site block per hostname with
+`reverse_proxy 127.0.0.1:<port>`, which forwards WebSocket upgrades by default.
+
+### Check before sharing it
+
+Run these from a client machine, keeping each brain's key in its own variable.
+`JUMPYBRAIN_API_KEY` is one value per command, so set it per invocation:
+
+```bash
+ORIGINAL=https://memory.example.com
+NEW=https://product.example.com
+
+JUMPYBRAIN_API_KEY="$ORIGINAL_KEY" jumpybrain status --target-url "$ORIGINAL"
+JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain status --target-url "$NEW"
+# Cross-key denial: each command must fail with an authentication error.
+JUMPYBRAIN_API_KEY="$NEW_KEY" jumpybrain status --target-url "$ORIGINAL"
+JUMPYBRAIN_API_KEY="$ORIGINAL_KEY" jumpybrain status --target-url "$NEW"
+```
+
+Then, on the new origin:
+
+1. Issue a named admin key for yourself and stop using the bootstrap key
+   ([separate access](collaboration.md#separate-access)).
+2. Write, index and recall a test note, as in section 6.
+3. Sign in from a browser, open a note and edit it from two windows to check
+   live editing over WebSockets through the proxy.
+4. Create an invite, accept it in a private window, then revoke it and check
+   that the session stops working.
+
+Open the original origin in the same browser and verify its existing session
+still reads a note.
+
+The Mac app adds the new hostname as a separate connection with its own key.
+The CLI selects a brain with `--target-url` plus that brain's key. Named CLI
+brain targets are not available yet.
+
+### Roll back a new brain
+
+Rolling back touches only the new brain:
+
+```bash
+# 1. Remove the new server block and zone, then validate and reload nginx.
+# 2. Stop the new service once the proxy reload succeeds.
+nginx -t && systemctl reload nginx && systemctl disable --now "jumpybrain-brain@$BRAIN"
+# 3. Check the original brain.
+curl -fsS http://127.0.0.1:3787/health
+JUMPYBRAIN_API_KEY="$ORIGINAL_KEY" jumpybrain status --target-url https://memory.example.com
+```
+
+Keep `/srv/jumpybrain/brains/$BRAIN`, its env file and user until you decide
+the data is no longer needed. Restarting the service and restoring the server
+block brings the brain back with its notes, keys and sessions. Delete the root
+only after a verified backup and an explicit decision. Reusing the name later
+then starts an empty brain.
+
+Check that the original brain stays reachable while you add the new one, if the
+new service fails to start or crash-loops, and after you stop it. A stopped or
+failing brain returns 502 from the proxy on its own hostname only.
+
+### Resource boundaries
+
+Per-unit `MemoryHigh`, `MemoryMax`, `CPUQuota`, `TasksMax` and `LimitNOFILE`
+cap each brain on its own. Search and index admission allows one active
+operation per root, with a separate process-wide ceiling. Independent brains
+can index at the same time, so size the host for overlapping work. The
+example sets a 2 GiB hard memory limit per brain. Lower per-brain limits with drop-ins,
+or put all brains in one slice with a total cap
+(`Slice=jumpybrain.slice` in a drop-in, plus a
+`/etc/systemd/system/jumpybrain.slice` with `MemoryMax=`). A cap can delay or
+stop work on that brain. Size against your own corpus and model, and monitor
+authenticated readiness per brain. Each root grows independently on the
+host's shared disk.
+
+### Back up and restart one brain
+
+Every brain has its own private backup, access state and recovery files.
+Follow section 9 per root:
+
+```bash
+install -d -o root -g root -m 0755 /var/backups/jumpybrain
+install -d -o "jumpybrain-$BRAIN" -g "jumpybrain-$BRAIN" -m 0700 \
+  "/var/backups/jumpybrain/$BRAIN"
+systemctl stop "jumpybrain-brain@$BRAIN"
+sudo -H -u "jumpybrain-$BRAIN" -- \
+  node /opt/jumpybrain/current/scripts/multiplayer-upgrade.mjs \
+  --root "/srv/jumpybrain/brains/$BRAIN/memory" --mode prepare \
+  --backup "/var/backups/jumpybrain/$BRAIN/$(date +%F)" --apply
+systemctl start "jumpybrain-brain@$BRAIN"
+```
+
+Each brain's backups stay private to its own user. Keep one backup set per
+brain. Never restore
+one brain's `.jumpybrain/access.json` or recovery files into another root.
+Recurring encrypted off-host backups must include every root under
+`/srv/jumpybrain/brains/` as well as `/srv/jumpybrain/memory`. Back up
+`/etc/jumpybrain/brains/` and the proxy configuration through your private
+secret/config backups.
+
+`systemctl restart jumpybrain-brain@<name>` restarts one brain. Open editors on
+that brain lose their connection until it is back. Other brains are not
+affected.
+
+### Coolify equivalent
+
+On Coolify, run one application per brain, each with its own volume, secret and
+domain. Never attach one volume to two applications. See [add another brain on
+the same server](coolify-deploy.md#add-another-brain-on-the-same-server).
 
 ## Safety checklist
 
