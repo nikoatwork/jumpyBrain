@@ -286,6 +286,29 @@ Reruns and updates keep the recorded profile and add-ons. A rerun in a terminal 
 
 CLI-only installations retain their recorded distribution policy: new release-based installs select a verified published release, while older/source installs preserve their source/ref. They remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
 
+### Adopt named brains after updating
+
+Update the local or remote-only CLI using its existing install policy. Existing
+commands keep their saved default, project selection, `--root`, or
+`--target-url`. The Mac app keeps its own connection profiles and active
+selection. Add an explicit CLI name only when you want to select that brain by
+name. See [named brains](cli-commands.md#named-brains).
+
+On a shared VPS, you can add an independent brain through the existing HTTPS
+proxy while the original keeps serving its URL. Existing clients can connect
+to either hostname with `--target-url`. The CLI update enables named targets
+without a server update. [VPS deployment](vps-deploy.md#10-run-another-brain-on-the-same-vps)
+
+If you restore an earlier CLI build, use the same explicit roots or URLs and
+the earlier CLI's existing credential setup. An older CLI ignores the
+optional named-brain configuration. Leave it in place to resume using the
+aliases after upgrading again. Store any keys separately from the alias
+configuration and follow normal private credential backup practices.
+
+For a manual replacement with a source build that reports the same version,
+save open edits and stop the affected local backends before changing the
+runtime. Use `jumpybrain backend stop --root <folder>` for each affected brain.
+
 ### Repair after a Node upgrade
 
 Installs made by v0.3.27 and earlier pinned a Homebrew Node by its versioned `Cellar` path. After `brew upgrade` that path can disappear, or still exist while a library it loads is gone (for example `dyld: Library not loaded: …/libsimdjson.33.dylib`). Then `jumpybrain` aborts, and the Mac app reports that its Node.js runtime no longer starts. Your notes are unaffected.

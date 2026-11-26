@@ -46,8 +46,8 @@ Start with one process per brain. The existing server serves one root per proces
 
 This can ship in slices. The hosted recipe is primarily deployment and documentation work. Named CLI targets are a bounded change with a security-sensitive credential boundary. Packaged upgrade and mixed Mac app verification carry most of the compatibility work. Make each slice usable on its own.
 
-- **Existing evidence.** The November 26 review ran two local root owners and two hosted-style `serve` processes on loopback. Each pair rejected the other brain’s key, and stopping one left the other reachable. All 84 focused target, backend and gateway tests passed. The hosted slice later verified real proxy routing and measured a small lexical workload. Packaged upgrades remain open. [Feedback](../feedback.md) · [Root owners](../../src/app/backend-host/backend-host.docs.md) · [Companion gateway](../../integrations/macos-companion/gateway.docs.md)
-- **Earlier decisions.** Keep app selection independent of CLI defaults. Keep local folder and direct URL selectors available. Use the existing target and credential resolution seams. Review the existing remote credential precedence before introducing named targets. [Targeting decision](../done/2026-11-02_tasks-brain-connections-and-targeting.md) · [Credential contract](../../src/adapters/credentials/credentials.docs.md)
+- **Existing evidence.** The November 26 review ran two local root owners and two hosted-style `serve` processes on loopback. Each pair rejected the other brain’s key, and stopping one left the other reachable. All 84 focused target, backend and gateway tests passed. The hosted slice later verified real proxy routing and measured a small lexical workload. Managed local, packaged Mac app, and remote-only upgrade and rollback later passed. [Feedback](../feedback.md) · [Root owners](../../src/app/backend-host/backend-host.docs.md) · [Companion gateway](../../integrations/macos-companion/gateway.docs.md)
+- **Earlier decisions.** Keep app selection independent of CLI defaults. Keep local folder and direct URL selectors available. Use the existing target and credential resolution seams. Review the existing remote credential precedence before introducing named targets. [Targeting decision](2026-11-02_tasks-brain-connections-and-targeting.md) · [Credential contract](../../src/adapters/credentials/credentials.docs.md)
 
 ## Upgrade path
 
@@ -62,10 +62,10 @@ Use the existing [managed install and rollback guide](../../docs/install.md), [h
 
 ## Independent task lists
 
-- [Hosted deployment](../done/2026-11-26_tasks-multi-brain-hosting.md) passed its gate for current clients using explicit URLs.
-- [Named CLI targets](../done/2026-11-26_tasks-multi-brain-cli-targets.md) adds explicit aliases and verifies both transports with disposable roots and servers.
-- [Upgrade and mixed Mac app connections](tasks-multi-brain-upgrade.md) verifies the two delivered slices together and rehearses adoption and rollback.
+- [Hosted deployment](2026-11-26_tasks-multi-brain-hosting.md) passed its gate for current clients using explicit URLs.
+- [Named CLI targets](2026-11-26_tasks-multi-brain-cli-targets.md) adds explicit aliases and verifies both transports with disposable roots and servers.
+- [Upgrade and mixed Mac app connections](2026-11-26_tasks-multi-brain-upgrade.md) verifies the two delivered slices together and rehearses adoption and rollback.
 
-## Done when
+## Outcome
 
-The hosted and CLI lists have each passed their own gate, and the upgrade list records the end-to-end evidence. Keep this overview active until all three are complete.
+All three gates passed. One VPS served two isolated HTTPS brains behind the same proxy, and one candidate CLI selected them with destination-bound keys. The temporary brain was removed after the hosted rollback drill. The paired Mac app switching and managed update paths were verified on disposable installs. [Verification and limits](2026-11-26_tasks-multi-brain-upgrade.md)

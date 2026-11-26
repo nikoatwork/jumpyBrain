@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-26 — Multi-brain rollout verified
+
+- One CLI selected two isolated HTTPS brains on the shared VPS. The disposable brain survived an owner handoff and rollback. Managed CLI installs and the packaged Mac app preserved profiles, destinations, data and access through upgrade and rollback. [Verification and limits](done/2026-11-26_tasks-multi-brain-upgrade.md)
+
 ## 2026-11-26 — Select a brain by name in the CLI
 
 - Named targets work with local folders and hosted origins. Each remote name uses its own destination-bound credential and existing CLI defaults and Mac app selections stay independent. [Outcome and checks](done/2026-11-26_tasks-multi-brain-cli-targets.md)

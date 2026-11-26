@@ -44,6 +44,7 @@ After building, choose the scenario matching the change:
 | Own versus peer notices, repeated updates or stale scope | `npx --package=playwright node scripts/ux-update-feedback-smoke.mjs` |
 | Agent finish/cancel feedback, or abandoned stream interruption | Select `scripts/ux-generation-feedback-smoke.mjs` or `scripts/ux-generation-interruption-smoke.mjs` through the same Playwright command. |
 | Credential change with a private draft, or retained-version comparison | Select `scripts/ux-credential-draft-smoke.mjs` or `scripts/collaboration-retained-versions-smoke.mjs` through the same Playwright command. |
+| Switch between local and hosted profiles with an in-flight draft and an independently targeted CLI | `npx --package=playwright node scripts/multi-brain-companion-smoke.mjs` |
 
 For selected cases verify exact canonical content and draft preservation plus relevant visible feedback, caret/focus, Undo and navigation. Do not infer Saved from socket readiness or completion from disappearing presence. Keep fault injection on disposable brains.
 

@@ -6,7 +6,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Hosted multi-brain feedback (November 26)
 
-- The [multi-brain task list](tasks-multi-brain.md) owns deployment, CLI targeting, mixed Mac app connections and upgrade verification for this request.
+- The [completed multi-brain work](../done/2026-11-26_tasks-multi-brain.md) covers deployment, CLI targeting, mixed Mac app connections and upgrade verification.
 
 ## New remote access feedback (November 19–20)
 

@@ -4,7 +4,7 @@
 
 Add and remove an independent brain on an existing VPS while the original origin remains available. This slice works with current clients using explicit URLs.
 
-[Architecture and rollout overview](../todo/tasks-multi-brain.md).
+[Architecture and rollout overview](2026-11-26_tasks-multi-brain.md).
 
 ## Tasks
 

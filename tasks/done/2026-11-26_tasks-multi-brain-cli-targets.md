@@ -4,7 +4,7 @@
 
 Select a local folder or hosted origin per command using an optional alias. Existing flags and defaults retain their behavior. Verify with disposable local roots and loopback servers.
 
-[Architecture and rollout overview](../todo/tasks-multi-brain.md).
+[Architecture and rollout overview](2026-11-26_tasks-multi-brain.md).
 
 ## Tasks
 
