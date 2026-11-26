@@ -79,10 +79,10 @@ export async function runMemoryCommand(
 
   if (command === "status") {
     const result = target.kind === "remote" ? await target.memory.memoryRootStatus() : await localMemory.memoryRootStatus(target.root);
-    if (args.json) console.log(JSON.stringify({ ...result, ...(result.semanticSetup ? { search: searchModeSummary(result.semanticSetup)!.mode } : {}), target: { kind: target.kind, source: target.source, ...(target.kind === "local" ? { root: target.root } : { url: target.url, credential: target.credential.summary }) } }, null, 2));
+    if (args.json) console.log(JSON.stringify({ ...result, ...(result.semanticSetup ? { search: searchModeSummary(result.semanticSetup)!.mode } : {}), target: { kind: target.kind, source: target.source, ...(target.brain ? { brain: target.brain } : {}), ...(target.kind === "local" ? { root: target.root } : { url: target.url, credential: target.credential.summary }) } }, null, 2));
     else {
       console.log(`${target.kind === "remote" ? "Remote memory" : "Memory root"}: ${target.kind === "remote" ? target.url : result.root}`);
-      console.log(`Target source: ${target.source}`);
+      console.log(`Target source: ${target.brain ? `brain ${target.brain}` : target.source}`);
       if (target.kind === "remote") console.log(`Access key: ${target.credential.description}, accepted`);
       console.log(`Initialized: ${result.initialized ? "yes" : "no"}`);
       if (result.configFile) console.log(`Config: ${result.configFile}${result.schemaVersion ? ` (schema v${result.schemaVersion})` : ""}`);

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-26 — Select a brain by name in the CLI
+
+- Named targets work with local folders and hosted origins. Each remote name uses its own destination-bound credential and existing CLI defaults and Mac app selections stay independent. [Outcome and checks](done/2026-11-26_tasks-multi-brain-cli-targets.md)
+
 ## 2026-11-26 — Run another brain on the same VPS
 
 - Added systemd and Coolify guides for hosting independent brains behind one proxy. A disposable second brain passed HTTPS, WebSocket, isolation, and restart checks on the shared VPS. Its resources were removed after the drill. [Outcome and limits](done/2026-11-26_tasks-multi-brain-hosting.md)

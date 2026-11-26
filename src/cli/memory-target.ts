@@ -5,9 +5,9 @@ import { resolveCliTarget } from "./targets.js";
 import { describeRemoteKey, remoteCredential, remoteKeySummary } from "./remote-credentials.js";
 
 export type CommandMemoryTarget =
-  | { kind: "local"; root: string; source?: string }
+  | { kind: "local"; root: string; source?: string; brain?: string }
   | {
-    kind: "remote"; url: string; source?: string; memory: RemoteMemoryTransport;
+    kind: "remote"; url: string; source?: string; brain?: string; memory: RemoteMemoryTransport;
     /** Where the key came from, with a non-secret fingerprint; never the key. */
     credential: { summary: ReturnType<typeof remoteKeySummary>; description: string };
   };
@@ -19,7 +19,7 @@ export async function commandMemoryTarget(
 ): Promise<CommandMemoryTarget> {
   const target = resolveCliTarget(args, { allowDiscovery: options.allowDiscovery });
   if (target.kind === "remote") {
-    const key = await remoteCredential(target.url);
+    const key = await remoteCredential(target.url, target.brain);
     return {
       ...target,
       memory: createRemoteMemoryTransport({ url: target.url, apiKey: key.key }),
@@ -30,8 +30,8 @@ export async function commandMemoryTarget(
   return { ...target, root };
 }
 
-export async function remoteApiKey(url: string): Promise<string> {
-  return (await remoteCredential(url)).key;
+export async function remoteApiKey(url: string, brain?: string): Promise<string> {
+  return (await remoteCredential(url, brain)).key;
 }
 
 export async function recallRelatedMemory(

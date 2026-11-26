@@ -95,7 +95,7 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     credential = backend.token;
   } else {
     url = target.url;
-    credential = await remoteApiKey(url);
+    credential = await remoteApiKey(url, target.brain);
   }
   const endpoint = new URL("/ws", url);
   endpoint.protocol = endpoint.protocol === "https:" ? "wss:" : "ws:";

@@ -63,7 +63,7 @@ Use the existing [managed install and rollback guide](../../docs/install.md), [h
 ## Independent task lists
 
 - [Hosted deployment](../done/2026-11-26_tasks-multi-brain-hosting.md) passed its gate for current clients using explicit URLs.
-- [Named CLI targets](tasks-multi-brain-cli-targets.md) adds explicit aliases and verifies both transports with disposable roots and servers.
+- [Named CLI targets](../done/2026-11-26_tasks-multi-brain-cli-targets.md) adds explicit aliases and verifies both transports with disposable roots and servers.
 - [Upgrade and mixed Mac app connections](tasks-multi-brain-upgrade.md) verifies the two delivered slices together and rehearses adoption and rollback.
 
 ## Done when

@@ -88,6 +88,7 @@ export function isObservationalInvocation(args: ParsedCliArgs): boolean {
   // Replacing the installed software is a change; its preview is not.
   if (command === "update" && !(args.id || args["if-match"] || args.root || args["target-url"] || args["remote-url"])) return args["dry-run"] === true;
   if (command === "connections") return ["list", "test"].includes(operation);
+  if (command === "brains") return operation === "list" || operation === "";
   if (command === "project") return operation === "status";
   if (command === "identity") return args.name === undefined;
   if (command === "backend") return ["status", "list"].includes(operation);

@@ -1,6 +1,7 @@
 import { createAccessStore, type AccessRole } from "../adapters/access-control/index.js";
 import { backendStatus, ensureRootBackend, stopRootBackend } from "../app/backend-host/index.js";
 import { stringArg, type ParsedCliArgs } from "./args.js";
+import { BRAIN_SELECTION } from "./named-brains.js";
 
 function validate(args: ParsedCliArgs, allowed: string[]) {
   if (args._.length !== 2) throw new Error("Choose one backend or access operation.");
@@ -50,7 +51,8 @@ export async function accessCli(args: ParsedCliArgs): Promise<void> {
       if (!["list", "revoke", "issue"].includes(operation ?? "")) throw new Error(usage);
       const url = stringArg(args, selectors[0]!);
       const [{ createRemoteAccessClient }, { remoteApiKey }] = await Promise.all([import("../adapters/http-client/access.js"), import("./memory-target.js")]);
-      const remote = createRemoteAccessClient({ url, apiKey: await remoteApiKey(url) });
+      const brain = args[BRAIN_SELECTION];
+      const remote = createRemoteAccessClient({ url, apiKey: await remoteApiKey(url, brain?.kind === "remote" && brain.url === url ? brain.name : undefined) });
       if (operation === "list") result = await remote.list();
       else if (operation === "revoke") result = await remote.revoke(stringArg(args, "id"));
       else result = await remote.issue({ name: stringArg(args, "name"), role: role as AccessRole });

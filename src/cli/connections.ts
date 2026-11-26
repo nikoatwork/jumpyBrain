@@ -106,10 +106,10 @@ export async function statusAllCli(args: ParsedCliArgs, localMemory: LocalMemory
       let reachable: Record<string, unknown>;
       try { const status = await target.memory.memoryRootStatus(); reachable = { health: "connected", compatible: status.compatible }; }
       catch (error) { const status = (error as { status?: number }).status; reachable = { health: status === 401 || status === 403 ? "authentication_failed" : "offline", error: message(error) }; }
-      cli = { kind: "remote", source: target.source, url: target.url, credential: target.credential.summary, ...reachable };
+      cli = { kind: "remote", source: target.source, ...(target.brain ? { brain: target.brain } : {}), url: target.url, credential: target.credential.summary, ...reachable };
     } else {
       const status = await localMemory.memoryRootStatus(target.root);
-      cli = { kind: "local", source: target.source, root: status.root, initialized: status.initialized, compatible: status.compatible };
+      cli = { kind: "local", source: target.source, ...(target.brain ? { brain: target.brain } : {}), root: status.root, initialized: status.initialized, compatible: status.compatible };
     }
   } catch (error) { cli = { error: message(error) }; }
 
@@ -139,8 +139,8 @@ export async function statusAllCli(args: ParsedCliArgs, localMemory: LocalMemory
   if ("error" in cli && !cli.kind) lines.push(`  none: ${cli.error}`);
   else if (cli.kind === "remote") {
     const key = cli.credential as { source: string; variable: string; length: number; last4?: string };
-    lines.push(`  remote ${cli.url} (${cli.source}); ${cli.health}`, `  key: ${key.variable} via ${key.source} (${key.length} chars${key.last4 ? `, ends …${key.last4}` : ""})`);
-  } else lines.push(`  local ${cli.root} (${cli.source}); ${cli.compatible ? "compatible" : cli.initialized ? "incompatible" : "not initialized"}`);
+    lines.push(`  remote ${cli.url} (${cli.brain ? `brain ${cli.brain}` : cli.source}); ${cli.health}`, `  key: ${key.variable} via ${key.source} (${key.length} chars${key.last4 ? `, ends …${key.last4}` : ""})`);
+  } else lines.push(`  local ${cli.root} (${cli.brain ? `brain ${cli.brain}` : cli.source}); ${cli.compatible ? "compatible" : cli.initialized ? "incompatible" : "not initialized"}`);
   lines.push("Mac app connections:");
   if (app.running === false) lines.push("  app not running");
   else if (app.running !== true) lines.push(`  unknown: ${app.error}`);

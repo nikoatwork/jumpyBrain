@@ -5,10 +5,13 @@ import { extensionsUsage } from "./usage.js";
 import { parseBoardArgs } from "./board-args.js";
 import { parseDrawingArgs } from "./drawing-args.js";
 import { normalizeEvidenceDate } from "../core/writing/metadata.js";
+import { BRAIN_SELECTION, type NamedBrain } from "./named-brains.js";
 
 export interface ParsedCliArgs {
   _: string[];
   [key: string]: string | boolean | string[];
+  /** The named brain `--brain` expanded into --root/--target-url (see named-brains.ts). */
+  [BRAIN_SELECTION]?: NamedBrain;
 }
 
 /** The same arguments without the local --root (for commands that also name a server). */
@@ -80,6 +83,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     instructions: { values: ["topic"] },
     "agent-hint": { values: ["topic"] },
     doctor: { values: ["root", "probe-query"], booleans: ["check"] },
+    brains: { positional: argv[1] === "list" ? 2 : ["add", "key", "remove"].includes(argv[1] ?? "") ? 3 : 1, values: argv[1] === "add" ? ["root", "target-url", "key-env"] : argv[1] === "key" ? ["key-env"] : [], booleans: argv[1] === "add" || argv[1] === "key" ? ["key-stdin"] : [] },
     connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "url", "key-env", "revision"], remove: ["id", "revision"], select: ["id", "revision"], test: ["id"] }[argv[1] ?? ""] ?? [])], booleans: argv[1] === "add" ? ["key-stdin", "allow-writes" /* removed option: still parsed so older scripts keep working; ignored */] : [] },
     attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
     status: { values: [...targets, "directory"], booleans: ["all"] },
@@ -99,6 +103,9 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     collaborate: { values: [...targets, "id", "start", "delete", "epoch", "base-revision", "client-id", "stream-id"], positional: 2 },
   };
   if (!Object.hasOwn(specs, operation)) return undefined;
+  if (operation === "brains" && ["add", "key", "remove"].includes(argv[1] ?? "") && (argv[2] === undefined || argv[2].startsWith("-"))) {
+    throw new Error(`jumpybrain brains ${argv[1]} needs a brain name first, e.g. jumpybrain brains ${argv[1]} work${argv[1] === "add" ? " --root <folder>" : argv[1] === "key" ? " --key-stdin" : ""}.`);
+  }
   const spec = specs[operation]!;
   const positional = argv[0] === "run" ? 2 : spec.positional ?? 1;
   const args: ParsedCliArgs = { _: argv.slice(0, positional) };

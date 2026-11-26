@@ -1,7 +1,7 @@
 import { lstat, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { ACCESS_CAPABILITIES, roleCapabilities, type AccessCapability, type AccessRole } from "../adapters/access-control/index.js";
-import { credentialsEnvFileDisplay, keyFingerprint, remoteKeyCandidates, type RemoteKey, type RemoteKeySource } from "../adapters/credentials/env-file.js";
+import { brainKeyCandidates, brainUrlVariable, credentialsEnvFileDisplay, keyFingerprint, remoteKeyCandidates, type RemoteKey, type RemoteKeySource } from "../adapters/credentials/env-file.js";
 import { probeRemoteAccess } from "../adapters/http-client/access.js";
 import type { ParsedCliArgs } from "./args.js";
 import { liveCompanion } from "./companion.js";
@@ -40,9 +40,9 @@ interface KeySlot { source: RemoteKeySource; found: boolean | null; used: boolea
 
 export interface AccessWhoamiReport {
   cli: {
-    target: { kind: "remote"; source: string; url: string } | { kind: "local"; source: string; root: string; state: "available" | "not_initialized" | "missing" | "unreadable" } | { kind: "none"; message: string };
+    target: { kind: "remote"; source: string; url: string; brain?: string } | { kind: "local"; source: string; root: string; state: "available" | "not_initialized" | "missing" | "unreadable"; brain?: string } | { kind: "none"; message: string };
     /** Remote targets only. `resolved` says whether the CLI has a key it can send. */
-    credential?: { resolved: boolean; usable: boolean; candidates: KeySlot[]; keyFile: string; fileProblem?: string; fileProblemCode?: string; problem?: string };
+    credential?: { resolved: boolean; usable: boolean; candidates: KeySlot[]; keyFile: string; fileProblem?: string; fileProblemCode?: string; problem?: string; brain?: string; notUsed?: string[] };
     access: AccessView | null;
     restrictions: {
       /** Device read-only command mode: blocks every state-changing CLI command, for any target. */
@@ -81,14 +81,16 @@ async function localState(root: string): Promise<"available" | "not_initialized"
 }
 
 /** The three places the CLI looks for a remote key, in order; the first found is the one sent. */
-function keySlots(keys: RemoteKey[], fileChecked: boolean): KeySlot[] {
+function keySlots(keys: RemoteKey[], fileChecked: boolean, brain?: string): KeySlot[] {
   const used = keys[0];
-  return (["environment", "app-connection", "env-file"] as const).map((source) => {
+  // A named brain has its own order and never uses JUMPYBRAIN_API_KEY.
+  const order = brain ? ["brain-environment", "brain-env-file", "app-connection"] as const : ["environment", "app-connection", "env-file"] as const;
+  return order.map((source) => {
     const key = keys.find(entry => entry.source === source);
     // A connection that refers to JUMPYBRAIN_API_KEY in the file is that same file key.
     const shared = source === "env-file" && !key ? keys.find(entry => entry.source === "app-connection" && entry.variable === "JUMPYBRAIN_API_KEY") : undefined;
     const found = key ?? shared;
-    if (!found) return { source, found: source === "environment" || fileChecked ? false : null, used: false };
+    if (!found) return { source, found: source === "environment" || source === "brain-environment" || fileChecked ? false : null, used: false };
     return {
       source, found: true, used: found === used, variable: found.variable, ...(found.file ? { file: found.file } : {}), ...keyFingerprint(found.key),
       ...(found !== used && used ? { sameKeyAsUsed: found.key === used.key } : {}),
@@ -156,17 +158,20 @@ async function cliSide(args: ParsedCliArgs, options: AccessWhoamiOptions, notes:
     // A local folder has no server role: whoever can change its files has full access.
     const access: AccessView = state === "available" ? { source: "local", role: "admin", capabilities: [...ACCESS_CAPABILITIES] }
       : { source: "local", role: null, capabilities: [], reason: "folder_unavailable", detail: state };
-    return { target: { kind: "local", source, root, state }, access, restrictions: limits, effective: effective(access, limits, false) };
+    return { target: { kind: "local", source, root, state, ...(target.brain ? { brain: target.brain } : {}) }, access, restrictions: limits, effective: effective(access, limits, false) };
   }
 
   const url = remoteUrl(target.url, selectors[0] ?? "target-url");
   const limits = await restrictions(new URL(url).origin, options);
-  const { keys, fileProblem, fileProblemCode } = await remoteKeyCandidates(url, { env: options.env, home: options.home });
+  const { keys, fileProblem, fileProblemCode, mismatches = [] } = target.brain
+    ? await brainKeyCandidates(target.brain, url, { env: options.env, home: options.home })
+    : await remoteKeyCandidates(url, { env: options.env, home: options.home }) as Awaited<ReturnType<typeof remoteKeyCandidates>> & { mismatches?: string[] };
   const used = keys[0];
   // fetch cannot send these; the ordinary commands refuse such a key before any request.
   const unusable = used !== undefined && /[\u0000-\u001f\u007f]|[^\u0000-ÿ]/.test(used.key);
   const credential: NonNullable<AccessWhoamiReport["cli"]["credential"]> = {
-    resolved: used !== undefined, usable: used !== undefined && !unusable, candidates: keySlots(keys, !fileProblem),
+    resolved: used !== undefined, usable: used !== undefined && !unusable, candidates: keySlots(keys, !fileProblem, target.brain),
+    ...(target.brain ? { brain: target.brain } : {}), ...(mismatches.length ? { notUsed: mismatches } : {}),
     keyFile: credentialsEnvFileDisplay({ env: options.env, home: options.home }),
     ...(fileProblem ? { fileProblem, fileProblemCode } : {}),
     ...(unusable ? { problem: "The key contains characters an access key cannot have, such as smart quotes or a line break. Copy it again as plain text." } : {}),
@@ -193,7 +198,7 @@ async function cliSide(args: ParsedCliArgs, options: AccessWhoamiOptions, notes:
       };
     }
   }
-  return { target: { kind: "remote", source, url }, credential, access, restrictions: limits, effective: effective(access, limits, true) };
+  return { target: { kind: "remote", source, url, ...(target.brain ? { brain: target.brain } : {}) }, credential, access, restrictions: limits, effective: effective(access, limits, true) };
 }
 
 /** A running app's own view of its selected connection. Shapes are re-validated; nothing is trusted to be safe to print. */
@@ -289,8 +294,11 @@ const BLOCKER_TEXT: Record<Blocker, string> = {
   origin_policy: "this device marks the server read-only", policy_invalid: "the device policy cannot be read",
 };
 
-function slotLine(slot: KeySlot, index: number, file: string): string {
-  const where = slot.source === "environment" ? "JUMPYBRAIN_API_KEY in the environment"
+function slotLine(slot: KeySlot, index: number, file: string, brain?: string): string {
+  const pair = brain ? `${slot.variable ?? `the ${brain} key`} bound by ${brainUrlVariable(brain)}` : "";
+  const where = slot.source === "brain-environment" ? `${pair} in the environment`
+    : slot.source === "brain-env-file" ? `${pair} in ${file}`
+    : slot.source === "environment" ? "JUMPYBRAIN_API_KEY in the environment"
     : slot.source === "app-connection" ? `key the app saved for this URL in ${file}` : `JUMPYBRAIN_API_KEY in ${file}`;
   if (slot.found === null) return `    ${index + 1}. ${where}: not checked`;
   if (!slot.found) return `    ${index + 1}. ${where}: not set`;
@@ -305,13 +313,16 @@ export function formatAccessWhoami(report: AccessWhoamiReport): string {
   if (cli.target.kind === "none") lines.push(...cli.target.message.split("\n").map((line, index) => `  ${index ? "" : "target: none. "}${line}`));
   else if (cli.target.kind === "local") {
     const state = { available: "", not_initialized: " — not initialized (no jumpybrain.json)", missing: " — folder is missing", unreadable: " — folder cannot be read" }[cli.target.state];
-    lines.push(`  target: local ${cli.target.root} (${cli.target.source})${state}`, "  key: none needed for a local folder");
+    lines.push(`  target: local ${cli.target.root} (${cli.target.brain ? `brain ${cli.target.brain}` : cli.target.source})${state}`, "  key: none needed for a local folder");
   } else {
-    lines.push(`  target: remote ${cli.target.url} (${cli.target.source})`, "  key (the first one found is sent):");
-    cli.credential!.candidates.forEach((slot, index) => lines.push(slotLine(slot, index, cli.credential!.keyFile)));
+    lines.push(`  target: remote ${cli.target.url} (${cli.target.brain ? `brain ${cli.target.brain}` : cli.target.source})`, "  key (the first one found is sent):");
+    cli.credential!.candidates.forEach((slot, index) => lines.push(slotLine(slot, index, cli.credential!.keyFile, cli.credential!.brain)));
+    for (const mismatch of cli.credential!.notUsed ?? []) lines.push(`    Not used: ${mismatch}.`);
     if (cli.credential!.fileProblem) lines.push(`    Not checked: ${cli.credential!.fileProblem}`);
     if (cli.credential!.problem) lines.push(`    ${cli.credential!.problem}`);
-    if (!cli.credential!.resolved) lines.push(`    To set one: export JUMPYBRAIN_API_KEY, or save this connection in the jumpyBrain app (keys are shared via ${cli.credential!.keyFile}).`);
+    if (!cli.credential!.resolved) lines.push(cli.credential!.brain
+      ? `    To set one: printf '%s' "$KEY" | jumpybrain brains key ${cli.credential!.brain} --key-stdin (JUMPYBRAIN_API_KEY is not used for a named brain).`
+      : `    To set one: export JUMPYBRAIN_API_KEY, or save this connection in the jumpyBrain app (keys are shared via ${cli.credential!.keyFile}).`);
   }
   if (cli.access) lines.push(`  ${cli.access.source === "local" ? "access" : "server role"}: ${accessLine(cli.access, "")}`);
   const { commandMode, originPolicy, policyFile } = cli.restrictions;

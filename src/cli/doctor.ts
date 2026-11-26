@@ -20,7 +20,7 @@ export interface DoctorReport {
   node: DoctorCheck & { version: string };
   qmd: DoctorCheck & { binary: string; source: "override" | "package" | "path" };
   retrievalProbe: { status: "not_run" | "passed" | "empty" | "failed"; mode: "lexical"; message: string; warnings?: string[] };
-  memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; semanticSetup?: import("../types.js").SemanticSetupStatus; search?: "keyword" | "smart"; readiness?: RetrievalReadiness };
+  memoryRoot: DoctorCheck & { root: string; source?: string; brain?: string; initialized?: boolean; compatible?: boolean; semanticSetup?: import("../types.js").SemanticSetupStatus; search?: "keyword" | "smart"; readiness?: RetrievalReadiness };
   integrations: Record<string, DoctorCheck & { path: string }>;
   integrationsScope: "global";
   projectRoot?: string;
@@ -76,7 +76,7 @@ export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemory
     node: { ok: nodeMajor >= 22, version: process.version, message: nodeMajor >= 22 ? `Node ${process.version}` : `Node >=22 is required; current ${process.version}` },
     qmd: engine,
     retrievalProbe,
-    memoryRoot: { ...memoryRoot, source: target.source },
+    memoryRoot: { ...memoryRoot, source: target.source, ...(target.kind === "local" && target.brain ? { brain: target.brain } : {}) },
     integrations,
     integrationsScope: "global",
     ...(projectRoot ? { projectRoot, projectIntegrations: integrationChecks(projectRoot, true) } : {}),
@@ -103,7 +103,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     `- CLI: ${statusIcon(report.cli.ok)} ${report.cli.message}`,
     `- Node: ${statusIcon(report.node.ok)} ${report.node.message}`,
     `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message} Selected: ${report.qmd.binary} (${ENGINE_SOURCES[report.qmd.source]}).`,
-    `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.source}) — ${report.memoryRoot.message}`,
+    `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.brain ? `brain ${report.memoryRoot.brain}` : report.memoryRoot.source}) — ${report.memoryRoot.message}`,
     ...(report.memoryRoot.semanticSetup ? [`- ${formatSearchLine(report.memoryRoot.semanticSetup)}`] : []),
     ...(report.memoryRoot.semanticSetup ? [`- Semantic setup: ${report.memoryRoot.semanticSetup.state}${report.memoryRoot.semanticSetup.nextAction ? ". " + report.memoryRoot.semanticSetup.nextAction : ""}`] : []),
     ...(report.memoryRoot.readiness ? [`- Readiness: ${report.memoryRoot.readiness.freshness}; modes: ${report.memoryRoot.readiness.modes.join(", ") || "none"}; embeddings: ${report.memoryRoot.readiness.embedding}`] : []),

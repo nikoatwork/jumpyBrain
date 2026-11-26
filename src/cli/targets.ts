@@ -3,21 +3,27 @@ import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { discoverMemoryRoot } from "../core/memory-root/index.js";
 import { trustedProject } from "./project-trust.js";
+import { BRAIN_SELECTION, type NamedBrain } from "./named-brains.js";
 
 export interface CliArgs {
   [key: string]: string | boolean | string[] | undefined;
+  [BRAIN_SELECTION]?: NamedBrain;
 }
 
 export interface LocalMemoryTarget {
   kind: "local";
   root?: string;
   source?: string;
+  /** Set when `--brain <name>` chose this folder. */
+  brain?: string;
 }
 
 export interface RemoteMemoryTarget {
   kind: "remote";
   url: string;
   source?: string;
+  /** Set when `--brain <name>` chose this server; its key is then bound to that name. */
+  brain?: string;
 }
 
 export type CliMemoryTarget = LocalMemoryTarget | RemoteMemoryTarget;
@@ -29,10 +35,15 @@ export interface ResolveCliTargetOptions {
 
 export function resolveCliTarget(args: CliArgs, options: ResolveCliTargetOptions = {}): CliMemoryTarget {
   const selectors = ["root", "target-url", "remote-url"].filter(flag => args[flag] !== undefined);
-  if (selectors.length > 1) throw new Error("Use only one target selector: --root, --target-url or --remote-url.");
+  if (selectors.length > 1) throw new Error(`Use only one target selector: ${args[BRAIN_SELECTION] ? "--brain, " : ""}--root, --target-url or --remote-url.`);
   if (selectors.length) {
     const flag = selectors[0]!;
     const value = stringFlag(args, flag)!;
+    const brain = args[BRAIN_SELECTION];
+    // `--brain` was expanded into this flag; report and bind it by name.
+    if (brain && (brain.kind === "local" ? flag === "root" && value === brain.root : flag !== "root" && value === brain.url)) {
+      return brain.kind === "local" ? { kind: "local", root: value, source: "brain", brain: brain.name } : { kind: "remote", url: value, source: "brain", brain: brain.name };
+    }
     return flag === "root" ? { kind: "local", root: value, source: "flag" } : { kind: "remote", url: value, source: "flag" };
   }
   if (process.env.JUMPYBRAIN_MEMORY_ROOT !== undefined) {

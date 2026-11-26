@@ -12,6 +12,7 @@ import { enforceReadOnlyCommandMode, enforceRemoteAccessPolicy } from "./remote-
 import { remoteAuthFailure } from "./remote-credentials.js";
 import { serveCli } from "./serve.js";
 import { memoryRootInspectionMessage, requireLocalRoot, resolveCliTarget } from "./targets.js";
+import { BRAIN_SELECTION, brainRequested, expandBrainSelector, withoutBrainArgv } from "./named-brains.js";
 import { updateCli } from "./update.js";
 import { helpForArgv, usage } from "./usage.js";
 
@@ -31,7 +32,8 @@ function jsonFailureRequested(argv: string[]): boolean {
   let args: ReturnType<typeof parseArgs>;
   try {
     if (helpForArgv(argv) !== undefined) return false;
-    args = parseArgs(argv);
+    // Classify by the command itself, even when the named brain could not be resolved.
+    args = parseArgs(withoutBrainArgv(argv));
   } catch { return false; }
   const command = args._[0];
   if (args.json !== true || !command) return false;
@@ -45,16 +47,26 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     console.log(help);
     return;
   }
-  const args = parseArgs(argv);
+  // `--brain <name>` becomes that brain's --root/--target-url before parsing, so
+  // each command keeps its own validation; the mark binds a remote key to the name.
+  if (brainRequested(argv)) {
+    // Read-only command mode stops a mutation before the brain list is even read.
+    let bare: ReturnType<typeof parseArgs> | undefined;
+    try { bare = parseArgs(withoutBrainArgv(argv)); } catch { /* classified again after expansion */ }
+    if (bare) await enforceReadOnlyCommandMode(bare);
+  }
+  const expanded = expandBrainSelector(argv);
+  const args = parseArgs(expanded.argv);
+  if (expanded.brain) args[BRAIN_SELECTION] = expanded.brain;
   try { await dispatchCli(args); }
   catch (error) {
     const status = (error as { status?: unknown } | undefined)?.status;
     if (status === 401 || status === 403) {
-      let url: string | undefined;
+      let url: string | undefined, brain: string | undefined;
       // diff/migrate remote also carry a local --root; the rejection came from the server.
       const remoteOnly = args["target-url"] !== undefined || args["remote-url"] !== undefined ? withoutRoot(args) : args;
-      try { const target = resolveCliTarget(remoteOnly, { allowDiscovery: true }); if (target.kind === "remote") url = target.url; } catch {}
-      const explained = url ? await remoteAuthFailure(error, url) : undefined;
+      try { const target = resolveCliTarget(remoteOnly, { allowDiscovery: true }); if (target.kind === "remote") ({ url, brain } = target); } catch {}
+      const explained = url ? await remoteAuthFailure(error, url, brain) : undefined;
       if (explained) throw explained;
     }
     let root;
@@ -71,6 +83,10 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
   // Device read-only command mode stops every state-changing command before any module, credential or target work.
   await enforceReadOnlyCommandMode(args);
+
+  if (command === "brains") {
+    const { brainsCli } = await import("./brains.js"); await brainsCli(args); return;
+  }
 
   if (command === "connections") {
     const { connectionsCli } = await import("./connections.js"); await connectionsCli(args); return;

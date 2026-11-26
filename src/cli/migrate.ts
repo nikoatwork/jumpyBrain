@@ -100,9 +100,10 @@ export async function syncCli(args: ParsedCliArgs): Promise<void> {
     console.log(`  ${outcome ? outcome.outcome.padEnd(8) : "would".padEnd(8)} ${oneLine(describe(action))}${outcome?.reason ? `: ${oneLine(outcome.reason)}` : ""}`);
   }
   for (const skip of plan.skipped) console.log(`  ${"skip".padEnd(8)} ${oneLine(skip.item)}: ${skip.reason}`);
+  const remoteSelector = target.brain ? `--brain ${target.brain}` : `--target-url ${shellQuote(target.url)}`;
   console.log(apply
     ? "Never deleted or overwrote newer server work. Run jumpybrain diff again to check the result; the server indexes copied notes on its next refresh."
-    : `Copies only what is missing or newer locally; never deletes. Apply: jumpybrain migrate remote --root ${shellQuote(root)} --target-url ${shellQuote(target.url)} --apply`);
+    : `Copies only what is missing or newer locally; never deletes. Apply: jumpybrain migrate remote --root ${shellQuote(root)} ${remoteSelector} --apply`);
 }
 
 function summary(report: SyncReport): string {

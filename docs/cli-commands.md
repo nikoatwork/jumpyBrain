@@ -16,6 +16,7 @@ Most memory commands work against either a local Markdown memory root or a hoste
 
 | Flag / environment | Meaning |
 | --- | --- |
+| `--brain <name>` | Use a [named brain](#named-brains): a local folder or hosted origin you listed with `jumpybrain brains add`. |
 | `--root <memory-root>` | Select a local Markdown memory directory. |
 | `--target-url <url>` | Use a remote jumpyBrain server instead of local files. |
 | `--remote-url <url>` | Alias for `--target-url <url>`. |
@@ -25,7 +26,7 @@ Most memory commands work against either a local Markdown memory root or a hoste
 | `JUMPYBRAIN_READ_ONLY_COMMANDS` | `1` or `true` turns on [read-only command mode](#read-only-command-mode) for this process. It can only add the restriction, never lift a configured one. |
 | `--json` | Print machine-readable JSON when the command supports it. |
 
-Use one explicit root/URL selector; combinations fail. Otherwise the CLI uses, in order:
+Use one explicit selector (`--brain`, `--root` or `--target-url`); combinations fail. Otherwise the CLI uses, in order:
 
 1. nonempty `JUMPYBRAIN_MEMORY_ROOT`;
 2. an **approved project memory**: the nearest initialized root found from the current directory (a folder holding `jumpybrain.json`, or its `memory/` child), when the user approved it on this device;
@@ -33,7 +34,34 @@ Use one explicit root/URL selector; combinations fail. Otherwise the CLI uses, i
 
 If the nearest project memory is not approved, commands stop with the exact `project trust` command instead of silently using the personal brain; so does a project memory folder that cannot be read. A project memory that is the personal root itself needs no approval and cannot be approved as a project. An approved outer project never covers an unapproved inner one. Malformed defaults or approval files fail unless a brain is chosen explicitly. App-active profiles never select CLI defaults; remote-only manifests supply no root.
 
-With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` keeps legacy ancestor/child-`memory` discovery as its last fallback: without a configured personal brain it may still use an unapproved project memory it finds, but with one it stops like other commands. `status --json` adds `target: {kind, source, root|url}` (remote targets add `credential`, below); doctor adds `memoryRoot.source`: `flag`, `environment`, `trusted-project`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
+With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` keeps legacy ancestor/child-`memory` discovery as its last fallback: without a configured personal brain it may still use an unapproved project memory it finds, but with one it stops like other commands. `status --json` adds `target: {kind, source, root|url}` (remote targets add `credential`, below); `--brain` adds `target.brain` and source `brain`; doctor adds `memoryRoot.source`: `flag`, `brain`, `environment`, `trusted-project`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
+
+### Named brains
+
+Name a folder or hosted brain once, then pick it per command with `--brain <name>`. Without `--brain` the list is unused. It is CLI-only (the Mac app is unaffected and need not run). `brains key <name>` replaces a key and `brains remove <name>` forgets the name and its key (notes stay); `--key-env <VARIABLE>` replaces `--key-stdin`.
+
+```bash
+jumpybrain brains add work --root ~/brains/work
+printf '%s' "$KEY" | jumpybrain brains add product --target-url https://product.example.org --key-stdin
+jumpybrain brains list                   # key source per brain, never the key
+jumpybrain recall --brain product --query "release checklist" --json
+jumpybrain status --brain product        # key source and fingerprint
+```
+
+- **List**: `~/.config/jumpybrain/brains.json` (`JUMPYBRAIN_BRAINS_FILE` overrides): `{"schemaVersion":1,"brains":[{"name":"work","root":"/abs"},{"name":"product","url":"https://product.example.org"}]}`. Names: 1-32 of `a-z0-9-`, starting with a letter. One absolute `root` or one `url` each; duplicate names or destinations are rejected. It holds no keys but decides where they go, so it must be yours and not writable by others.
+- **URLs** are HTTPS origins (HTTP on loopback), without a path: one hostname per hosted brain.
+- **Scope**: commands that take `--root`/`--target-url`; `diff`/`migrate remote` take `--root <local> --brain <hosted>`; `doctor` and `smart-search` take local names only. `init`, `serve`, `backend`, vault imports, `connections`, `project` and installation `update` reject it.
+- **Fails before any work** on an unknown name, a second selector, an unsupported command or a missing folder, after the [read-only command mode](#read-only-command-mode) check.
+
+**Keys.** A hosted named brain only uses a key bound to its URL, first found wins:
+
+1. `JUMPYBRAIN_BRAIN_KEY_<NAME>` plus `JUMPYBRAIN_BRAIN_URL_<NAME>` naming that origin, in the environment (`<NAME>` upper-cased, `-` as `_`), e.g. for CI.
+2. The same pair in `~/.config/jumpybrain/.env`, written by `brains add`/`brains key`.
+3. The Mac app's key for exactly that URL, including an app connection that refers to `JUMPYBRAIN_API_KEY` in the file (the app bound it to that URL).
+
+`JUMPYBRAIN_API_KEY` alone is never sent to a named brain, nor is a pair without a URL or bound elsewhere (a re-pointed name or half-finished change); an environment pair bound elsewhere blocks later sources too. Without a usable key nothing is sent. Rejections, `status` and `access whoami` show the source and fingerprint. The [read-only origin policy](#protected-remote-targets) applies to the brain's URL.
+
+`brains` changes lock the list and key file across processes (app key saves share the key-file lock). Older CLIs ignore both files and reject `--brain`; `--root`/`--target-url` keep working.
 
 ### Project memory approval and capture
 
@@ -57,7 +85,7 @@ For a remote target the CLI uses the first key it finds:
 2. The key the Mac app saved for the same URL (`JUMPYBRAIN_KEY_<ref>` in `~/.config/jumpybrain/.env`, or the variable that `JUMPYBRAIN_KEYREF_<ref>` names when the key was already in the file). The origin and path must match, so `localhost` and `127.0.0.1` are different URLs.
 3. `JUMPYBRAIN_API_KEY` written in `~/.config/jumpybrain/.env`.
 
-There is no per-target CLI configuration. [`jumpybrain access whoami --target-url <url>`](#checking-access-access-whoami) shows every key source, the one sent and the role the server gives it. `jumpybrain status --target-url <url>` also checks the key: it prints `Access key: <source> (<length> chars, ends …<last 4>), accepted`, and `--json` adds `target.credential: {source, variable, file?, length, last4?}`. The last four characters are shown only for keys of 16+ characters, and the key itself is never printed.
+This order applies to `--target-url`/`--remote-url` and the defaults; [named brains](#named-brains) use their own bound keys. [`jumpybrain access whoami --target-url <url>`](#checking-access-access-whoami) shows every key source, the one sent and the role the server gives it. `jumpybrain status --target-url <url>` also checks the key: it prints `Access key: <source> (<length> chars, ends …<last 4>), accepted`, and `--json` adds `target.credential: {source, variable, file?, length, last4?}`. The last four characters are shown only for keys of 16+ characters, and the key itself is never printed.
 
 When the server rejects the key (HTTP 401: unknown, mistyped or revoked), or refuses the command for that key's role (HTTP 403 `read_only` / `admin_required`), the error names the key used and its fingerprint, lists other keys the CLI found but did not use, repeats this order and says how to recover. Live `collaborate` reports a rejected key the same way. A key containing smart quotes or line breaks is refused before sending. A role refusal also points to `access whoami`. Recovery: ask the server admin for a key (`jumpybrain access issue` on the server, or **Access keys** in the app), then replace or unset the stale `JUMPYBRAIN_API_KEY` export, or re-enter the key for that connection in the app.
 
