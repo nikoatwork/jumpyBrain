@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-26 — v0.3.30 beta published
+
+- Adds named CLI targets for local and hosted brains and a deployment guide for a second isolated brain on the same VPS. The full release suite passed and all three published assets were verified. [Published notes](done/releases/v0.3.30.md) · [Release verification](done/releases/v0.3.30.qa.md)
+
 ## 2026-11-26 — Multi-brain rollout verified
 
 - One CLI selected two isolated HTTPS brains on the shared VPS. The disposable brain survived an owner handoff and rollback. Managed CLI installs and the packaged Mac app preserved profiles, destinations, data and access through upgrade and rollback. [Verification and limits](done/2026-11-26_tasks-multi-brain-upgrade.md)
