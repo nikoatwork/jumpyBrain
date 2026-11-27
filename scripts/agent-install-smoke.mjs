@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import { stopDisposableBackends, waitForExit } from './disposable-backends.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const withApp = process.argv.includes('--with-app');
 const temporary = await realpath(await mkdtemp(path.join(process.platform === 'darwin' ? '/tmp' : os.tmpdir(), 'jb-smoke-')));
@@ -74,10 +75,14 @@ try {
 } finally {
   const executable = path.join(home, 'Applications/jumpyBrain.app/Contents/MacOS/jumpyBrain');
   const rows = execFileSync('/bin/ps', ['-axo', 'pid=,comm='], { encoding: 'utf8' }).split('\n');
+  const apps = [];
   for (const row of rows.filter(line => line.trim().replace(/^\d+\s+/, '') === executable)) {
     const pid = Number(row.trim().match(/^\d+/)[0]);
-    try { process.kill(pid, 'SIGTERM'); } catch {}
+    try { process.kill(pid, 'SIGTERM'); apps.push(pid); } catch {}
   }
+  // The app could restart a backend; then drain the brains this fixture started.
+  await waitForExit(apps);
+  await stopDisposableBackends(temporary);
   // Keep failed fixtures for precise inspection; successful runs may be removed explicitly.
   await writeFile(path.join(temporary, 'fixture-info.json'), JSON.stringify({ home, version: metadata.version, digest }));
   console.log('Disposable fixture retained at ' + temporary);

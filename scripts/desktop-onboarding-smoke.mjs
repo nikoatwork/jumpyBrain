@@ -8,6 +8,7 @@ import { mkdtemp, mkdir, readFile, writeFile, cp, symlink, realpath } from 'node
 import { spawn, execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { stopDisposableBackends } from './disposable-backends.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const [builtArg, sourceArg = repo, mode = 'fixture'] = process.argv.slice(2);
@@ -18,6 +19,8 @@ const base = await realpath(await mkdtemp('/tmp/jb-onboarding-smoke-'));
 const home = path.join(base, 'home'), rootA = path.join(home, '.jumpybrain/memory');
 const rootB = path.join(base, 'Separate brain B'), invalidRoot = path.join(base, 'Unrelated folder');
 const resources = path.join(base, 'Resources'), support = path.join(base, 'support');
+// Artifacts stay for inspection, but backends this fixture started never outlive it.
+try {
 await mkdir(support, { mode: 0o700 }); await mkdir(path.join(home, 'Library/Application Support'), { recursive: true }); await mkdir(rootB); await mkdir(invalidRoot);
 await writeFile(path.join(invalidRoot, 'keep.txt'), 'Fictional unrelated file; preserve exactly.');
 await mkdir(path.join(resources, 'native'), { recursive: true });
@@ -92,3 +95,4 @@ assert.deepEqual(await readFile(cliConfig), cliBefore);
 assert.deepEqual(await fingerprints(), actualBefore, 'actual app and CLI settings remain byte-identical');
 await writeFile(path.join(base, 'summary.json'), JSON.stringify({ ok: true, mode, runtimeRoot, rootA, rootB, checkedRealSettings: settingPaths.length, checkedRealSettingsUnchanged: true, cliPolicyUnchanged: true, recallAndGuardedExpand: true }, null, 2));
 console.log('Desktop onboarding PASS: native helper, app lifecycle, CLI roundtrip, separate targets, checked real settings unchanged. Artifacts retained: ' + base);
+} finally { await stopDisposableBackends(base); }

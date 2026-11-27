@@ -10,6 +10,7 @@ import net from 'node:net';
 import os from 'node:os';
 import { parseArgs } from 'node:util';
 import { createCorpus, fingerprintTree, hashFile, resolveOutputOutside } from './desktop-ram-fixtures.mjs';
+import { stopDisposableBackends, waitForExit } from './disposable-backends.mjs';
 const repo=fileURLToPath(new URL('..',import.meta.url));
 const {values}=parseArgs({options:{ output:{type:'string'}, counts:{type:'string',default:'0,100,1000,10000'},
   repetitions:{type:'string',default:'3'}, settle:{type:'string',default:'15'}, recovery:{type:'string',default:'300'},
@@ -95,6 +96,8 @@ for(const count of counts) for(let repetition=1;repetition<=repetitions;repetiti
   const monitorResult=await Promise.race([sampled,pause(16000).then(()=>null)]);
   if(monitorResult===null) {monitor.kill('SIGTERM');await sampled;throw new Error('Owned descendants survived quit: '+label);}
   await new Promise(resolve=>raw.closed?resolve():raw.once('close',resolve));
+  // The app leaves its window-independent root backend running; drain it before the next run.
+  await stopDisposableBackends(run,{runtime:path.join(snapshot,'Resources/runtime')});
   await writeFile(path.join(run,'exit.json'),JSON.stringify({...result,samplerCode:monitorResult}));
   if(result.code!==0||monitorResult!==0) throw new Error('Workload failed: '+label+'; inspect result/events');
   if(JSON.parse(await readFile(config.result,'utf8')).ok!==true) throw new Error('Incomplete workload: '+label);
@@ -115,4 +118,6 @@ if(!verification.ok)throw new Error('Benchmark artifact/dependency identity chan
 } finally {
   if(active?.exitCode===null&&active?.signalCode===null)active.kill('SIGTERM');
   if(monitor?.exitCode===null&&monitor?.signalCode===null)monitor.kill('SIGTERM');
+  if(active?.pid)await waitForExit([active.pid]);
+  await stopDisposableBackends(output,{runtime:path.join(snapshot,'Resources/runtime')});
 }
