@@ -4,6 +4,18 @@ Keep the local CLI/runtime distribution small. `npm test` checks the actual npm
 manifest and byte budgets after building; `npm run cli:pack` applies the same
 checks to its real tarball before recording successful package metadata.
 
+## 2026-11-27 warm smart search
+
+The warm smart-search worker adds two JavaScript/declaration pairs to the QMD
+adapter: `qmd-warm` (the per-root worker pool owned by the backend) and
+`qmd-warm-worker` (the long-lived child that keeps the embedding model loaded).
+After a clean `npm run build`, `npm pack --dry-run --json` measured 3,333,230 B
+packed, 9,276,032 B unpacked, 7,569,251 B under `dist/` and 801 files on macOS
+arm64 with Node 26.7.0. The four files add about 18 KB under `dist/`. Raise
+the file-count ceiling from 800 to 808 for these four files and four files of
+headroom. The byte ceilings stay unchanged, although only about 24 KB of
+unpacked headroom remains. No runtime dependency is added.
+
 ## 2026-11-25 browser sessions, install profiles and the licence-notice fix
 
 Measured on `master` after merging install profiles and long-lived browser

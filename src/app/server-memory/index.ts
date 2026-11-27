@@ -52,7 +52,7 @@ export { listServerMemoryFiles, type MemoryExplorerFile, type MemoryExplorerPack
 export { resolveServerMemoryTitle } from "./resolve-title.js";
 export { ensureServerMemoryTitle, isSafeReferencePageTitle, type EnsureServerMemoryTitleResult } from "./ensure-title.js";
 
-export { MemoryExecutionError } from "../local-memory/index.js";
+export { MemoryExecutionError, prewarmSmartSearch, retainWarmSmartSearch } from "../local-memory/index.js";
 export { DreamStateError, DREAM_BATCHES_RELATIVE_DIR, DREAM_STATE_RELATIVE_PATH } from "./dream.js";
 
 export interface ServerMemoryRuntimeOptions {

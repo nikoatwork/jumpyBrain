@@ -55,7 +55,7 @@ export const SMART_SEARCH = Object.freeze({
   outcome: 'Also finds notes that say the same thing in other words, not only notes with matching words.',
   details: [
     'Downloads a 334 MB language model (EmbeddingGemma 300M) once, from Hugging Face, into ~/.jumpybrain/models. Allow up to twice that while downloading.',
-    'Runs only on this computer, while indexing and searching; it uses extra memory then. None of your notes are sent anywhere.',
+    'Runs only on this computer, while indexing and searching. The model stays loaded for 30 minutes after a search so later searches are fast, using a few hundred MB of extra memory then. None of your notes are sent anywhere.',
     'Optional and reversible: add it later with `jumpybrain smart-search on`, turn it off with `jumpybrain smart-search off`.',
   ],
 });

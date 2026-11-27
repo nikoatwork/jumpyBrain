@@ -50,7 +50,7 @@ export function smartSearchExplanation(downloadBytes: number): string[] {
     "Smart search also finds notes that say the same thing in other words, not only notes with matching words.",
     `- Download: a ${formatMegabytes(downloadBytes)} language model (EmbeddingGemma 300M), once per computer, from Hugging Face.`,
     `- Disk: about ${formatMegabytes(downloadBytes)} under ~/.jumpybrain/models, plus up to the same again while downloading.`,
-    "- Runs: on this computer only, while indexing and searching; it uses extra memory then.",
+    "- Runs: on this computer only, while indexing and searching. The model stays loaded for 30 minutes after a search (and loads in the background when jumpyBrain starts for this brain) so later searches are fast; it uses a few hundred MB of extra memory while loaded.",
     "- Network and privacy: smart search sends none of your notes anywhere; only the one-time model download uses the internet. (A cloud assistant you use can still send recalled excerpts to its provider.)",
     "- Undo: jumpybrain smart-search off switches back to keyword search; add --remove-model to free the disk space.",
   ];

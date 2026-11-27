@@ -28,8 +28,15 @@ Fixture-only controls (inherited by child processes):
 - `FAKE_QMD_EVENTS`: append-only JSONL event output.
 - `fail`: `open`, `ingest`, `embed`, `embed-result`, `coverage-vector`,
   `coverage-metadata`, `model-replaced`, `dispose`, `commit`, `search`, or `query`.
+  The warm smart-search worker (`sdk/store.js` `structuredSearch`, same rows as
+  `bin/qmd query`) also honors `query-crash` (worker exits), `query-hang`,
+  `query-noise` (21 MiB on the protocol stream) and `query-malformed` (bad protocol line).
 - `gate`: embedding creates `<gate>.entered` and waits for `<gate>.release`
   (bounded to ten seconds), enabling deterministic cross-process contention.
+
+`sdk/collections.js.fixture` reads and writes the published QMD config as JSON.
+Warm queries record `query` events with `warm: true`; their LLM records one
+`llm` event per worker and an `embed-query` event per query.
 
 The fake LLM rejects unpatched model resolution and native build/download
 permission. All fixture controls live here; production contains no fixture

@@ -48,12 +48,15 @@ export function readExecution<T>(work: Promise<T>, signal = context.getStore()?.
   });
 }
 export function executionSignal(): AbortSignal | undefined { return context.getStore()?.signal; }
+/** The admitted operation (canonical root, kind, whole-operation signal), if any. */
+export function currentExecution(): Readonly<ExecutionContext> | undefined { return context.getStore(); }
 
 export function isExecutionControlError(error: unknown): boolean {
   return error instanceof MemoryExecutionError && ["execution_timeout", "execution_aborted", "execution_overloaded"].includes(error.code);
 }
 
-interface Context { root: string; kind: ExecutionKind; signal: AbortSignal }
+export interface ExecutionContext { root: string; kind: ExecutionKind; signal: AbortSignal }
+type Context = ExecutionContext;
 const context = new AsyncLocalStorage<Context>();
 interface Waiter { root: string; signal: AbortSignal; resolve: (release: () => void) => void; reject: (error: unknown) => void; abort: () => void }
 const roots = new Set<string>();

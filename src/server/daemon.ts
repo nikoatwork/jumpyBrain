@@ -38,7 +38,7 @@ export async function runBackendDaemon(rootArgument: string): Promise<void> {
   const signal = () => { void stop().catch(() => { process.exitCode = 1; finish(); }); };
   try {
     const options = {
-      root, apiKeys: [token], host: "127.0.0.1", port: 0, autoIndex: false as const, lazyIndex: true,
+      root, apiKeys: [token], host: "127.0.0.1", port: 0, autoIndex: false as const, lazyIndex: true, warmSmartSearch: true,
       accessStore, localOwnerToken: token,
       backendControl: { ...identity, instanceId: lease.instanceId, rootId: lease.rootId, stop: signal },
     };
