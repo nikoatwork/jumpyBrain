@@ -1,0 +1,21 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+// Published config is JSON (valid YAML); the fixture reads/writes JSON only.
+let indexName = "index";
+export function setConfigIndexName(name) { indexName = name; }
+export function setConfigSource() {}
+const file = () => path.join(process.env.QMD_CONFIG_DIR, `${indexName}.yml`);
+export function loadConfig() {
+  if (!existsSync(file())) return { collections: {} };
+  const config = JSON.parse(readFileSync(file(), "utf8")) ?? {};
+  if (!config.collections) config.collections = {};
+  return config;
+}
+export function saveConfig(config) {
+  mkdirSync(path.dirname(file()), { recursive: true });
+  writeFileSync(file(), JSON.stringify(config));
+}
+export function getCollection(name) {
+  const collection = loadConfig().collections[name];
+  return collection ? { name, ...collection } : null;
+}

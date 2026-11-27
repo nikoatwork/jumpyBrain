@@ -5,7 +5,9 @@ import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { recognizeSearchResults } from "./search-recognition.js";
 import { readCanonicalMemoryDocumentById, discoverMarkdownIndexInputs, replaceCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
-import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, queryKeywordCount, recoverQmdIndex, searchQmdIndex } from "../../adapters/qmd/index.js";
+import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, prewarmQmdSmartSearch, queryKeywordCount, recoverQmdIndex, searchQmdIndex } from "../../adapters/qmd/index.js";
+/** Long-lived search hosts keep smart search warm for their lifetime; see the QMD adapter docs. */
+export { retainWarmSmartSearch } from "../../adapters/qmd/index.js";
 import { normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import { FEWER_KEYWORDS_HINT, fewerKeywordsHintApplies } from "../../core/retrieval-policy/zero-hit.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
@@ -119,6 +121,16 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   if (recognized) { retrieval.status = "partial"; retrieval.warnings.push("recognition_bounded_candidates"); }
   return { root, query, depth, results: recognized?.results ?? results, readiness, retrieval, ...(recognized ? { recognition: recognized.scope } : {}), ...(temporal ? { temporal } : {}) };
   });
+}
+
+/**
+ * Background model load for a host that retained warm smart search, only when
+ * this root's smart search is ready. Observational and best-effort: it never
+ * throws, indexes, recovers or delays the caller's own startup.
+ */
+export async function prewarmSmartSearch(rootArg: string): Promise<boolean> {
+  try { return await prewarmQmdSmartSearch(await resolveMemoryRoot(rootArg)); }
+  catch { return false; }
 }
 
 export async function readMemoryDocument(rootArg: string, id: string,options:{maxSourceBytes?:number}={}): Promise<MemoryDocumentReadResult> {

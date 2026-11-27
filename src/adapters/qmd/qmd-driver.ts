@@ -13,6 +13,7 @@ import type { ExecutionOptions, TemporalRetrieval, TemporalResolution } from "..
 import type { IndexManifest, IndexMemoryOptions, IndexingPolicy, IndexedDocument, MarkdownDocument, RetrievalDepth, RetrievalOutcome, ScoreBreakdown, SearchResult } from "../../types.js";
 import { QMD_DREAM_COLLECTION, manifestPath, normalizeQmdLookupPath, resolveQmdSdk } from "./qmd-cli.js";
 import { hasQueryConstraints, hasQueryExclusions, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
+import { prewarmWarmQmdWorker, warmSmartSearchEnabled } from "./qmd-warm.js";
 import {
   clampScore,
   dateStats,
@@ -124,13 +125,39 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
   }));
 }
 
-async function searchGeneration(root: string, query: string, limit: number, options: SearchOptions): Promise<SearchResult[]> {
-  const depth = normalizeRetrievalDepth(options.depth);
-  const manifest = await loadManifest(root);
+/** The published model selected for semantic queries, or undefined when smart search is not ready. */
+async function semanticModel(root: string, manifest: QmdManifest): Promise<string | undefined> {
   const readiness = await readExecution(qmdReadiness(root, manifest));
   const policy = await readExecution(automaticIndexingPolicy(root));
   const compatible = indexingPolicyMatches(policy, manifest.policy, manifest.embedding?.modelHash);
-  const model = compatible && readiness.modes.includes("semantic") ? manifest.policy?.model : undefined;
+  return compatible && readiness.modes.includes("semantic") ? manifest.policy?.model : undefined;
+}
+/** Model bytes identity: a reindex with different model bytes replaces a warm worker. */
+function semanticModelKey(manifest: QmdManifest): string {
+  return JSON.stringify([manifest.embedding?.modelHash ?? manifest.policy?.modelHash ?? null, manifest.modelStat ?? null]);
+}
+
+/**
+ * Load the smart-search model in the background when this root's smart search
+ * is ready (semantic policy, present model, complete coverage, no pending
+ * publication). Observational: no lock, recovery, index or config writes.
+ * Never throws; a host must not wait for it.
+ */
+export async function prewarmQmdSmartSearch(root: string): Promise<boolean> {
+  try {
+    if (!warmSmartSearchEnabled()) return false;
+    resolveQmdSdk();
+    assertQmdPublished(root);
+    const manifest = await loadManifest(root);
+    const model = await semanticModel(root, manifest);
+    return model ? await prewarmWarmQmdWorker(root, model, semanticModelKey(manifest)) : false;
+  } catch { return false; }
+}
+
+async function searchGeneration(root: string, query: string, limit: number, options: SearchOptions): Promise<SearchResult[]> {
+  const depth = normalizeRetrievalDepth(options.depth);
+  const manifest = await loadManifest(root);
+  const model = await semanticModel(root, manifest);
   if (!Number.isFinite(limit) || limit <= 0) { await options.inspect?.(manifest); return []; }
   const interval = options.temporal?.interval;
   const warn = (code: string) => {
@@ -149,7 +176,7 @@ async function searchGeneration(root: string, query: string, limit: number, opti
   // Backend cutoffs still exist; the independent manifest backfill below is what
   // lets in-range evidence outside the ordinary top-k participate in selection.
   const candidates = (await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)), {
-    readOnly: options.readOnly, model, semantic: !!model && !options.readOnly, outcome: options.outcome,
+    readOnly: options.readOnly, model, modelKey: semanticModelKey(manifest), semantic: !!model && !options.readOnly, outcome: options.outcome,
     eligible: candidate => !!lookup(candidate),
     allowRelaxation: eligible.length > 0 && !eligible.some(document => isExactTitleMatch(query, document)),
   }));

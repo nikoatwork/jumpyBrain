@@ -162,6 +162,8 @@ export const requiredLocalPackFiles = Object.freeze([
   ...moduleFiles("adapters", "qmd", "index"),
   ...moduleFiles("adapters", "qmd", "qmd-lifecycle"),
   ...moduleFiles("adapters", "qmd", "qmd-worker"),
+  ...moduleFiles("adapters", "qmd", "qmd-warm"),
+  ...moduleFiles("adapters", "qmd", "qmd-warm-worker"),
   ...moduleFiles("core", "index"),
   ...moduleFiles("core", "canonical", "index"),
   ...moduleFiles("core", "canonical", "markdown-store"),

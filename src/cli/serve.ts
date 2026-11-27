@@ -32,7 +32,7 @@ export async function serveCli(args: ParsedCliArgs): Promise<void> {
   let started: Awaited<ReturnType<typeof server.startJumpyBrainHttpServer>> | undefined;
   let control: Awaited<ReturnType<typeof startBackendControlProxy>> | undefined;
   try {
-    started = await server.startJumpyBrainHttpServer({...config, apiKeys: [...config.apiKeys, token], localOwnerToken: token,
+    started = await server.startJumpyBrainHttpServer({...config, apiKeys: [...config.apiKeys, token], localOwnerToken: token, warmSmartSearch: true,
       backendControl: {...owner.lease, stop: shutdown}});
     const address = started.server.address() as import("node:net").AddressInfo;
     control = await startBackendControlProxy(address);

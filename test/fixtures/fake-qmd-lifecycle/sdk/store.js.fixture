@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, writeSync } from "node:fs";
 import helpers from "../database.cjs";
 import { getDefaultLlamaCpp } from "./llm.js";
 const { event, control, fail } = helpers;
@@ -40,4 +40,32 @@ export async function generateEmbeddings(store, { model, chunkStrategy }) {
   if (config.fail === "coverage-metadata") store.db.state.metadata.at(-1).total_chunks = 7;
   if (config.fail === "model-replaced") writeFileSync(model, Buffer.concat([readFileSync(model), Buffer.from("changed")]));
   return { chunksEmbedded, errors: 0 };
+}
+
+// Warm smart-search worker surface. Rows match bin/qmd's fake `query` output.
+export function enableProductionMode() {}
+export function getDefaultDbPath() { return process.env.INDEX_PATH; }
+export function createStore(dbPath) {
+  return { db: { file: dbPath }, close() {} };
+}
+export function syncConfigToDb() {}
+export function getIndexHealth() { return { needsEmbedding: 0, totalDocs: 0, daysStale: null }; }
+export function buildVirtualPath(collection, file) { return `qmd://${collection}/${file}`; }
+export function extractSnippet(body) { return { line: 1, snippet: `@@ -1,${body.split("\n").length} @@\n${body}` }; }
+export async function structuredSearch(store, searches, { collections }) {
+  event("query", { command: "query", warm: true });
+  fail("query");
+  const config = control();
+  if (config.fail === "query-crash") process.exit(9);
+  if (config.fail === "query-hang") await new Promise(() => setInterval(() => {}, 1000));
+  if (config.fail === "query-noise") writeSync(3, "x".repeat(21 * 1024 * 1024));
+  if (config.fail === "query-malformed") writeSync(3, "{not json\n");
+  const vectors = searches.filter(s => s.type === "vec");
+  if (vectors.length) await store.llm.embedBatch(vectors.map(s => s.query));
+  const state = JSON.parse(readFileSync(store.db.file, "utf8"));
+  const terms = searches.map(s => s.query).join(" ").toLowerCase().split(/\s+/).filter(Boolean);
+  return state.documents.filter(d => d.active === 1 && collections.includes(d.collection))
+    .filter(d => terms.some(term => state.content[d.hash].toLowerCase().includes(term)))
+    .map(d => ({ file: `qmd://${d.collection}/${d.file}`, displayPath: `${d.collection}/${d.file}`, title: d.title,
+      body: state.content[d.hash], bestChunk: state.content[d.hash], bestChunkPos: 0, score: 0.8, context: null, docid: "" }));
 }

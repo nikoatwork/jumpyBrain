@@ -11,6 +11,7 @@ import type { AddressInfo } from "node:net";
 import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import { createFileLogger, type FileLogger } from "../logging/index.js";
 import { createRemoteIndexRunner, startRemoteAutoIndexer, type RemoteAutoIndexer, type RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
+import { prewarmSmartSearch, retainWarmSmartSearch } from "../../app/server-memory/index.js";
 import { isDrawingStaticPath } from "./drawing-assets.js";
 import { RESPONSE_ERROR_CODE, errorResponse, routeRequest, writeJson, parseJsonBody, isJsonError } from "./routes.js";
 import path from "node:path";
@@ -25,6 +26,12 @@ export interface JumpyBrainHttpServerOptions {
   localOwnerToken?: string;
   /** Start maintenance only after an actual write; readiness and inspection remain inference-free. */
   lazyIndex?: boolean;
+  /**
+   * Long-lived search host (root backend, `serve`): keep the smart-search model
+   * loaded between searches and pre-warm it in the background when this root's
+   * smart search is ready. Released when the server closes.
+   */
+  warmSmartSearch?: boolean;
   onBackendActivate?: () => void;
   backendControl?: {instanceId: string; rootId: string; executable: string; executableHash?: string; build?: string; version?: string; stop: () => void};
   feedbackSender?: FeedbackSender;
@@ -380,10 +387,12 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
 
   // Direct server.close and the convenience close() both stop scheduled work
   // before runner shutdown, so no timer can join a draining runner.
+  let releaseWarm: (() => Promise<void>) | undefined;
   const closeServer = server.close.bind(server);
   server.close = ((callback?: (error?: Error) => void) => {
     autoIndex?.stop();
-    return closeServer(callback);
+    // After in-flight work drains, stop warm search workers this host owns.
+    return closeServer(error => { const release = releaseWarm; releaseWarm = undefined; void (release?.() ?? Promise.resolve()).then(() => callback?.(error), () => callback?.(error)); });
   }) as typeof server.close;
 
   try { await new Promise<void>((resolve, reject) => {
@@ -398,6 +407,11 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
     throw error;
   }
 
+  if (options.warmSmartSearch) {
+    releaseWarm = retainWarmSmartSearch();
+    // Background only: startup, readiness and keyword search never wait for it.
+    setTimeout(() => { void prewarmSmartSearch(root); }, 0);
+  }
   const address = server.address() as AddressInfo;
   const url = `http://${address.family === "IPv6" ? "[" + address.address + "]" : address.address}:${address.port}`;
   return {

@@ -2,6 +2,7 @@ import type { RetrievalOutcome } from "../../types.js";
 import { isExecutionControlError, MemoryExecutionError, withQmdOperation } from "./qmd-execution.js";
 import { ReadOnlyQmdError, runReadOnlyQmd } from "./qmd-read-only.js";
 import { QMD_COLLECTION, QMD_DREAM_COLLECTION, qmdVirtualPathToRelative, runQmd } from "./qmd-cli.js";
+import { runWarmQmdQuery, warmSmartSearchEnabled, warmSmartSearchIdleMs } from "./qmd-warm.js";
 
 export interface QmdCandidate {
   file?: string;
@@ -13,7 +14,7 @@ export interface QmdCandidate {
   temporalBackfill?: boolean;
 }
 
-export async function searchWithQmdCli(root: string, query: string, limit: number, options: { readOnly?: boolean; dreamsOnly?: boolean; semantic?: boolean; model?: string; outcome?: RetrievalOutcome; eligible?: (candidate: QmdCandidate) => boolean; allowRelaxation?: boolean } = {}): Promise<QmdCandidate[]> {
+export async function searchWithQmdCli(root: string, query: string, limit: number, options: { readOnly?: boolean; dreamsOnly?: boolean; semantic?: boolean; model?: string; modelKey?: string; outcome?: RetrievalOutcome; eligible?: (candidate: QmdCandidate) => boolean; allowRelaxation?: boolean } = {}): Promise<QmdCandidate[]> {
   return withQmdOperation(root, "search", {}, async () => {
   const collection = options.dreamsOnly ? QMD_DREAM_COLLECTION : QMD_COLLECTION;
   // Supplemental retrieval stays lexical: at most two processes and 24 rows each.
@@ -80,10 +81,18 @@ export async function searchWithQmdCli(root: string, query: string, limit: numbe
   // Do not let a structured vec branch bypass a constrained lexical rejection.
   const constrained = hasQueryConstraints(query);
   if (!options.readOnly && !options.dreamsOnly && options.semantic !== false && constrained) warn("query_constraints_lexical_only");
-  if (!options.readOnly && !options.dreamsOnly && options.semantic !== false && !constrained) try {
+  const vector = !options.readOnly && !options.dreamsOnly && options.semantic !== false && !constrained;
+  // A long-lived host keeps the model loaded in a per-root worker. An invalid
+  // idle setting is a configuration error, like an invalid search deadline.
+  const warmIdleMs = vector && options.model && warmSmartSearchEnabled() ? warmSmartSearchIdleMs() : undefined;
+  if (vector) try {
     const queryLines = [...lexQueries.slice(0, 8).map((lexQuery) => `lex: ${lexQuery}`), `vec: ${query}`];
-    const result = await runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank", "-c", collection], options.model);
-    addRows(parseQmdJsonRows(result.stdout), 0.9);
+    const text = queryLines.join("\n");
+    // Same rows as the one-shot CLI; a warm failure is labeled below, never retried cold.
+    const warm = warmIdleMs === undefined ? undefined
+      : await runWarmQmdQuery(root, { text, limit, collection, model: options.model!, modelKey: options.modelKey ?? "", idleMs: warmIdleMs });
+    const stdout = warm ?? (await runQmd(root, ["query", text, "--json", "-n", String(limit), "--no-rerank", "-c", collection], options.model)).stdout;
+    addRows(parseQmdJsonRows(stdout), 0.9);
     successes++;
   } catch (error) {
     if (isExecutionControlError(error)) throw error;

@@ -1,4 +1,4 @@
-import { memoryExecutionDeadlineMs } from "../core/execution-limits.js";
+import { memoryExecutionDeadlineMs, smartSearchIdleMs } from "../core/execution-limits.js";
 export interface JumpyBrainServerConfig {
   root: string;
   host: string;
@@ -35,6 +35,8 @@ export function resolveServerConfig(input: ResolveServerConfigInput = {}, env: N
   };
   const searchTimeoutMs = timeout(input.searchTimeoutMs ?? env.JUMPYBRAIN_SEARCH_TIMEOUT_MS);
   const indexTimeoutMs = timeout(input.indexTimeoutMs ?? env.JUMPYBRAIN_INDEX_TIMEOUT_MS);
+  // Read again by the QMD adapter at each smart search; fail fast at bootstrap.
+  smartSearchIdleMs(env.JUMPYBRAIN_SMART_SEARCH_IDLE_MS);
   return { root, host, port, apiKeys, publicBaseUrl,
     ...(searchTimeoutMs === undefined ? {} : { searchTimeoutMs }),
     ...(indexTimeoutMs === undefined ? {} : { indexTimeoutMs }),

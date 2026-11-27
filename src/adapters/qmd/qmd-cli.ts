@@ -76,21 +76,23 @@ function qmdSetupMessage(reason: string): string {
     : override ? `Selected JUMPYBRAIN_QMD_BIN=${JSON.stringify(override)}. Correct this override or run \`unset JUMPYBRAIN_QMD_BIN\` to use normal resolution, then retry. ` : ""}If still unavailable, install \`@tobilu/qmd@2.8.3\` in the project that depends on jumpyBrain (\`npm install @tobilu/qmd@2.8.3\`) or globally (\`npm install -g @tobilu/qmd@2.8.3\`), or set JUMPYBRAIN_QMD_BIN to its CLI.`;
 }
 
-export async function runQmd(root: string, args: string[], model?: string): Promise<{ stdout: string; stderr: string }> {
+/** Root-isolated QMD environment shared by one-shot CLI queries and the warm smart-search worker. */
+export function qmdQueryEnv(root: string, model?: string): NodeJS.ProcessEnv {
   const derived = indexStateRoot(root);
-  return runQmdChild(resolveQmdBinary(), [...args, "--index", "index"], {
-    cwd: root, maxBytes: 20 * 1024 * 1024,
-    env: {
-      ...process.env,
-      HOME: path.join(derived, "qmd-home"),
-      XDG_CACHE_HOME: path.join(derived, "qmd-cache"),
-      QMD_CONFIG_DIR: path.join(derived, "qmd-config"),
-      INDEX_PATH: databasePath(root),
-      QMD_EMBED_MODEL: model ?? "",
-      QMD_SQLITE_BUSY_TIMEOUT: "5000",
-      GGML_METAL_NO_RESIDENCY: process.env.QMD_METAL_KEEP_RESIDENCY ? process.env.GGML_METAL_NO_RESIDENCY : "1",
-    },
-  });
+  return {
+    ...process.env,
+    HOME: path.join(derived, "qmd-home"),
+    XDG_CACHE_HOME: path.join(derived, "qmd-cache"),
+    QMD_CONFIG_DIR: path.join(derived, "qmd-config"),
+    INDEX_PATH: databasePath(root),
+    QMD_EMBED_MODEL: model ?? "",
+    QMD_SQLITE_BUSY_TIMEOUT: "5000",
+    GGML_METAL_NO_RESIDENCY: process.env.QMD_METAL_KEEP_RESIDENCY ? process.env.GGML_METAL_NO_RESIDENCY : "1",
+  };
+}
+
+export async function runQmd(root: string, args: string[], model?: string): Promise<{ stdout: string; stderr: string }> {
+  return runQmdChild(resolveQmdBinary(), [...args, "--index", "index"], { cwd: root, maxBytes: 20 * 1024 * 1024, env: qmdQueryEnv(root, model) });
 }
 
 export function inspectLocalSearchEngine(): { ok: boolean; binary: string; source: QmdEngineSource; message: string } {

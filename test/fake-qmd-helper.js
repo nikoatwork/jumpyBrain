@@ -11,7 +11,7 @@ export async function installFakeQmd(root) {
   await cp(fixture, pkg, { recursive: true });
   await copyFile(path.join(pkg, "database.cjs.fixture"), path.join(pkg, "database.cjs"));
   await mkdir(path.join(pkg, "dist"), { recursive: true });
-  for (const name of ["index", "store", "llm"]) {
+  for (const name of ["index", "store", "llm", "collections"]) {
     await copyFile(path.join(pkg, "sdk", `${name}.js.fixture`), path.join(pkg, "dist", `${name}.js`));
   }
   const sqlite = path.join(pkg, "node_modules", "better-sqlite3");
