@@ -38,8 +38,17 @@ export async function runBackendDaemon(rootArgument: string, options: BackendDae
     forced = setTimeout(() => { console.error(`Backend ${phase} exceeded ${ms} ms; exiting.`); exit(1); }, ms);
     forced.unref();
   };
+  // Until its descriptor is published no client can reach this process, so a
+  // stalled startup gets the short grace bound; once publishing, the drain bound.
+  let announced = false, stopStartup: ((reason: string) => void) | undefined;
+  const startup = setTimeout(() => {
+    forceExitAfter(announced ? timings.drainMs : timings.graceMs, "startup stop");
+    if (stopStartup) stopStartup("not ready within its startup bound");
+    else console.error("Backend stopping: not ready within its startup bound.");
+  }, timings.startupMs);
+  startup.unref();
   try { await pinBackendRuntime(root, lease); }
-  catch (error) { await releaseBackendLease(root, lease.instanceId); throw error; }
+  catch (error) { clearTimeout(startup); await releaseBackendLease(root, lease.instanceId); throw error; }
   const token = randomBytes(32).toString("base64url");
   const accessStore = createAccessStore(root, { bootstrapKeys: [token], bootstrapOwner: {token, id: "local-owner:" + lease.rootId} });
   let starting: ReturnType<typeof startJumpyBrainHttpServer> | undefined;
@@ -68,11 +77,7 @@ export async function runBackendDaemon(rootArgument: string, options: BackendDae
   const signal = (reason?: string) => { void stop(reason).catch(() => { process.exitCode = 1; finish(); }); };
   const onSignal = () => signal();
   process.once("SIGTERM", onSignal); process.once("SIGINT", onSignal);
-  // Until its descriptor is published no client can reach this process, so a
-  // stalled startup gets the short grace bound; once publishing, the drain bound.
-  let announced = false;
-  const startup = setTimeout(() => { forceExitAfter(announced ? timings.drainMs : timings.graceMs, "startup stop"); signal("not ready within its startup bound"); }, timings.startupMs);
-  startup.unref();
+  stopStartup = signal;
   try {
     const options = {
       root, apiKeys: [token], host: "127.0.0.1", port: 0, autoIndex: false as const, lazyIndex: true,
@@ -101,8 +106,9 @@ export async function runBackendDaemon(rootArgument: string, options: BackendDae
  * lost-lease behavior). Uncertain states (unreadable lease, closed listener, a
  * check that never completes) stop only after `graceMs` of consecutive ticks.
  * The connection descriptor is deliberately not checked: a tampered descriptor
- * fails closed for clients and must not make the owner restart over it. Counting ticks rather than wall time means an event-loop
- * stall yields one late tick, never a false stop of a healthy owner.
+ * fails closed for clients and must not make the owner restart over it.
+ * Counting ticks rather than wall time means an event-loop stall yields one
+ * late tick, never a false stop of a healthy owner.
  */
 function superviseOwnership(root: string, instanceId: string, server: Awaited<ReturnType<typeof startJumpyBrainHttpServer>>, timings: BackendDaemonTimings, stop: (reason: string) => void) {
   const limit = Math.max(2, Math.ceil(timings.graceMs / timings.checkMs));

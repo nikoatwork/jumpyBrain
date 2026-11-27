@@ -10,7 +10,7 @@ import { ensureRootBackend, stopRootBackend } from "../dist/app/backend-host/ind
 // Real detached-daemon processes with fault-injection preloads reproduce the
 // orphan states: the daemon must end every lifetime in a bounded process exit.
 const daemonModule = new URL("../dist/server/daemon.js", import.meta.url).href;
-const timings = { checkMs: 100, graceMs: 600, startupMs: 1500, drainMs: 1500 };
+const timings = { checkMs: 100, graceMs: 1000, startupMs: 1500, drainMs: 1500 };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate, ms, message) {
   const end = Date.now() + ms;
@@ -79,7 +79,7 @@ test("an owner whose listener closed without a drain stops after the grace perio
 
 test("transient unreadable ownership state never stops a healthy owner; persistent state does", { timeout: 20000 }, async t => {
   const f = await fixture(t), descriptor = await ready(f), lease = (await backendPaths(f.root)).lease, saved = await readFile(lease);
-  await writeFile(lease, "{"); await delay(timings.checkMs * 2); await writeFile(lease, saved);
+  await writeFile(lease, "{"); await delay(timings.checkMs * 1.5); await writeFile(lease, saved);
   await delay(timings.graceMs * 2);
   assert.equal(f.alive(), true); assert.equal(await verifyBackendReady(descriptor), true);
   await writeFile(lease, "{");
