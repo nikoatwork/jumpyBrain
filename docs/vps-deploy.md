@@ -11,7 +11,7 @@ Read the [shared-memory quickstart](cloud-shared-memory.md) first. Route schemas
 - A local HTTP server on `127.0.0.1:3787`.
 - Public HTTPS through nginx/Caddy/another reverse proxy.
 - CLI access from agents with `--target-url` and `JUMPYBRAIN_API_KEY`.
-- Optionally, more independent brains on the same host, one service and HTTPS hostname each ([section 10](#10-run-another-brain-on-the-same-vps)).
+- Optionally, more independent brains on the same host, one service each, on their own HTTPS hostname or under a path prefix of one hostname ([section 10](#10-run-another-brain-on-the-same-vps)).
 
 ## Prerequisites
 
@@ -336,6 +336,55 @@ For each new brain:
 2. Create a root-only `/etc/jumpybrain/brains/product.env` as in [section 3](#3-create-a-private-environment-file). Set a fresh key, the unused port, and the QMD path. Leave out `JUMPYBRAIN_SERVER_ROOT` because the unit passes the root. If using a separate index directory, give the unit its own writable path via a drop-in.
 3. Run `systemctl daemon-reload` and `systemctl enable --now jumpybrain-brain@product`. Check `/health` on its private listener. Copy the [section 5](#5-put-https-in-front) HTTPS server block for the new hostname and port, with its own rate-limit zone and the existing WebSocket map. Validate with `nginx -t` before reloading. For a containerized proxy, use a private bridge listener and allow only the proxy to reach that port. Keep the backend off public ports.
 4. Run [the CLI smoke](#6-smoke-test-from-a-client-machine) on the new origin. Check each origin with its own key and confirm HTTP 401 with the other key. Verify sign-in, a note link and a live edit over `/ws` on the new brain, then verify the original still opens. The CLI can register both origins as [named brains](cli-commands.md#named-brains). The Mac app adds each origin as a connection.
+
+### One hostname, one path per brain
+
+When you have only one DNS name, serve each brain under its own path, for
+example `https://brain.example.com/product` and `https://brain.example.com/it`.
+Each brain is still its own service, root, account, key and port as above.
+
+1. In the brain's env file, set its public URL with the path:
+   `JUMPYBRAIN_PUBLIC_BASE_URL=https://brain.example.com/product`. The web UI
+   then builds every link, request and WebSocket URL below `/product`, and the
+   sign-in cookie is limited to that path. Leave it as the bare origin for a
+   brain served at `/`.
+2. The proxy must strip the prefix before forwarding; the server's own routes
+   stay `/`, `/memories/...`, `/ws`. nginx, inside the existing `server`
+   block (the trailing slashes make nginx strip the prefix):
+
+   ```nginx
+   location = /product { return 308 /product/; }
+   location /product/ {
+     # same limit_req, headers, Upgrade/Connection and timeouts as section 5
+     proxy_pass http://127.0.0.1:3788/;
+   }
+   ```
+
+   Caddy:
+
+   ```caddy
+   brain.example.com {
+     redir /product /product/ 308
+     handle_path /product/* {
+       reverse_proxy 127.0.0.1:3788
+     }
+   }
+   ```
+
+   Traefik: a router rule ``Host(`brain.example.com`) && PathPrefix(`/product`)``
+   with a `stripPrefix` middleware for `/product`.
+3. Clients use the full URL: `--target-url https://brain.example.com/product`,
+   `jumpybrain brains add product --target-url https://brain.example.com/product --key-stdin`, and the
+   same URL as a Mac app connection. Keys are stored per URL, so two brains on
+   one host keep separate keys.
+4. Verify as in step 4 above, plus: sign in to both brains in one browser,
+   open a note in each, and confirm a live edit and a note link stay under
+   the right prefix.
+
+Brains on one hostname share one browser origin. Their sign-ins stay separate,
+but a page of one brain could read the other's pages in the same browser. That
+is fine for brains used by the same people; give brains for different
+organizations or audiences their own hostnames.
 
 For rollback, remove only the new proxy route, validate and reload the proxy,
 and run `systemctl disable --now jumpybrain-brain@product`. Keep the new root,

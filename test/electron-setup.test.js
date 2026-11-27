@@ -89,9 +89,18 @@ test('remote onboarding persists keys through the gateway, checks connectivity a
   assert.equal(state.profiles.length, 1); assert.equal(state.active.kind, 'remote');
   assert.equal('allowWrites' in state.active, false, 'onboarding sets no device permission; the server role decides');
   assert.equal((await readFile(path.join(support, 'connections.json'), 'utf8')).includes('fixture-key'), false);
-  for (const url of ['http://example.com', 'https://brain.example.com/path', 'https://user:password@brain.example.com', 'http://2130706433']) {
+  for (const url of ['http://example.com', 'https://brain.example.com/a/../b', 'https://brain.example.com/.team', 'https://brain.example.com/a?x=1', 'https://user:password@brain.example.com', 'http://2130706433']) {
     await assert.rejects(activateRemoteBrain(connection, { ...input, url }));
   }
+  // A brain under a path prefix on the same host is its own profile; a retry reuses it.
+  const prefixed = { url: 'https://brain.example.com/sherpa/', key: 'sherpa-key' };
+  state = await activateRemoteBrain(connection, prefixed);
+  assert.equal(state.profiles.length, 2);
+  assert.equal(state.active.url, 'https://brain.example.com/sherpa');
+  state = await activateRemoteBrain(connection, prefixed);
+  assert.equal(state.profiles.length, 2);
+  assert.equal(state.active.url, 'https://brain.example.com/sherpa');
+  assert.ok(state.profiles.some(item => item.url === 'https://brain.example.com'), 'the root brain profile is kept separately');
 });
 test('initialization uses the public runtime and activates through the production save barrier; retry reuses the connection', async (t) => {
   const { root, directory, cleanup } = await fixture(t);

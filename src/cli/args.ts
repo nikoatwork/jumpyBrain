@@ -148,7 +148,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     if (!["list", "add", "remove", "select", "test"].includes(action ?? "")) throw new Error("Use jumpybrain connections list|add|remove|select|test --help.");
     if (action === "add") {
       const remote = args.url !== undefined;
-      if (remote === (args.root !== undefined)) throw new Error("connections add needs exactly one of --root <existing-brain> or --url <origin>.");
+      if (remote === (args.root !== undefined)) throw new Error("connections add needs exactly one of --root <existing-brain> or --url <url>.");
       if (remote && (args["key-stdin"] === true) === (args["key-env"] !== undefined)) throw new Error("A remote connection needs exactly one of --key-stdin or --key-env <VARIABLE>; keys are never accepted as arguments.");
       if (!remote && (args["key-stdin"] || args["key-env"] !== undefined || args["allow-writes"])) throw new Error("--key-stdin and --key-env apply only to a remote --url connection.");
       if (args["key-env"] !== undefined && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(args["key-env"]))) throw new Error("--key-env needs an environment variable name such as JUMPYBRAIN_API_KEY.");

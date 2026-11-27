@@ -210,7 +210,7 @@ function createDrawingsUI(host) {
   function ensureFrame() {
     if (frameReady) return frameReady;
     frame = document.createElement("iframe");
-    frame.id = "drawing-frame"; frame.title = "Drawing canvas"; frame.src = "/drawing-frame";
+    frame.id = "drawing-frame"; frame.title = "Drawing canvas"; frame.src = appUrl("/drawing-frame");
     frameReady = new Promise((resolve, reject) => {
       frame.addEventListener("load", () => {
         let api = null;

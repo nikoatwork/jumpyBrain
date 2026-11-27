@@ -38,7 +38,7 @@ interface JsonError {
 
 export const RESPONSE_ERROR_CODE = Symbol("jumpybrain.responseErrorCode");
 
-export async function routeRequest(context: { principal?: Principal; collaboration?: CollaborationHub; request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void>; onMemoryWrite?: () => void; onMemoryActivity?: () => void; maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean } }): Promise<void> {
+export async function routeRequest(context: { principal?: Principal; collaboration?: CollaborationHub; request: IncomingMessage; response: ServerResponse; root: string; basePath?: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void>; onMemoryWrite?: () => void; onMemoryActivity?: () => void; maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean } }): Promise<void> {
   const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal, searchTimeoutMs } = context;
   const url = new URL(request.url ?? "/", "http://localhost");
 
@@ -71,7 +71,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
   if (request.method === "GET" && browserShellPath) {
     const nonce = randomBytes(16).toString("base64url");
     const contentSecurityPolicy = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
-    writeHtml(response, 200, graphPageHtml(nonce, url.pathname === "/" ? "home" : "graph"), {
+    writeHtml(response, 200, graphPageHtml(nonce, url.pathname === "/" ? "home" : "graph", { basePath: context.basePath ?? "" }), {
       "content-security-policy": contentSecurityPolicy,
       "x-content-type-options": "nosniff",
     });

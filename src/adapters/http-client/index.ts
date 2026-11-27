@@ -163,7 +163,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     headers.set("Authorization", `Bearer ${apiKey}`);
     if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
-    const response = await fetchImpl(new URL(path, baseUrl), { ...init, headers, signal });
+    const response = await fetchImpl(remoteRouteUrl(baseUrl, path), { ...init, headers, signal });
     if (!response.ok) {
       // Admission statuses may come from a proxy (often HTML), so their bodies use the capped decoder.
       const remoteError = response.status === 429 || response.status === 503
@@ -188,7 +188,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     const maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined);
     const unsupported = () => new RemoteMemoryError(502, "unsupported_bounded_read",
       `Remote server returned an unsupported ${kind} response. Upgrade the server; no full-document fallback was attempted.`);
-    const response = await fetchImpl(new URL(path, baseUrl), {
+    const response = await fetchImpl(remoteRouteUrl(baseUrl, path), {
       method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body), signal,
     });
@@ -369,6 +369,17 @@ function errorFields(payload: unknown): { code?: string; message?: string } {
     ...(typeof remoteError?.code === "string" ? { code: remoteError.code } : {}),
     ...(typeof remoteError?.message === "string" ? { message: remoteError.message } : {}),
   };
+}
+
+/**
+ * The one join rule for server routes: a brain URL's path prefix is kept, so
+ * `https://host/team` + `/capabilities` is `https://host/team/capabilities`.
+ * The reverse proxy strips the prefix; server routes stay root-relative.
+ */
+export function remoteRouteUrl(base: string | URL, route: string): URL {
+  if (!route.startsWith("/") || route.startsWith("//")) throw new Error("Remote route must start with a single '/'.");
+  const url = new URL(base);
+  return new URL(url.origin + url.pathname.replace(/\/+$/, "") + route);
 }
 
 function normalizeBaseUrl(url: string): string {

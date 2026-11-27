@@ -11,6 +11,7 @@ import { initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { createRemoteAccessClient } from "../dist/adapters/http-client/access.js";
 import { validateBrainsConfig, expandBrainSelector } from "../dist/cli/named-brains.js";
+import { startPrefixProxy } from "./prefix-proxy-helpers.js";
 
 // Named CLI brains (`--brain <name>`): disposable roots and loopback servers
 // only. Every key is a fake. The Mac app is never running here.
@@ -57,16 +58,32 @@ async function counter(t) {
   return { url: `http://127.0.0.1:${server.address().port}`, count: () => requests };
 }
 
-test("brain list validation: names, duplicates, one destination each, origin-only URLs", () => {
+test("brain list validation: names, duplicates, one destination each, origin or plain path prefix URLs", () => {
   const valid = validateBrainsConfig({ schemaVersion: 1, brains: [{ name: "work", root: "/w" }, { name: "it-ops", url: "https://it.example.org/" }] });
   assert.deepEqual(valid, [{ name: "work", kind: "local", root: "/w" }, { name: "it-ops", kind: "remote", url: "https://it.example.org" }]);
+  // A path prefix served by a stripping proxy: trailing slash and default port normalized, case kept.
+  for (const [input, stored] of [
+    ["https://Brains.Example:443/sherpa/", "https://brains.example/sherpa"],
+    ["https://brains.example/team/Ops_1.v2", "https://brains.example/team/Ops_1.v2"],
+    ["http://127.0.0.1:3788/sherpa", "http://127.0.0.1:3788/sherpa"],
+    ["https://it.example.org:8443", "https://it.example.org:8443"],
+  ]) assert.deepEqual(validateBrainsConfig({ schemaVersion: 1, brains: [{ name: "w", url: input }] }), [{ name: "w", kind: "remote", url: stored }]);
+  const prefixes = validateBrainsConfig({ schemaVersion: 1, brains: [{ name: "s", url: "https://b.example/sherpa" }, { name: "v", url: "https://b.example/vladimir" }, { name: "o", url: "https://b.example" }] });
+  assert.deepEqual(prefixes.map(brain => brain.url), ["https://b.example/sherpa", "https://b.example/vladimir", "https://b.example"]);
+  for (const url of ["https://a.example/team?x=1", "https://a.example/team?", "https://a.example/team#top", "https://a.example/#"]) {
+    assert.throws(() => validateBrainsConfig({ schemaVersion: 1, brains: [{ name: "w", url }] }), /query or fragment/, url);
+  }
+  for (const url of ["https://a.example//team", "https://a.example/team//", "https://a.example/a/../b", "https://a.example/./team", "https://a.example/.team",
+    "https://a.example/te%61m", "https://a.example/te am", "https://a.example/team\\x", "https://a.example\\team"]) {
+    assert.throws(() => validateBrainsConfig({ schemaVersion: 1, brains: [{ name: "w", url }] }), /plain names/, url);
+  }
   const bad = (brains, pattern) => assert.throws(() => validateBrainsConfig({ schemaVersion: 1, brains }), pattern);
   bad([{ name: "Work", root: "/w" }], /lowercase/);
   bad([{ name: "a_b", root: "/w" }], /lowercase/);
   bad([{ name: "w", root: "/w" }, { name: "w", root: "/x" }], /listed twice/);
   bad([{ name: "w", root: "/w" }, { name: "x", root: "/w" }], /same folder/);
   bad([{ name: "w", url: "https://a.example" }, { name: "x", url: "https://a.example/" }], /same URL/);
-  bad([{ name: "w", url: "https://a.example/team" }], /without a path/);
+  bad([{ name: "w", url: "https://a.example/team" }, { name: "x", url: "https://a.example/team/" }], /same URL/);
   bad([{ name: "w", url: "http://a.example" }], /HTTPS/);
   bad([{ name: "w", url: "https://u:p@a.example" }], /credentials/);
   bad([{ name: "w", root: "relative" }], /absolute/);
@@ -178,6 +195,32 @@ test("two hosted brains resolve independent bound keys; recall, expand and write
   assert.equal(whoami.cli.target.brain, "bravo");
   assert.deepEqual(whoami.cli.credential.candidates.map(slot => [slot.source, slot.used]), [["brain-environment", false], ["brain-env-file", true], ["app-connection", false]]);
   assert.equal(whoami.cli.access.role, "admin");
+});
+
+test("two brains under path prefixes on one host: separate keys, writes, recall, access and live collaboration stay under each prefix", async (t) => {
+  const { a, b, jb, ok, envFile } = await setup(t);
+  const proxy = await startPrefixProxy(t, { "/alpha": a.url, "/bravo": b.url });
+  await ok(["brains", "add", "alpha", "--target-url", proxy.origin + "/alpha/", "--key-stdin"], { input: KEY_A });
+  await ok(["brains", "add", "bravo", "--target-url", proxy.origin + "/bravo", "--key-stdin"], { input: KEY_B });
+  assert.match(await readFile(envFile, "utf8"), new RegExp(`JUMPYBRAIN_BRAIN_URL_ALPHA=${proxy.origin.replace(/[.]/g, "\\.")}/alpha\n`));
+  const bad = await jb(["brains", "add", "dots", "--target-url", proxy.origin + "/a/../bravo"]);
+  assert.equal(bad.code, 1);
+  assert.match(bad.stderr, /plain names/);
+  for (const name of ["alpha", "bravo"]) {
+    assert.match((await ok(["status", "--brain", name])).stdout, new RegExp(`Remote memory: ${proxy.origin}/${name}`));
+    await ok(["remember", "--brain", name, "--title", `Prefixed ${name}`], { input: `prefix-marker-${name} body` });
+    await ok(["index", "--brain", name]);
+    assert.equal(JSON.parse((await ok(["access", "whoami", "--brain", name, "--json"])).stdout).cli.access.role, "admin");
+  }
+  const recalled = JSON.parse((await ok(["recall", "--brain", "alpha", "--query", "prefix-marker-alpha", "--json"])).stdout);
+  const hit = recalled.results.find(result => result.snippet?.includes("prefix-marker-alpha"));
+  assert.ok(hit);
+  const cross = JSON.parse((await ok(["recall", "--brain", "bravo", "--query", "prefix-marker-alpha", "--json"])).stdout);
+  assert.equal(cross.results.some(result => result.snippet?.includes("prefix-marker-alpha")), false);
+  const opened = JSON.parse((await ok(["collaborate", "open", "--brain", "alpha", "--id", hit.provenance.metadata.id, "--json"])).stdout);
+  assert.match(JSON.stringify(opened), /prefix-marker-alpha/);
+  assert.ok(proxy.seen.includes("/alpha/ws"), "collaborate joined /ws under the prefix");
+  assert.deepEqual(proxy.outside, [], "nothing was sent outside the prefixes");
 });
 
 test("a key bound to another URL is never sent: re-pointed names, env pairs and leftovers fail closed", async (t) => {

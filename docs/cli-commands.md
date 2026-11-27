@@ -49,13 +49,13 @@ jumpybrain status --brain product        # key source and fingerprint
 ```
 
 - **List**: `~/.config/jumpybrain/brains.json` (`JUMPYBRAIN_BRAINS_FILE` overrides): `{"schemaVersion":1,"brains":[{"name":"work","root":"/abs"},{"name":"product","url":"https://product.example.org"}]}`. Names: 1-32 of `a-z0-9-`, starting with a letter. One absolute `root` or one `url` each; duplicate names or destinations are rejected. It holds no keys but decides where they go, so it must be yours and not writable by others.
-- **URLs** are HTTPS origins (HTTP on loopback), without a path: one hostname per hosted brain.
+- **URLs** are HTTPS (HTTP on loopback): an origin such as `https://memory.example.com`, or an origin plus a path prefix such as `https://brains.example.com/sherpa` when a reverse proxy serves several brains on one hostname and strips the prefix. Requests, the access check and live `collaborate` sockets then go to `…/sherpa/<route>`. A trailing slash is dropped; a query, fragment, credentials, empty or `.`/`..` segments and `%` escapes are rejected. Each prefix is its own destination with its own key. A [read-only remote target](install.md#read-only-remote-targets) is set per origin, so it covers every prefix on that hostname.
 - **Scope**: commands that take `--root`/`--target-url`; `diff`/`migrate remote` take `--root <local> --brain <hosted>`; `doctor` and `smart-search` take local names only. `init`, `serve`, `backend`, vault imports, `connections`, `project` and installation `update` reject it.
 - **Fails before any work** on an unknown name, a second selector, an unsupported command or a missing folder, after the [read-only command mode](#read-only-command-mode) check.
 
 **Keys.** A hosted named brain only uses a key bound to its URL, first found wins:
 
-1. `JUMPYBRAIN_BRAIN_KEY_<NAME>` plus `JUMPYBRAIN_BRAIN_URL_<NAME>` naming that origin, in the environment (`<NAME>` upper-cased, `-` as `_`), e.g. for CI.
+1. `JUMPYBRAIN_BRAIN_KEY_<NAME>` plus `JUMPYBRAIN_BRAIN_URL_<NAME>` naming that URL (origin and any path prefix), in the environment (`<NAME>` upper-cased, `-` as `_`), e.g. for CI.
 2. The same pair in `~/.config/jumpybrain/.env`, written by `brains add`/`brains key`.
 3. The Mac app's key for exactly that URL, including an app connection that refers to `JUMPYBRAIN_API_KEY` in the file (the app bound it to that URL).
 

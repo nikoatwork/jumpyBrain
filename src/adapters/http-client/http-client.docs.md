@@ -11,6 +11,7 @@
 - Encode overview/tree query options for file display, connection statistics, and result limits as `showFiles`, `connections`, and `limit` parameters on the remote overview route.
 - Preserve remote response shapes expected by the CLI while adding transport details such as API keys, `If-Match`, content type, idempotency headers, and dream route paths.
 - Keep remote-target communication isolated from local runtime internals.
+- A brain URL may carry a path prefix that a reverse proxy strips (`https://host/team`). Every route, including the access client, the `/capabilities` probe and the CLI's live `/ws` join, goes through `remoteRouteUrl(base, route)`: base path without trailing slash plus a route starting with a single `/`, concatenated rather than resolved, so a route can never replace the prefix or name another host. A plain origin behaves exactly as before. Test: `a brain URL with a path prefix keeps it…` in `test/http-client.test.js`.
 
 ## Index and retrieval packets
 

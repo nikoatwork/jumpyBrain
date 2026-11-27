@@ -1,5 +1,5 @@
 import { readBoundedResponse } from "./bounded-response.js";
-import { RemoteMemoryError } from "./index.js";
+import { RemoteMemoryError, remoteRouteUrl } from "./index.js";
 
 export type RemoteAccessRole = "reader" | "writer" | "admin";
 export interface RemoteAccessCredential { id: string; name: string; role: RemoteAccessRole; createdAt: string; revokedAt?: string; }
@@ -24,7 +24,7 @@ export function createRemoteAccessClient(options: { url: string; apiKey: string;
   const invalid = (mutation: boolean) => new RemoteMemoryError(502, "invalid_response", "Remote server returned an invalid response."
     + (mutation ? " The change may have been applied; run `access list` before retrying." : ""));
   async function request(path: string, method: string, body?: unknown): Promise<Record<string, unknown>> {
-    const response = await fetchImpl(new URL(path, base), {
+    const response = await fetchImpl(remoteRouteUrl(base, path), {
       method, redirect: "manual", signal: AbortSignal.timeout(options.timeoutMs ?? 15_000),
       headers: { Authorization: `Bearer ${apiKey}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -92,7 +92,7 @@ export async function probeRemoteAccess(options: { url: string; apiKey: string; 
   const signal = AbortSignal.timeout(options.timeoutMs ?? 10_000);
   let response: Response, text: string;
   try {
-    response = await (options.fetchImpl ?? fetch)(new URL("/capabilities", base), { method: "GET", redirect: "manual", signal, headers: { Authorization: `Bearer ${apiKey}` } });
+    response = await (options.fetchImpl ?? fetch)(remoteRouteUrl(base, "/capabilities"), { method: "GET", redirect: "manual", signal, headers: { Authorization: `Bearer ${apiKey}` } });
   } catch { return { outcome: "offline", detail: signal.aborted ? "timeout" : "network" }; }
   const status = response.status;
   if (status !== 200) {

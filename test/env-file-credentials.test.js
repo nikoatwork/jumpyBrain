@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink,
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createEnvFileCredentials, credentialsEnvFile, keyFingerprint, keyVariable, parseEnv, readCredentialsFile, remoteKeyCandidates, remoteKeyForUrl, resolveRemoteKey, urlVariable }
+import { brainKeyCandidates, createEnvFileCredentials, credentialsEnvFile, resolveBrainKey, setBrainKey, keyFingerprint, keyVariable, parseEnv, readCredentialsFile, remoteKeyCandidates, remoteKeyForUrl, resolveRemoteKey, urlVariable }
   from "../dist/adapters/credentials/env-file.js";
 import { ConnectionStore } from "../integrations/macos-companion/connections.mjs";
 
@@ -82,6 +82,25 @@ test("CLI key resolution: environment, then the app key saved for that exact URL
   assert.equal(await remoteKeyForUrl("https://brain.example", { file, env: {} }), "app-key", "a matching connection beats the default");
   await chmod(file, 0o640);
   await assert.rejects(remoteKeyForUrl("https://brain.example", { file, env: {} }), /chmod 600/);
+});
+
+test("two path prefixes on one host keep separate app and named-brain keys; the bare origin matches neither", async (t) => {
+  const { file } = await scratch(t);
+  const store = createEnvFileCredentials({ file });
+  await store.set(ref(1), "sherpa-app-key", { url: "https://brains.example/sherpa" });
+  await store.set(ref(2), "vladimir-app-key", { url: "https://brains.example/vladimir" });
+  assert.equal(await remoteKeyForUrl("https://brains.example/sherpa/", { file, env: {} }), "sherpa-app-key");
+  assert.equal(await remoteKeyForUrl("https://brains.example/vladimir", { file, env: {} }), "vladimir-app-key");
+  assert.equal(await remoteKeyForUrl("https://brains.example", { file, env: {} }), null);
+  assert.equal(await remoteKeyForUrl("https://brains.example/sherpa/x", { file, env: {} }), null);
+  await setBrainKey("sherpa", { key: "sherpa-brain-key", url: "https://brains.example/sherpa" }, { file });
+  await setBrainKey("vlad", { key: "vlad-brain-key", url: "https://brains.example/vladimir" }, { file });
+  assert.equal((await resolveBrainKey("sherpa", "https://brains.example/sherpa", { file, env: {} })).key, "sherpa-brain-key");
+  assert.equal((await resolveBrainKey("vlad", "https://brains.example/vladimir", { file, env: {} })).key, "vlad-brain-key");
+  // A named key bound to one prefix is never sent to the other prefix on the same host.
+  const crossed = await brainKeyCandidates("sherpa", "https://brains.example/vladimir", { file, env: {} });
+  assert.equal(crossed.keys.some(key => key.key === "sherpa-brain-key"), false);
+  assert.equal(crossed.mismatches.length, 1);
 });
 
 test("key resolution names its source; diagnostics list every candidate in order and never throw", async (t) => {

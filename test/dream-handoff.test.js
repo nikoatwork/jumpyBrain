@@ -36,6 +36,9 @@ test("Dream accepts only HTTP(S) origins, canonicalizes them, and rejects creden
     ["http://127.0.0.1:8123", "http://127.0.0.1:8123"],
     ["http://[::1]:8123", "http://[::1]:8123"],
     ["https://bücher.example", "https://xn--bcher-kva.example"],
+    // A brain served under a reverse-proxy path prefix.
+    ["https://brain.example/graph", "https://brain.example/graph"],
+    ["https://Brain.Example/team/sherpa/", "https://brain.example/team/sherpa"],
   ]) {
     const result = createDreamHandoff(origin, now);
     assert.equal(result.target, target);
@@ -50,8 +53,8 @@ test("Dream accepts only HTTP(S) origins, canonicalizes them, and rejects creden
   }
   for (const origin of [
     "", "null", "file:///tmp", "javascript:alert(1)", "//brain.example", "https:brain.example",
-    "https://user:secret@brain.example", "https://user@brain.example", "https://brain.example/graph",
-    "https://brain.example/x/..", "https://brain.example?apiKey=SECRET", "https://brain.example#apiKey=SECRET",
+    "https://user:secret@brain.example", "https://user@brain.example", "https://brain.example//graph",
+    "https://brain.example/x/..", "https://brain.example/./x", "https://brain.example/a'b", "https://brain.example/$(x)", "https://brain.example?apiKey=SECRET", "https://brain.example#apiKey=SECRET",
     "https://brain.example?", "https://brain.example#", "https://brain.example\n", " https://brain.example",
     "https://brain.example\\other", "https://evil'host", "https://$(touch.bad)", "https://evil;command",
     "https://evil`command`", "https://bad_host.example", "https://brain.example:99999",
@@ -98,7 +101,7 @@ function browserHarness() {
     return elements.get(id);
   };
   const globals = {
-    $, state: { view: "graph" }, URL, Date, cancelReferenceInteraction() {},
+    $, state: { view: "graph" }, URL, Date, cancelReferenceInteraction() {}, appBasePath: "",
     location: { origin: "https://brain.example", hash: "#apiKey=NEVER_COPY", search: "?note=PRIVATE_NOTE_SENTINEL" },
     navigator: { clipboard: { async writeText() {} } },
     document: { querySelector() { return $("dream-handoff").open; } },

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-27 — Several hosted brains on one hostname
+
+- A hosted brain can run under a path such as `https://brain.example.com/product`: `--public-base-url` with a path scopes the web UI, live editing and sign-in to that prefix, and the CLI and Mac app accept the prefixed URL. Verified with two brains on one origin in Chromium and on the shared VPS behind Traefik. [Outcome and limits](done/2026-11-27_tasks-hosted-brain-path-prefix.md)
+
 ## 2026-11-26 — v0.3.30 beta published
 
 - Adds named CLI targets for local and hosted brains and a deployment guide for a second isolated brain on the same VPS. The full release suite passed and all three published assets were verified. [Published notes](done/releases/v0.3.30.md) · [Release verification](done/releases/v0.3.30.qa.md)

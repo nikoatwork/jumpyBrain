@@ -297,3 +297,37 @@ test("index and legacy reads retain their single default deadlines", async t => 
   assert.deepEqual(clock.delays, [610_000, 70_000]);
   assert.equal(clock.active.size, 0);
 });
+
+test("a brain URL with a path prefix keeps it on every route, access call, probe and error", async () => {
+  const { createRemoteMemoryTransport, remoteRouteUrl, RemoteMemoryError } = await loadClientModule();
+  const { createRemoteAccessClient, probeRemoteAccess } = await import(pathToFileURL(path.join(repoRoot, "dist/adapters/http-client/access.js")).href);
+  const urls = [];
+  const fetchImpl = async (url) => {
+    urls.push(String(url));
+    const route = new URL(String(url)).pathname;
+    if (route.endsWith("/missing")) return jsonResponse({ error: { code: "not_found", message: "Missing." } }, 404);
+    if (route.endsWith("/capabilities")) return jsonResponse({ principal: { role: "admin" }, capabilities: ["read", "write", "manage_access"] });
+    if (route.endsWith("/access")) return jsonResponse({ credentials: [] });
+    return jsonResponse({ ok: true });
+  };
+  const transport = createRemoteMemoryTransport({ url: " https://brains.example/sherpa/?ignored=1#x ", apiKey: "secret", fetchImpl });
+  assert.equal(transport.url, "https://brains.example/sherpa");
+  await transport.memoryRootStatus();
+  await transport.expandMemoryDocument({ id: "mem_93000000-0000-4000-8000-000000000001" }).catch(() => {});
+  await assert.rejects(transport.readMemoryDocument("missing"), error => error instanceof RemoteMemoryError && error.status === 404 && error.code === "not_found");
+  await createRemoteAccessClient({ url: "https://brains.example/sherpa", apiKey: "secret", fetchImpl }).list();
+  const probe = await probeRemoteAccess({ url: "https://brains.example/sherpa/", apiKey: "secret", fetchImpl });
+  assert.equal(probe.outcome, "confirmed");
+  assert.deepEqual(urls, [
+    "https://brains.example/sherpa/memories/all/status",
+    "https://brains.example/sherpa/memories/all/expand",
+    "https://brains.example/sherpa/memories/all/documents/missing",
+    "https://brains.example/sherpa/access",
+    "https://brains.example/sherpa/capabilities",
+  ]);
+  // A plain origin is unchanged, and a route can never name another host.
+  assert.equal(remoteRouteUrl("https://memory.example/", "/ws").href, "https://memory.example/ws");
+  assert.equal(remoteRouteUrl("https://brains.example/sherpa", "/memories/all/search?q=a").href, "https://brains.example/sherpa/memories/all/search?q=a");
+  assert.throws(() => remoteRouteUrl("https://brains.example/sherpa", "//evil.example/x"));
+  assert.throws(() => remoteRouteUrl("https://brains.example/sherpa", "capabilities"));
+});

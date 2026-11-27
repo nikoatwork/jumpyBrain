@@ -3,7 +3,7 @@ import { chmod, link, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { ConnectionStore } from "../integrations/macos-companion/connections.mjs";
+import { ConnectionStore, upstreamUrl } from "../integrations/macos-companion/connections.mjs";
 
 class Credentials {
   items = new Map();
@@ -170,11 +170,33 @@ test("normalizes HTTPS origins/default ports and only permits literal HTTP loopb
     "http://127.1", "http://2130706433", "http://0x7f000001", "http://[::ffff:127.0.0.1]",
     "http://%6cocalhost", "http://localhost:bad", "https://user:secret-echo@brain.example",
     "https://@brain.example", "https://brain.example?", "https://brain.example?key=secret-echo",
-    "https://brain.example#", "https://brain.example#secret-echo", "https://brain.example/api",
+    "https://brain.example#", "https://brain.example#secret-echo", "https://brain.example/api?x=1", "https://brain.example/api#x",
+    "https://brain.example/a/../b", "https://brain.example/.api", "https://brain.example/api//", "https://brain.example//api", "https://brain.example/a%20b",
     "https://brain.example/./", "https://brain.example//", "https://brain.example/%2e",
     "https://brain.example\\@localhost", " https://brain.example", "https://brain.example\n",
     "//brain.example", "file:///etc/passwd", "ftp://brain.example", "https://", null, 4,
   ]) await rejectsCode(save(f, remote(url)), "INVALID_URL");
+});
+
+test("accepts a plain path prefix per brain on one host; stored form survives reopen; upstream routes keep it", async (t) => {
+  const f = await fixture(t);
+  for (const [input, output] of [
+    ["https://Brains.Example:443/sherpa/", "https://brains.example/sherpa"],
+    ["https://brains.example/team/Vladimir_2", "https://brains.example/team/Vladimir_2"],
+    ["http://127.0.0.1:3788/sherpa", "http://127.0.0.1:3788/sherpa"],
+    ["https://brains.example", "https://brains.example"],
+  ]) {
+    const state = await save(f, remote(input));
+    assert.equal(state.profiles.at(-1).url, output);
+  }
+  await rejectsCode(save(f, remote("https://brains.example/sherpa")), "DUPLICATE_DESTINATION");
+  const reopened = await ConnectionStore.open({ directory: f.directory, credentials: f.credentials });
+  assert.deepEqual(reopened.snapshot().profiles.map(profile => profile.url).slice(1),
+    ["https://brains.example/sherpa", "https://brains.example/team/Vladimir_2", "http://127.0.0.1:3788/sherpa", "https://brains.example"]);
+  assert.equal(upstreamUrl("https://brains.example/sherpa", "/memories/all/status?x=1").href, "https://brains.example/sherpa/memories/all/status?x=1");
+  assert.equal(upstreamUrl("https://brains.example", "/ws").href, "https://brains.example/ws");
+  assert.equal(upstreamUrl("http://127.0.0.1:3788", "//evil.example/x").host, "127.0.0.1:3788", "a route is never resolved as another host");
+  assert.throws(() => upstreamUrl("https://brains.example/sherpa", "ws"));
 });
 
 test("profiles store no write permission; remote destination changes require new keys", async (t) => {

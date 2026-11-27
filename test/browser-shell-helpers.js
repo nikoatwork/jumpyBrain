@@ -24,6 +24,9 @@ export function shellFunctions(script, names, context) {
     context.browserCommands.register({ id: "search.open", title: "Open search", shortcut: "Mod+K", run: () => context.searchDialog?.open ? context.closeSearch() : context.openSearch() });
   }
   Object.assign(context, { referenceEligibility, memoryDocumentPath });
+  // The shell's app-URL helpers (browser-app-url.ts) at the default root base path.
+  if (!("appBasePath" in context)) context.appBasePath = "";
+  for (const helper of ["appUrl", "appRoute"]) if (!(helper in context) && !names.includes(helper)) names = [helper, ...names];
   return names.map(name => {
     if (name in browserControllers) { context[name] = browserControllers[name]; return ""; }
     return extractShellFunction(script, name);

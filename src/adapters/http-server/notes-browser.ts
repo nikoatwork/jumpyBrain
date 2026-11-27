@@ -273,7 +273,8 @@ ${referencePresentationStyles}
 
 const copyIcon = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg>';
 
-export const notesMarkup = String.raw`
+// basePath is the validated public path prefix (see browser-app-url.ts).
+export const notesMarkup = (basePath = "") => String.raw`
 <aside id="note-attribution" class="popover popover--caption" aria-label="Saved note attribution" aria-live="polite" hidden>
   <strong>Saved note · last editor</strong><span id="note-attribution-facts"></span><span id="note-attribution-scope"></span>
 </aside>
@@ -297,9 +298,9 @@ export const notesMarkup = String.raw`
 <template id="sidebar-editor-icons"><span data-kind="human">${browserEditorIcons.human}</span><span data-kind="agent">${browserEditorIcons.agent}</span></template>
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
   <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="320"></div>
-  <div class="nav-brand"><button id="toggle-sidebar" class="icon-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button quiet-button--plain home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
+  <div class="nav-brand"><button id="toggle-sidebar" class="icon-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button quiet-button--plain home-link" href="${basePath}/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
-    <a id="notes-link" class="icon-button sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
+    <a id="notes-link" class="icon-button sidebar-icon" href="${basePath}/" aria-label="Home" title="Home">${browserIcons.home}</a>
     <button id="new-note" type="button" class="icon-button sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="new-board" type="button" class="icon-button sidebar-icon" aria-label="New board" title="New board" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16M15 4v7M15 16h6M18 13v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
     ${drawingsNavigationControl}
@@ -322,7 +323,7 @@ export const notesMarkup = String.raw`
   </div>
   <div class="nav-footer">
   <div class="nav-preferences">
-    <a id="graph-link" class="icon-button sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
+    <a id="graph-link" class="icon-button sidebar-icon" href="${basePath}/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
     <button id="open-connection" class="icon-button sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="status-dot connection-dot" aria-hidden="true"></span></button>
     <button id="open-feedback" class="icon-button sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
     <div class="nav-utilities" role="group" aria-label="App utilities"></div>
@@ -565,7 +566,7 @@ function renderRecentNotes(recent) {
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.className = "list-row recent-link";
-    link.href = typeof companionMode !== "undefined" && companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(note.id)) : "/?note=" + encodeURIComponent(note.id);
+    link.href = appUrl(typeof companionMode !== "undefined" && companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(note.id)) : "/?note=" + encodeURIComponent(note.id));
     const title = document.createElement("span"); title.className = "list-row-label";
     title.textContent = note.title || note.file || "Untitled";
     link.title = title.textContent + (note.file ? " · " + note.file : "");
@@ -1205,13 +1206,13 @@ async function setConnectionKey(key) {
   delete $("connection-message").dataset.failure;
   // Signing out must end the server-side session; otherwise a reload would find it still signed in.
   if (!key) {
-    const ended = await fetch("/session", {method:"DELETE"}).then(response => response.ok, () => false);
+    const ended = await fetch(appUrl("/session"), {method:"DELETE"}).then(response => response.ok, () => false);
     if (!ended) throw Object.assign(new Error("Sign out failed."), {code: "sign_out_failed"});
   }
   if (key) {
     // The server swaps this browser's session only once the new key is accepted; until then
     // nothing here changes, so a mistyped key leaves the current sign-in as it was.
-    const response = await fetch("/session", {headers:{Authorization:"Bearer " + key}}).catch(() => null);
+    const response = await fetch(appUrl("/session"), {headers:{Authorization:"Bearer " + key}}).catch(() => null);
     if (!response?.ok) {
       const code = response ? (await Promise.resolve().then(() => response.json()).catch(() => null))?.error?.code : undefined;
       throw Object.assign(new Error(response?.status === 401 ? "The access key was not accepted. Check it and try again."
@@ -1313,22 +1314,24 @@ function showInviteProblem(kind) {
 $("invite-problem-close").addEventListener("click", () => $("invite-problem").close());
 $("invite-problem-key").addEventListener("click", () => { $("invite-problem").close(); openConnection(false); });
 
-function shellUrl() { return location.pathname + location.search; }
+// The app route (base path stripped) of the address bar; history entries store app routes.
+function shellUrl() { return appRoute(location.pathname) + location.search; }
 const initialEntry = { url: shellUrl(), index: Number.isSafeInteger(history.state?.jumpyBrainIndex) ? history.state.jumpyBrainIndex : 0 };
-history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", initialEntry.url);
+history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", appUrl(initialEntry.url));
 const navigation = JumpyBrainBrowser.createPageNavigation({
   initial: initialEntry,
   beforeLeave: () => requestEditorNavigation(() => {}),
   blocked: () => typeof companionMode !== "undefined" && companionMode && companionFrozen,
-  scope: (url) => companionMode ? companionScopeUrl(url) : url,
+  // Link hrefs are public URLs; navigation compares and stores app routes.
+  scope: (url) => appRoute(companionMode ? companionScopeUrl(url) : url),
   resume: () => state.editor?.setNavigationPending(false),
   go: (delta) => history.go(delta),
-  push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", entry.url),
+  push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", appUrl(entry.url)),
   show: showPage,
   onChange: syncWorkspaceHistory,
 });
 async function navigateSidebar(url) {
-  const current = new URL(companionMode ? companionScopeUrl(url) : url, location.origin).href === location.href;
+  const current = new URL(appUrl(appRoute(companionMode ? companionScopeUrl(url) : url)), location.origin).href === location.href;
   const opened = await navigation.navigate(url);
   if (opened || (current && !navigation.isBusy())) sidebarPreference.afterNavigate();
   return opened;
@@ -1354,7 +1357,7 @@ const folderExplorer = JumpyBrainBrowser.installFolderExplorer({
     writable: () => Boolean(activeApiKey) && accessOffered(),
     denied: action => accessDenied(({ create: "Creating a folder", rename: "Renaming this file", move: "Moving this file" })[action]),
     json: graphJson,
-    link: id => new URL(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id), location.origin).href,
+    link: id => new URL(appUrl(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id)), location.origin).href,
     deleteFile: async id => {
       if (accessDenied("Deleting this file")) return;
       if (navigation.isBusy() || creatingNote || state.editor?.state.navigationPending) throw new Error("Finish the current action before deleting files.");
@@ -1389,7 +1392,7 @@ const pageBacklinks = JumpyBrainBrowser.installPageBacklinks({
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   load: (id, signal) => graphJson("/memories/all/documents/" + encodeURIComponent(id) + "?backlinks=1", { signal }),
-  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  href: (id) => appUrl(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id)),
   navigate: (url) => navigation.navigate(url),
   changed: () => relatedPages.refilter(),
 });
@@ -1400,7 +1403,7 @@ const relatedPages = JumpyBrainBrowser.installRelatedPages({
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   search: (query, signal, limit) => recentWrites.search(query, signal, limit),
   read: (id, signal) => graphJson("/memories/all/documents/" + encodeURIComponent(id), { signal }),
-  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  href: (id) => appUrl(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id)),
   navigate: (url) => navigation.navigate(url),
 });
 const noteWorkspace = JumpyBrainBrowser.installNoteWorkspace({
@@ -1412,12 +1415,12 @@ const noteWorkspace = JumpyBrainBrowser.installNoteWorkspace({
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
   scope: () => {
-    if (!companionMode) return activeApiKey ? "hosted" : null;
+    if (!companionMode) return activeApiKey ? "hosted" + appBasePath : null;
     const active = companionState?.active;
     return companionRegistered && active && companionState.activeId
       ? "brain:" + JSON.stringify([companionState.activeId, active.kind, active.root || active.url]) : null;
   },
-  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  href: (id) => appUrl(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id)),
   navigate: navigateSidebar,
   attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
   enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
@@ -1459,7 +1462,7 @@ function showPage(url) {
     if ((requested.searchParams.has("note") || requested.searchParams.has("board") || requested.searchParams.has("drawing")) && requested.searchParams.get("brain") !== companionState.activeId) {
       companionMessage("This note link belongs to another brain. Open a note from this brain instead.", true);
       url = companionScopeUrl("/");
-      history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", url);
+      history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", appUrl(url));
       navigation.reset({ url, index: initialEntry.index });
     }
   }
@@ -1694,7 +1697,7 @@ function createNoteSession(token, documentId, focusEnd) {
     connection: async () => {
       const capabilities = await graphJsonPatient("/capabilities", () => state.noteToken === token && state.editor === editor);
       if (capabilities.protocol !== 2 || typeof capabilities.brainId !== "string") throw new Error("This backend requires a coordinated client upgrade.");
-      const endpoint = new URL("/ws", location.href);
+      const endpoint = new URL(appUrl("/ws"), location.href);
       endpoint.protocol = location.protocol === "https:" ? "wss:" : "ws:";
       return { url: endpoint.href, token: activeApiKey,
         scope: location.origin + ":" + capabilities.brainId + ":" + (companionMode ? String(companionState?.activeId || "") : "hosted"),

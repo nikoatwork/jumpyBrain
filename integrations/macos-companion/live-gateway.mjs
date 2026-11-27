@@ -1,4 +1,5 @@
 import { WebSocket, WebSocketServer } from '../../dist/adapters/websocket/index.js';
+import { upstreamUrl } from './connections.mjs';
 
 const reads = new Set(['open', 'close', 'ping', 'presence', 'stream.status', 'history.read', 'recovery.read']);
 // resync can reset an unsafe session/epoch when the upstream credential writes.
@@ -49,7 +50,7 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
           destinations.set(client, dest);
           if (!destinationCurrent(dest)) throw new Error();
           const recheck = coordinator.enter(context.generation, context.tabId); recheck();
-          const endpoint = new URL('/ws', dest.url); endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
+          const endpoint = upstreamUrl(dest.url, '/ws'); endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
           upstream = new WebSocket(endpoint, {origin: new URL(dest.url).origin, maxPayload: 3 * 1024 * 1024, perMessageDeflate: false, handshakeTimeout: 10000, followRedirects: false});
           upstream.on('message', raw => {
             let response; try { response = JSON.parse(raw.toString()); } catch {upstream.close(); return;}

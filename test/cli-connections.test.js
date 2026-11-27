@@ -9,6 +9,7 @@ import { parseArgs } from '../dist/cli/args.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { createEnvFileCredentials } from '../dist/adapters/credentials/env-file.js';
+import { startPrefixProxy } from './prefix-proxy-helpers.js';
 const exec = promisify(execFile), repo = path.resolve('.'), key = 'e'.repeat(64);
 async function fixture(t) {
   const temp = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-cli-connections-')));
@@ -239,4 +240,30 @@ test('status --all: CLI target and key source, app connections with health and e
   assert.match(text, /Warning: "Gone" points at .*, which is missing/);
   assert.equal(text.includes('overview-key-0123456789') || JSON.stringify(overview).includes('overview-key-0123456789'), false);
   await assert.rejects(readdir(f.roots[1]), { code: 'ENOENT' });
+});
+
+test('a remote connection under a path prefix: CLI add normalizes it, test and status reach the brain only through the prefix', async t => {
+  const f = await fixture(t);
+  const envFile = path.join(f.temp, 'config', '.env');
+  await mkdir(path.dirname(envFile), { recursive: true, mode: 0o700 });
+  await writeFile(envFile, 'TEAM_KEY=prefix-key-fixture-0123456789\n', { mode: 0o600 });
+  f.env.JUMPYBRAIN_ENV_FILE = envFile;
+  const remoteRoot = path.join(f.temp, 'remote');
+  await createServerMemoryRuntime({ root: remoteRoot }).initializeMemoryRoot();
+  const server = await startJumpyBrainHttpServer({ root: remoteRoot, apiKeys: ['prefix-key-fixture-0123456789'], host: '127.0.0.1', port: 0, autoIndex: false });
+  t.after(() => server.close());
+  const proxy = await startPrefixProxy(t, server.url, '/sherpa');
+  await f.start(false, createEnvFileCredentials({ file: envFile }));
+  await assert.rejects(f.run('add', '--name', 'Bad', '--url', proxy.url + '?x=1', '--key-env', 'TEAM_KEY', '--revision=0'), e => /without query or credentials, optionally with a path prefix/.test(e.stderr));
+  const state = await f.run('add', '--name', 'Sherpa', '--url', proxy.url + '/', '--key-env', 'TEAM_KEY', '--revision=0');
+  const sherpa = state.profiles.find(p => p.kind === 'remote');
+  assert.equal(sherpa.url, proxy.url);
+  const tested = await f.run('test', '--id', sherpa.id);
+  assert.deepEqual([tested.url, tested.health, tested.access.role], [proxy.url, 'connected', 'admin']);
+  // The CLI finds the app's key for the same prefixed URL and reaches the brain through the prefix.
+  const status = JSON.parse((await f.cli(['status', '--target-url', proxy.url, '--json'])).stdout);
+  assert.equal(status.target.credential.source, 'app-connection');
+  assert.ok(proxy.seen.some(url => url.startsWith('/sherpa/memories/all/status')));
+  assert.ok(proxy.seen.includes('/sherpa/capabilities'));
+  assert.deepEqual(proxy.outside, [], 'nothing was sent outside the prefix');
 });

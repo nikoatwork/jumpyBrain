@@ -262,7 +262,8 @@ test('the drawing editor is a public, content-free frame served apart from the n
   const frameHtml = await frame.text();
   assert.doesNotMatch(frameHtml, /<script(?![^>]*\bsrc=)/, 'the frame has no inline script');
   assert.deepEqual([...frameHtml.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]),
-    ['/favicon.svg', '/drawing-app/drawing.css', '/drawing-app/boot.js', '/drawing-app/drawing.js']);
+    // Relative to the frame document, so a reverse-proxy path prefix is kept.
+    ['favicon.svg', 'drawing-app/drawing.css', 'drawing-app/boot.js', 'drawing-app/drawing.js']);
 
   const entry = await fetch(server.url + '/drawing-app/drawing.js');
   assert.equal(entry.status, 200);

@@ -7,6 +7,8 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 ## Hosted multi-brain feedback (November 26)
 
 - The [completed multi-brain work](../done/2026-11-26_tasks-multi-brain.md) covers deployment, CLI targeting, mixed Mac app connections and upgrade verification.
+- [x] **P2 — Several brains under path prefixes on one hostname (Nov 27).** [Completed in source](../done/2026-11-27_tasks-hosted-brain-path-prefix.md): `--public-base-url` with a path serves the web UI, live editing and sign-in under that prefix; CLI, named brains and Mac app connections keep it. Verified with two brains on one origin in Chromium and on the shared VPS behind Traefik. Same-hostname brains are one trust zone (internal use). Pending release.
+- [ ] **P3 — Connect clicked right after page load is ignored on a slow network.** Found while testing the path-prefix work (2026-11-27): with ~300 ms latency per request, clicking Connect as soon as the session check finishes does not open the dialog; a moment later it does. Reproduced on clean HEAD (`efd24826`), with and without a prefix. Cause not investigated.
 
 ## New remote access feedback (November 19–20)
 

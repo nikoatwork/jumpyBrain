@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 
-// Named CLI brains: optional device-local aliases for a folder or hosted origin,
+// Named CLI brains: optional device-local aliases for a folder or hosted URL,
 // chosen with `--brain <name>`; never read without it. Keys live in the
 // credentials adapter, bound to the brain's URL.
 
@@ -41,15 +41,30 @@ function nameError(name: string): Error {
   return new Error(`Invalid brain name ${JSON.stringify(name)}: use 1-32 lowercase letters, digits or '-', starting with a letter (e.g. work, product-it).`);
 }
 
-/** HTTPS (HTTP on loopback) origin only: clients use absolute paths, so a path prefix would alias one service. */
+const PREFIX_SEGMENT = /^[A-Za-z0-9_~-][A-Za-z0-9._~-]*$/;
+const URL_EXAMPLE = "e.g. https://memory.example.com or https://brains.example.com/team";
+
+/**
+ * HTTPS (HTTP on loopback) origin, optionally with a path prefix that a reverse
+ * proxy strips (`https://host/team`). Stored as the origin, or the origin plus
+ * the prefix without a trailing slash. Prefix segments are plain names, so one
+ * URL cannot be spelled two ways (no `.`/`..`, empty segments or escapes).
+ */
 export function normalizeBrainUrl(value: string): string {
+  const raw = value.trim();
   let url: URL;
-  try { url = new URL(value.trim()); } catch { throw new Error(`Invalid brain URL ${JSON.stringify(value)}; use an HTTPS origin such as https://memory.example.com.`); }
+  try { url = new URL(raw); } catch { throw new Error(`Invalid brain URL ${JSON.stringify(value)}; use an HTTPS URL, ${URL_EXAMPLE}.`); }
   const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
   if (!(url.protocol === "https:" || (url.protocol === "http:" && loopback))) throw new Error("A brain URL must use HTTPS (plain HTTP only for 127.0.0.1, localhost or [::1]).");
   if (url.username || url.password) throw new Error("A brain URL must not contain credentials; store the key with jumpybrain brains key.");
-  if (url.search || url.hash || url.pathname !== "/") throw new Error("A brain URL must be an origin without a path, query or fragment, e.g. https://memory.example.com (each hosted brain has its own hostname).");
-  return url.origin;
+  if (url.search || url.hash || /[?#]/.test(raw)) throw new Error(`A brain URL must not contain a query or fragment, ${URL_EXAMPLE}.`);
+  // Read the path as typed: the URL parser silently resolves `..`, `.` and backslashes.
+  const typed = /^https?:\/\/[^/\\]*(.*)$/i.exec(raw)?.[1] ?? "";
+  const prefix = typed.replace(/\/$/, "");
+  if (prefix && (typed.includes("\\") || !prefix.slice(1).split("/").every(segment => PREFIX_SEGMENT.test(segment)) || url.pathname.replace(/\/$/, "") !== prefix)) {
+    throw new Error(`A brain URL path must be plain names separated by single '/', without '.', '..' or escapes, ${URL_EXAMPLE}.`);
+  }
+  return url.origin + prefix;
 }
 
 interface BrainsConfig { file: string; brains: NamedBrain[] }

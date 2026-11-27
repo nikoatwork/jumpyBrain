@@ -12,6 +12,7 @@ import { gzipSync } from 'node:zlib';
 import { startCompanionGateway, nativeCredentials, appCredentials } from '../integrations/macos-companion/gateway.mjs';
 import { SwitchCoordinator } from '../integrations/macos-companion/switch-coordinator.mjs';
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from '../dist/server/index.js';
+import { startPrefixProxy } from './prefix-proxy-helpers.js';
 
 const runtimeRoot = path.resolve('.');
 const controlKey = 'a'.repeat(64);
@@ -210,6 +211,28 @@ test('local A/B switching saves old target, blocks stale writes, and reports new
   assert.match(await readFile(path.join(f.roots[1], 'notes/fixture.md'), 'utf8'), /Body b/);
   assert.equal((await f.browser('/companion/register', { tabId: 'tab-b', generation: f.gateway.coordinator.generation })).status, 200);
   assert.match((await (await f.memory('documents/' + id, undefined, 'tab-b')).json()).content, /Body b/);
+});
+
+test('a remote brain under a path prefix: role check, reads and writes are forwarded under the prefix only', async (t) => {
+  const f = await fixture(t);
+  const proxy = await startPrefixProxy(t, f.remote.url, '/sherpa');
+  const writer = await f.issue('writer', 'Prefixed');
+  const saved = await f.save({ name: 'Prefixed', kind: 'remote', url: proxy.url + '/', key: writer.token });
+  const remote = saved.profiles.find((profile) => profile.kind === 'remote');
+  assert.equal(remote.url, proxy.url, 'stored without the trailing slash');
+  const switched = await (await f.native('/companion/switch', { id: remote.id })).json();
+  assert.deepEqual(switched.access, { source: 'server', role: 'writer', capabilities: ['read', 'write'], name: 'Prefixed' });
+  const generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'tab-a', generation });
+  assert.match((await (await f.memory('documents/' + id)).json()).content, /Body remote/);
+  const created = await f.browser('/memories/all/notes', { type: 'note', body: '', dailyDate: '2026-01-03' }, { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'tab-a', 'Idempotency-Key': 'prefix-create-0001' });
+  assert.ok(created.ok, await created.clone().text());
+  assert.ok((await readdir(path.join(f.roots[2], 'notes'))).length >= 2, 'the note reached the brain behind the proxy');
+  assert.ok(proxy.seen.includes('/sherpa/capabilities'));
+  assert.ok(proxy.seen.includes('/sherpa/memories/all/documents/' + id));
+  assert.ok(proxy.seen.includes('/sherpa/memories/all/notes'));
+  assert.deepEqual(proxy.outside, [], 'nothing was sent outside the prefix');
+  f.gateway.coordinator.unregister('tab-a', generation);
 });
 
 test('remote profile keys stay out of state/file/browser; the server role alone decides writes; offline selection persists', async (t) => {

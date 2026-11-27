@@ -108,6 +108,9 @@ at most daily; a 401 leaves the cookie alone so a late reply cannot erase a newe
 the server and clears the cookie. A legacy `v2` key cookie still authenticates
 until it expires and is exchanged once by GET `/session`. Cookie-authenticated
 mutations require exact Origin and every request revalidates authorization.
+With a base path (`basePath`, from the path of `--public-base-url`; the proxy strips
+it) the cookie gets `Path=<basePath>` and a name that also hashes the prefix, so
+brains on one hostname keep separate sign-ins; routes themselves stay at `/`.
 WS resolves the browser-session marker from the authenticated upgrade cookie
 through `authenticateSession`, so a session secret is never a bearer token;
 credentials never enter the socket URL. See the

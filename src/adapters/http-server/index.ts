@@ -12,6 +12,7 @@ import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import { createFileLogger, type FileLogger } from "../logging/index.js";
 import { createRemoteIndexRunner, startRemoteAutoIndexer, type RemoteAutoIndexer, type RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { isDrawingStaticPath } from "./drawing-assets.js";
+import { browserBasePath } from "./browser-app-url.js";
 import { RESPONSE_ERROR_CODE, errorResponse, routeRequest, writeJson, parseJsonBody, isJsonError } from "./routes.js";
 import path from "node:path";
 import { createDiagnosticStore, newDiagnosticId, type DiagnosticStore } from "../diagnostics/store.js";
@@ -29,6 +30,8 @@ export interface JumpyBrainHttpServerOptions {
   backendControl?: {instanceId: string; rootId: string; executable: string; executableHash?: string; build?: string; version?: string; stop: () => void};
   feedbackSender?: FeedbackSender;
   root: string;
+  /** Public path prefix (e.g. "/sherpa") when a reverse proxy serves this brain below "/" and strips it. */
+  basePath?: string;
   apiKeys: string[];
   indexRunner?: RemoteIndexRunner;
   logger?: FileLogger;
@@ -59,6 +62,9 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   if (!root) throw new Error("Server memory root is required.");
   const apiKeys = options.apiKeys.map((key) => key.trim()).filter(Boolean);
   if (apiKeys.length === 0 && !options.accessStore) throw new Error("At least one server API key is required.");
+  // Plain segments only (as from --public-base-url): the value also becomes a cookie Path.
+  const basePath = browserBasePath(options.basePath ?? "");
+  if (basePath && !/^(?:\/[A-Za-z0-9_~-][A-Za-z0-9._~-]*)+$/.test(basePath)) throw new Error("Server base path must be plain segments such as /sherpa.");
 
   const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), createBelow: root, component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
   const logger = diagnosticServerLogger(options.logger ?? createFileLogger({ root, name: "server" }), diagnostics);
@@ -80,7 +86,8 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   const authenticate = (token: string) => access.authenticate(token);
   const sessions = new BrowserSessionStore(root, {now: options.now});
   let cookieRoot = root; try {cookieRoot = realpathSync(root);} catch {}
-  const cookieSuffix = createHash("sha256").update(cookieRoot).digest("hex").slice(0,16);
+  // A prefixed brain's cookie name also carries its prefix: containers on one host may share an internal root path.
+  const cookieSuffix = createHash("sha256").update(basePath ? cookieRoot + "\0" + basePath : cookieRoot).digest("hex").slice(0,16);
   // v3 holds an opaque session secret; v2 (before 2026-11-25) held the raw access key for 24 hours.
   const cookieName = "jumpybrain_session_v3_" + cookieSuffix, legacyCookieName = "jumpybrain_session_v2_" + cookieSuffix;
   const readCookie = (request: http.IncomingMessage, name: string) => {
@@ -99,7 +106,8 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   };
   const authenticateBrowser = async (value: string) => value.startsWith("s:") ? (await resolveSession(value.slice(2)))?.principal
     : value.startsWith("k:") ? access.authenticate(value.slice(2)) : undefined;
-  const cookieAttributes = (request: http.IncomingMessage) => "; HttpOnly; SameSite=Strict; Path=/" + ((request.socket as any).encrypted || request.headers["x-forwarded-proto"] === "https" ? "; Secure" : "");
+  // Under a prefix the browser only sends this brain's cookie to this brain's paths.
+  const cookieAttributes = (request: http.IncomingMessage) => "; HttpOnly; SameSite=Strict; Path=" + (basePath || "/") + ((request.socket as any).encrypted || request.headers["x-forwarded-proto"] === "https" ? "; Secure" : "");
   const setCookies = (response: ServerResponse, cookies: string[]) => {
     const existing = response.getHeader("Set-Cookie");
     response.setHeader("Set-Cookie", [...(Array.isArray(existing) ? existing : existing ? [String(existing)] : []), ...cookies]);
@@ -302,7 +310,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         if (typeof operationId === "string") operations.delete(operationId);
         return;
       }
-      await routeRequest({ request, response, root, apiKeys, principal, collaboration, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs, feedback, onMemoryWrite: options.onMemoryWrite, onMemoryActivity: options.onMemoryActivity, maintenance: options.maintenance });
+      await routeRequest({ request, response, root, basePath, apiKeys, principal, collaboration, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs, feedback, onMemoryWrite: options.onMemoryWrite, onMemoryActivity: options.onMemoryActivity, maintenance: options.maintenance });
     } catch (error) {
       logger.error("http_unhandled_error", { method: request.method, path: url.pathname, code: "server_misconfigured" });
       writeJson(response, 500, errorResponse("server_misconfigured", "Server request failed."));

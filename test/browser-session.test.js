@@ -216,3 +216,24 @@ test('session store: renewal writes once, a key cannot evict other keys, replaci
   assert.equal(await store.redeemInvite('jbi_'+'B'.repeat(43),{label:'x',principal:async()=>undefined}),undefined);
   assert.equal((await (await import('node:fs/promises')).stat(file)).mtimeMs,stamp,'an unknown code writes nothing');
 });
+
+test('a brain served under a path prefix scopes its session cookie to that prefix',async t=>{
+  const root=await mkdtemp(path.join(os.tmpdir(),'jb-browser-session-prefix-'));await initializeMemoryRoot(root);
+  const server=await startJumpyBrainHttpServer({root,apiKeys:['disposable-operator'],port:0,autoIndex:false,basePath:'/sherpa'});
+  t.after(async()=>{await server.close();await rm(root,{recursive:true,force:true,maxRetries:5,retryDelay:50});});
+  const signedIn=await fetch(server.url+'/session',{headers:{Authorization:'Bearer disposable-operator'}});
+  assert.equal(signedIn.status,200);
+  assert.match(v3(signedIn),/; Path=\/sherpa(;|$)/);
+  const cookie=v3(signedIn).split(';')[0];
+  const signedOut=await fetch(server.url+'/session',{method:'DELETE',headers:{Cookie:cookie,Origin:server.url}});
+  assert.equal(signedOut.status,200);
+  for (const cleared of cookieOf(signedOut)) assert.match(cleared,/Max-Age=0; HttpOnly; SameSite=Strict; Path=\/sherpa(;|$)/);
+  // Containers on one host may share an internal root path; a prefixed brain's cookie name differs from the root brain's.
+  const atRoot=await startJumpyBrainHttpServer({root,apiKeys:['disposable-operator'],port:0,autoIndex:false});
+  try {
+    const rootSignIn=await fetch(atRoot.url+'/session',{headers:{Authorization:'Bearer disposable-operator'}});
+    assert.notEqual(v3(rootSignIn).split('=')[0],cookie.split('=')[0]);
+    assert.match(v3(rootSignIn),/; Path=\/(;|$)/);
+  } finally { await atRoot.close(); }
+  for (const basePath of ['sherpa/','/graph','/team;beta','/.team']) await assert.rejects(startJumpyBrainHttpServer({root,apiKeys:['x'],port:0,autoIndex:false,basePath}),/base path/);
+});

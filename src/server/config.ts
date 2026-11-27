@@ -5,6 +5,8 @@ export interface JumpyBrainServerConfig {
   port: number;
   apiKeys: string[];
   publicBaseUrl?: string;
+  /** Public path prefix from publicBaseUrl (e.g. "/sherpa"); absent when the brain is served at "/". */
+  basePath?: string;
   searchTimeoutMs?: number;
   indexTimeoutMs?: number;
 }
@@ -29,6 +31,7 @@ export function resolveServerConfig(input: ResolveServerConfigInput = {}, env: N
   if (apiKeys.length === 0) throw new Error("At least one server API key is required. Set JUMPYBRAIN_SERVER_API_KEYS.");
 
   const publicBaseUrl = firstNonEmpty(input.publicBaseUrl, env.JUMPYBRAIN_PUBLIC_BASE_URL);
+  const basePath = publicBaseUrl ? publicBasePath(publicBaseUrl) : "";
   const timeout = (value: number | string | undefined): number | undefined => {
     if (value === undefined) return undefined;
     return memoryExecutionDeadlineMs("index", Number(value));
@@ -36,9 +39,31 @@ export function resolveServerConfig(input: ResolveServerConfigInput = {}, env: N
   const searchTimeoutMs = timeout(input.searchTimeoutMs ?? env.JUMPYBRAIN_SEARCH_TIMEOUT_MS);
   const indexTimeoutMs = timeout(input.indexTimeoutMs ?? env.JUMPYBRAIN_INDEX_TIMEOUT_MS);
   return { root, host, port, apiKeys, publicBaseUrl,
+    ...(basePath ? { basePath } : {}),
     ...(searchTimeoutMs === undefined ? {} : { searchTimeoutMs }),
     ...(indexTimeoutMs === undefined ? {} : { indexTimeoutMs }),
   };
+}
+
+/**
+ * The path a reverse proxy serves this brain under, e.g. https://brain.example.com/sherpa -> "/sherpa".
+ * The proxy strips it before forwarding; the server uses it only for URLs the browser builds and the cookie Path.
+ */
+export function publicBasePath(publicBaseUrl: string): string {
+  const value = publicBaseUrl.trim();
+  let url: URL;
+  try { url = new URL(value); } catch { throw new Error(`Invalid public base URL ${JSON.stringify(publicBaseUrl)}; use e.g. https://brain.example.com or https://brain.example.com/sherpa.`); }
+  if (!["http:", "https:"].includes(url.protocol)) throw new Error("The public base URL must use http or https.");
+  if (url.username || url.password || url.search || url.hash) throw new Error("The public base URL must not contain credentials, a query or a fragment.");
+  // Check the path as typed (URL parsing resolves `..`), with the same segment rule as CLI and Mac connections.
+  const typed = /^https?:\/\/[^/?#\\]+(\/[^?#]*)?$/i.exec(value.replace(/[?#].*$/, ""));
+  if (!typed) throw new Error(`Invalid public base URL ${JSON.stringify(publicBaseUrl)}; use e.g. https://brain.example.com or https://brain.example.com/sherpa.`);
+  const basePath = (typed[1] ?? "").replace(/\/$/, "");
+  if (basePath && !/^(?:\/[A-Za-z0-9_~-][A-Za-z0-9._~-]*)+$/.test(basePath))
+    throw new Error("The public base URL path must be plain segments such as /sherpa or /team/sherpa.");
+  // The browser UI's own Graph route.
+  if (basePath === "/graph") throw new Error("The public base URL path cannot be /graph; choose another prefix.");
+  return basePath;
 }
 
 function parsePort(value: string | number): number {

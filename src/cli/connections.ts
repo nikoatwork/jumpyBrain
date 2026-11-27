@@ -39,7 +39,7 @@ export async function connectionsCli(args: ParsedCliArgs): Promise<void> {
     if (code === "ACTIVE_PROFILE") throw new Error("Switch away from the active app connection before removing it.");
     if (code === "DUPLICATE_DESTINATION") throw new Error("A connection already uses this canonical destination.");
     if (code === "INVALID_ROOT") throw new Error("Use a brain with a regular jumpybrain.json; add never initializes it.");
-    if (code === "INVALID_URL") throw new Error("Use an HTTPS origin (or http://127.0.0.1 / localhost) without a path, query or credentials, e.g. https://memory.example.com.");
+    if (code === "INVALID_URL") throw new Error("Use an HTTPS URL (or http://127.0.0.1 / localhost) without query or credentials, optionally with a path prefix, e.g. https://memory.example.com or https://brains.example.com/team.");
     if (code === "CREDENTIALS_UNAVAILABLE") throw new Error(`The app could not save the key in ${credentialsEnvFileDisplay()}. Check that the file is yours and private (chmod 600).`);
     if (code === "switch_busy") throw new Error("Another connection change is in progress in the app. Retry when it finishes.");
     if (status === 409) throw new Error("Revision changed or save/switch is blocked. Resolve drafts, run connections list, then retry deliberately.");

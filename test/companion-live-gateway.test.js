@@ -13,6 +13,7 @@ import {startCompanionGateway} from '../integrations/macos-companion/gateway.mjs
 import {attachCompanionLive} from '../integrations/macos-companion/live-gateway.mjs';
 import {SwitchCoordinator} from '../integrations/macos-companion/switch-coordinator.mjs';
 import {roleCapabilities} from '../dist/adapters/access-control/index.js';
+import {startPrefixProxy} from './prefix-proxy-helpers.js';
 const documentId='mem_12345678-1234-1234-1234-123456789abc';
 const content=body=>`---\nid: ${documentId}\ntype: note\ntitle: Gateway\n---\n${body}`;
 async function until(check){for(let i=0;i<300;i++){if(await check())return;await new Promise(resolve=>setTimeout(resolve,5));}throw new Error('Gateway deadline');}
@@ -24,11 +25,13 @@ async function socket(url,options={}){
   return{ws,rpc,packets};
 }
 // A real server, a key the server issued with `role`, and a remote app connection using it.
-async function fullFixture(t,role){
+async function fullFixture(t,role,prefix){
   const temporary=await realpath(await mkdtemp(path.join(os.tmpdir(),'jb-live-bridge-'))),root=path.join(temporary,'brain'),directory=path.join(temporary,'support');
   await initializeMemoryRoot(root);await mkdir(directory,{mode:0o700});const file=path.join(root,'notes','gateway.md');await writeFile(file,content('base\n'));
   const operator=randomBytes(32).toString('hex'),control=randomBytes(32).toString('hex');
   const backend=await startJumpyBrainHttpServer({root,apiKeys:[operator],port:0,autoIndex:false});
+  // With a prefix the app connection reaches the brain only through a prefix-stripping proxy.
+  const proxy=prefix?await startPrefixProxy(t,backend.url,prefix):null,remoteUrl=proxy?proxy.url:backend.url;
   const admin=(route,method,body)=>fetch(backend.url+route,{method,headers:{Authorization:'Bearer '+operator,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
   const issue=async(role,name=role+' key')=>{const packet=await(await admin('/access','POST',{name,role})).json();return{token:packet.token,id:packet.credential.id};};
   const revoke=id=>admin('/access/'+id,'DELETE');
@@ -37,7 +40,7 @@ async function fullFixture(t,role){
   const post=(route,body,headers={})=>fetch(gateway.url+route,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
   const native=(route,body)=>post(route,body,{Authorization:'Bearer '+control});
   const key=await issue(role);
-  const saved=await native('/companion/profiles',{profile:{name:'Shared',kind:'remote',url:backend.url,key:key.token},revision:gateway.store.snapshot().revision});assert.equal(saved.status,200,await saved.clone().text());
+  const saved=await native('/companion/profiles',{profile:{name:'Shared',kind:'remote',url:remoteUrl,key:key.token},revision:gateway.store.snapshot().revision});assert.equal(saved.status,200,await saved.clone().text());
   const remote=(await saved.json()).profiles.find(profile=>profile.kind==='remote');
   assert.equal((await native('/companion/switch',{id:remote.id})).status,200);
   const session=await post('/companion/session',{token:control},{Origin:gateway.url});assert.equal(session.status,200);const cookie=session.headers.get('set-cookie').split(';')[0];
@@ -52,9 +55,9 @@ async function fullFixture(t,role){
   };
   const first=await connect();assert.equal(first.hello.ok,true);
   // Replacing the key is the only way a connection's role changes.
-  const useKey=async token=>{const response=await native('/companion/profiles',{profile:{id:remote.id,name:'Shared',kind:'remote',url:backend.url,key:token},revision:gateway.store.snapshot().revision});assert.equal(response.status,200,await response.clone().text());};
+  const useKey=async token=>{const response=await native('/companion/profiles',{profile:{id:remote.id,name:'Shared',kind:'remote',url:remoteUrl,key:token},revision:gateway.store.snapshot().revision});assert.equal(response.status,200,await response.clone().text());};
   t.after(async()=>{for(const client of clients)client.ws.terminate();await gateway.close();await backend.close();await rm(temporary,{recursive:true,force:true});});
-  return{root,file,gateway,backend,key,issue,revoke,useKey,connect,...first};
+  return{root,file,gateway,backend,proxy,remote,key,issue,revoke,useKey,connect,...first};
 }
 test('a reader key reads history/recovery through the bridge while every write and arbitrary method is denied',async t=>{
   const f=await fullFixture(t,'reader');assert.equal(f.hello.result.principal.role,'reader','the server role reaches the editor unchanged');
@@ -81,6 +84,15 @@ for(const role of ['writer','admin'])test(`a ${role} key forwards guarded redo a
   const edited=await f.rpc('edit',{epoch:opened.epoch,baseRevision:opened.revision,operationId:'change',start:0,deleteCount:1,insert:'B'});assert.equal(edited.ok,true);
   const undo=await f.rpc('undo',{epoch:edited.result.epoch,operationId:'undo'});assert.equal(undo.ok,true);assert.equal(undo.result.body,'base\n');
   const redo=await f.rpc('redo',{epoch:undo.result.epoch,operationId:'redo'});assert.equal(redo.ok,true);assert.equal(redo.result.body,'Base\n');assert.equal(f.gateway.coordinator.inFlight,0);
+});
+test('a remote served under a path prefix keeps it for upstream HTTP and live traffic; the app UI stays at the gateway root',async t=>{
+  const f=await fullFixture(t,'writer','/sherpa');assert.equal(f.remote.url,f.proxy.url);assert.equal(f.hello.result.principal.role,'writer');
+  const opened=(await f.rpc('open')).result;
+  const edited=await f.rpc('edit',{epoch:opened.epoch,baseRevision:opened.revision,operationId:'prefixed',start:0,deleteCount:1,insert:'B'});assert.equal(edited.ok,true);
+  await until(async()=>(await readFile(f.file,'utf8')).endsWith('\nBase\n'));
+  assert.ok(f.proxy.seen.includes('/sherpa/ws'),'the live bridge connected under the prefix');
+  assert.ok(f.proxy.seen.includes('/sherpa/capabilities'),'the role check used the prefix');
+  assert.deepEqual(f.proxy.outside,[],'nothing was sent outside the prefix');
 });
 test('a revoked key loses its live session; a replaced key restarts tabs under the new role',async t=>{
   const f=await fullFixture(t,'writer'),opened=(await f.rpc('open')).result;

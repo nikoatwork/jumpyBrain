@@ -735,8 +735,10 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
     },
   };
   ctx.memoryDocumentPath = memoryDocumentPath;
+  ctx.appBasePath = "";
   vm.createContext(ctx);
   vm.runInContext([
+    extractFunction(script, "appUrl"),
     extractFunction(script, "graphFetch"),
     extractFunction(script, "graphJson"),
     extractFunction(script, "documentUrl"),

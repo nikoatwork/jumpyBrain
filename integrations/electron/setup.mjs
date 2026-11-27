@@ -64,16 +64,18 @@ export async function activateRemoteBrain(connection, input, { control = compani
   // Normalizing only a trailing slash lets retries find the already saved profile.
   let url;
   try { url = new URL(input.url.trim()); } catch { throw new Error('Check the server address. It should look like https://brain.example.com.'); }
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash
     || input.url.includes('\\') || (url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) {
-    throw new Error('Use an HTTPS server address without a page path, such as https://brain.example.com. HTTP is also supported for a server on this Mac (localhost).');
+    throw new Error('Use an HTTPS server address such as https://brain.example.com or https://brain.example.com/team. HTTP is also supported for a server on this Mac (localhost).');
   }
+  // The store keeps origin plus any path prefix (the brain's proxy strips it), without a trailing slash.
+  const canonical = url.origin + url.pathname.replace(/\/+$/, '');
   let state = await control(connection);
-  const existing = state.profiles.find(item => item.kind === 'remote' && item.url === url.origin);
+  const existing = state.profiles.find(item => item.kind === 'remote' && item.url === canonical);
   state = await control(connection, 'profiles', { revision: state.revision, profile: {
     ...(existing ? { id: existing.id } : {}), name: existing?.name || url.hostname, kind: 'remote', url: input.url.trim(), key: input.key,
   } });
-  const profile = state.profiles.find(item => item.kind === 'remote' && item.url === url.origin);
+  const profile = state.profiles.find(item => item.kind === 'remote' && item.url === canonical);
   if (!profile) throw new Error('The connection wasn’t saved. Please try again.');
   const { health } = await control(connection, 'test', { id: profile.id });
   if (health !== 'connected') throw new Error(health === 'authentication_failed'

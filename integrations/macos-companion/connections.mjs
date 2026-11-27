@@ -14,7 +14,7 @@ const storeToken = Symbol("ConnectionStore");
 const messages = {
   INVALID_INPUT: "Invalid connection details.",
   INVALID_ROOT: "Choose an existing memory folder with a regular jumpybrain.json file.",
-  INVALID_URL: "Use an HTTPS origin, or an HTTP loopback origin, without credentials, paths, query, or fragment.",
+  INVALID_URL: "Use an HTTPS URL, or an HTTP loopback URL, without credentials, query, or fragment; a path prefix such as /team is allowed.",
   DUPLICATE_DESTINATION: "A connection already uses this destination.",
   PROFILE_LIMIT: "The connection limit has been reached.",
   NOT_FOUND: "Connection not found.",
@@ -115,9 +115,12 @@ async function readState(directory) {
   } finally { await handle.close(); }
 }
 
-function remoteOrigin(value) {
+// An origin, optionally with a path prefix that the brain's reverse proxy strips
+// (https://host/team). Prefix segments are plain names: no `.`, `..`, empty
+// segments or escapes, so one destination has one spelling.
+function remoteUrl(value) {
   if (!text(value, 2048) || /[\s\\]/.test(value)) fail("INVALID_URL");
-  const match = /^(https?):\/\/([^/?#]+)\/?$/i.exec(value);
+  const match = /^(https?):\/\/([^/?#]+)((?:\/[A-Za-z0-9_~-][A-Za-z0-9._~-]*)*)\/?$/i.exec(value);
   if (!match || /[@%]/.test(match[2])) fail("INVALID_URL");
   let url;
   try { url = new URL(value); } catch { fail("INVALID_URL"); }
@@ -126,8 +129,16 @@ function remoteOrigin(value) {
     : match[2].split(":")[0].toLowerCase();
   if (url.protocol !== "https:" && !(url.protocol === "http:"
     && ["127.0.0.1", "localhost", "[::1]"].includes(authorityHost))) fail("INVALID_URL");
-  if (!url.hostname || url.username || url.password || url.search || url.hash || url.pathname !== "/") fail("INVALID_URL");
-  return url.origin;
+  if (!url.hostname || url.username || url.password || url.search || url.hash || url.pathname.replace(/\/$/, "") !== match[3]) fail("INVALID_URL");
+  return url.origin + match[3];
+}
+
+/** The one join rule for upstream routes: keeps a remote's path prefix (`https://host/team` + `/ws`). */
+export function upstreamUrl(base, route) {
+  if (typeof route !== "string" || !route.startsWith("/")) throw new Error("Upstream route must start with '/'.");
+  const url = new URL(base);
+  // Concatenate, never resolve: a route such as `//host` must stay a path on this origin.
+  return new URL(url.origin + url.pathname.replace(/\/+$/, "") + route);
 }
 // Pre-role profile files carry `allowWrites`; current ones do not. Both are valid on disk.
 const LEGACY_PERMISSION = "allowWrites";
@@ -151,7 +162,7 @@ function validateState(state) {
     } else if (profile.kind === "remote") {
       if (count !== 5 || "root" in profile || typeof profile.credentialRef !== "string"
         || !REFERENCE.test(profile.credentialRef) || references.has(profile.credentialRef)) invalid();
-      try { if (remoteOrigin(profile.url) !== profile.url) invalid(); } catch { invalid(); }
+      try { if (remoteUrl(profile.url) !== profile.url) invalid(); } catch { invalid(); }
       destination = `remote:${profile.url}`;
       references.add(profile.credentialRef);
     } else invalid();
@@ -302,7 +313,7 @@ export class ConnectionStore {
         profile.root = await localRoot(request.root);
       } else {
         if ("root" in request || ("key" in request && !validKey(request.key))) fail("INVALID_INPUT");
-        profile.url = remoteOrigin(request.url);
+        profile.url = remoteUrl(request.url);
       }
       const sameDestination = previous?.kind === profile.kind
         && (profile.kind === "local" ? previous.root === profile.root : previous.url === profile.url);

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lstat, realpath, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { ConnectionStore } from './connections.mjs';
+import { ConnectionStore, upstreamUrl } from './connections.mjs';
 import { SwitchCoordinator, ControlError } from './switch-coordinator.mjs';
 import { createExtensionGateway } from './extensions-gateway.mjs';
 
@@ -281,7 +281,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
       if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
       const transport = fetchImpl === fetch && route.split('?')[0].endsWith('/index') ? fetchIndexTarget : fetchImpl;
-      const response = await transport(dest.url + route, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + dest.key }, redirect: 'manual', signal: controller.signal });
+      const response = await transport(upstreamUrl(dest.url, route).href, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + dest.key }, redirect: 'manual', signal: controller.signal });
       if (response.status >= 300 && response.status < 400) { await response.body?.cancel(); failure('unsafe_redirect', 'Memory server redirects are not followed.', 502); }
       let body;
       try { body = await bytes(response.body || [], MAX_RESPONSE); }

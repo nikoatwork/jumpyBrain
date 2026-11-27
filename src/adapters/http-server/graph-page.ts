@@ -19,6 +19,7 @@ import { companionMarkup, companionPrelude, companionScript, companionStyles } f
 import { feedbackMarkup, feedbackStyles } from "./feedback.js";
 import { graphTopicMarkup, graphTopicStyles } from "./graph-topic-preview.js";
 import { drawingIcon, drawingsDialogMarkup, drawingsMarkup, drawingsScript, drawingsStyles } from "./drawings-view.js";
+import { appUrlScript, browserBasePath } from "./browser-app-url.js";
 
 const extensionBundle = readFileSync(new URL("./extensions-bundle.js", import.meta.url), "utf8");
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
@@ -26,16 +27,19 @@ const graphNodeGlows = GRAPH_NODE_TONES.map((type) =>
   `<radialGradient id="map-glow-${type}"><stop stop-color="var(--node-${type})" stop-opacity=".2"/><stop offset=".45" stop-color="var(--node-${type})" stop-opacity=".08"/><stop offset="1" stop-color="var(--node-${type})" stop-opacity="0"/></radialGradient>`
 ).join("");
 
-export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings" = "home", options: { companion?: boolean } = {}): string {
+// basePath: the public path prefix a reverse proxy strips (hosted only; the companion UI is always at "/").
+export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings" = "home", options: { companion?: boolean; basePath?: string } = {}): string {
   const companion = options.companion === true;
   if (!/^[A-Za-z0-9_-]+$/.test(nonce)) throw new Error("graph page nonce must be base64url-safe");
+  const basePath = browserBasePath(options.basePath ?? "");
+  if (companion && basePath) throw new Error("the companion browser is served at the root");
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${companion && view === "settings" ? "Settings" : view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
-  <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
+  <link rel="icon" type="image/svg+xml" sizes="any" href="${basePath}/favicon.svg" />
   <script nonce="${nonce}">${themeBootstrap}${sidebarBootstrap}</script>
   <style nonce="${nonce}">
     ${designSystemStyles}
@@ -130,7 +134,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   </style>
 </head>
 <body data-view="home">
-${companion ? notesMarkup.replace('<div class="nav-tools"', '<div class="extension-slot" data-extension-slot="sidebar.actions" aria-label="Extension sidebar actions"></div><div class="nav-tools"') : notesMarkup}
+${companion ? notesMarkup(basePath).replace('<div class="nav-tools"', '<div class="extension-slot" data-extension-slot="sidebar.actions" aria-label="Extension sidebar actions"></div><div class="nav-tools"') : notesMarkup(basePath)}
 ${documentActionsMarkup}
 ${graphTopicMarkup(browserIcons.close)}
 ${companion ? extensionPanelMarkup : ""}
@@ -197,7 +201,7 @@ ${dropdownGlyphsMarkup(browserChevronDownIcon, browserChevronsUpDownIcon)}
 ${folderExplorerMarkup}
 ${drawingsDialogMarkup}
 <script nonce="${nonce}">
-${lexicalBundle}
+${appUrlScript(basePath)}${lexicalBundle}
 ${companion ? extensionBundle : ""}
 ${sidebarScript}
 const { splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
@@ -246,7 +250,7 @@ let credentialRevision = 0;
 let hostedPrincipalId = null;
 // Who this browser session signed in as, from /session or an invite: {id, name, role}.
 let hostedPrincipal = null;
-const hostedIdentityChannel = !companionMode && typeof BroadcastChannel === "function" ? new BroadcastChannel("jumpybrain.browser.identity.v2") : null;
+const hostedIdentityChannel = !companionMode && typeof BroadcastChannel === "function" ? new BroadcastChannel("jumpybrain.browser.identity.v2" + appBasePath) : null;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 ${accessGuardScript}
 
@@ -287,7 +291,7 @@ const graphTopicPreview = JumpyBrainBrowser.installGraphTopicPreview({
   ensure: (title, signal) => graphJson("/memories/all/ensure-title", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }), signal,
   }),
-  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  href: (id) => appUrl(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id)),
   navigate: (destination) => navigation.navigate(destination),
   onCreated: () => referenceTargetCreated(),
 });
@@ -358,7 +362,7 @@ async function graphFetch(url, options) {
     requestOptions.headers["X-Companion-Tab"] = companionTabId;
   } else if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
   try {
-    const response = await fetch(url, requestOptions);
+    const response = await fetch(appUrl(url), requestOptions);
     feedbackDiagnostics.finish(url, requestOptions.method || "GET", diagnosticRequest, response);
     const companion = typeof companionMode !== "undefined" && companionMode;
     const refusal = response.status === 403 || (companion && response.status === 409)
@@ -505,12 +509,12 @@ const drawingsUI = createDrawingsUI({
   readOnly: () => !accessWritable(),
   // A role restriction keeps creation available so that choosing it explains why.
   explainReadOnly: (action) => { if (!accessBlocked()) return false; accessExplain(action); return true; },
-  scopeUrl: (url) => companionMode ? companionScopeUrl(url) : url,
+  scopeUrl: (url) => appUrl(companionMode ? companionScopeUrl(url) : url),
   navigate: (destination) => navigation.navigate(destination),
   replaceUrl: (destination) => {
     const url = companionMode ? companionScopeUrl(destination) : destination;
     const index = Number.isSafeInteger(history.state?.jumpyBrainIndex) ? history.state.jumpyBrainIndex : 0;
-    history.replaceState({ jumpyBrainIndex: index }, "", url);
+    history.replaceState({ jumpyBrainIndex: index }, "", appUrl(url));
     navigation.reset({ url, index });
   },
   theme: () => document.documentElement.dataset.theme === "dark" ? "dark" : "light",
@@ -531,7 +535,7 @@ const accessKeys = JumpyBrainBrowser.installAccessKeys({
       return { kind: !usable ? "none" : profile.kind === "local" ? "local" : "remote", address: profile?.url || "",
         scope: JSON.stringify([companionState?.generation, companionState?.activeId]) };
     }
-    return { kind: connectionStatus === "connected" ? "hosted" : "none", address: location.origin, scope: String(credentialRevision) };
+    return { kind: connectionStatus === "connected" ? "hosted" : "none", address: location.origin + appBasePath, scope: String(credentialRevision) };
   },
   confirm: (text) => confirm(text),
   copy: (text) => navigator.clipboard.writeText(text),
@@ -587,10 +591,10 @@ if (!companionMode) {
       // elsewhere could otherwise switch an existing session to another key.
       // Redeem only after the server said this browser has no session (401); the route refuses a live one too.
       let unsigned = false;
-      try { const current = await fetch("/session"); if (current.ok) signedInAs = (await current.json()).principal || null; else unsigned = current.status === 401; if (!current.ok && !unsigned) inviteProblem = "failed"; }
+      try { const current = await fetch(appUrl("/session")); if (current.ok) signedInAs = (await current.json()).principal || null; else unsigned = current.status === 401; if (!current.ok && !unsigned) inviteProblem = "failed"; }
       catch { inviteProblem = "offline"; }
       if (unsigned) try {
-        const response = await fetch("/session/invite", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({code: inviteCode})});
+        const response = await fetch(appUrl("/session/invite"), {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({code: inviteCode})});
         if (response.ok) {
           // Connected is set below, together with the first page, once /session confirms the cookie.
           hostedPrincipal = (await response.json()).principal || null; hostedPrincipalId = hostedPrincipal?.id || null;
@@ -602,7 +606,7 @@ if (!companionMode) {
       inviteCode = "";
     }
     try {
-      const response = await fetch("/session", {headers: activeApiKey && activeApiKey !== "browser-session" ? {Authorization:"Bearer " + activeApiKey} : {}});
+      const response = await fetch(appUrl("/session"), {headers: activeApiKey && activeApiKey !== "browser-session" ? {Authorization:"Bearer " + activeApiKey} : {}});
       if (response.ok) {hostedPrincipal = (await response.json()).principal || null; hostedPrincipalId = hostedPrincipal?.id || null; activeApiKey = "browser-session"; apiKeyInput.value = ""; connectionStatus = "connected"; void accessRefresh();}
       // A key that did not become a session is never used directly; it stays in the dialog to retry.
       else if (activeApiKey !== "browser-session" && response.status !== 401) {activeApiKey = ""; connectionStatus = "disconnected";}

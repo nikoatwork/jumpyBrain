@@ -1,13 +1,14 @@
 import { readIdentity, agentDisplayName } from "../adapters/client-identity/index.js";
 import { randomUUID } from "node:crypto";
 import { WebSocket } from "../adapters/websocket/index.js";
+import { remoteRouteUrl } from "../adapters/http-client/index.js";
 import { ensureRootBackend } from "../app/backend-host/index.js";
 import { resolveCliTarget } from "./targets.js";
 import { remoteApiKey } from "./memory-target.js";
 import type { ParsedCliArgs } from "./args.js";
 
 const usage =
-  "jumpybrain collaborate <open|watch|edit|stream|status|cancel|finish|undo|resync> --id <note-id> [--root <directory> | --target-url <https-origin>] [--start <UTF-16 offset> --delete <count> --epoch <read epoch> --base-revision <read revision>] [--json]. Edit offsets and positioned streams require the epoch/revision returned by the read used to calculate them. A stream without --start appends to the latest saved document. Pipe replacement text to edit, or generated UTF-8 chunks to stream. Publishing requires a connection; a lost acknowledgement is never retried automatically.";
+  "jumpybrain collaborate <open|watch|edit|stream|status|cancel|finish|undo|resync> --id <note-id> [--root <directory> | --target-url <https-url>] [--start <UTF-16 offset> --delete <count> --epoch <read epoch> --base-revision <read revision>] [--json]. Edit offsets and positioned streams require the epoch/revision returned by the read used to calculate them. A stream without --start appends to the latest saved document. Pipe replacement text to edit, or generated UTF-8 chunks to stream. Publishing requires a connection; a lost acknowledgement is never retried automatically.";
 
 export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
   if (args.help) {
@@ -97,7 +98,7 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     url = target.url;
     credential = await remoteApiKey(url, target.brain);
   }
-  const endpoint = new URL("/ws", url);
+  const endpoint = remoteRouteUrl(url, "/ws");
   endpoint.protocol = endpoint.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(endpoint);
   const pending = new Map<

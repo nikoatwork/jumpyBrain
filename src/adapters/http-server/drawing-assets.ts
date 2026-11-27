@@ -15,19 +15,21 @@ const base = new URL("./drawing-app/", import.meta.url);
 let names: Set<string> | undefined;
 const cache = new Map<string, { body: Buffer; etag: string }>();
 
+// Asset URLs are relative to the frame document so they keep a proxy path prefix
+// (/sherpa/drawing-frame -> /sherpa/drawing-app/…); the frame sits one level deep.
 const frameHtml = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Drawing · jumpyBrain</title>
-  <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
-  <link rel="stylesheet" href="${DRAWING_ASSET_PREFIX}drawing.css" />
+  <link rel="icon" type="image/svg+xml" sizes="any" href="favicon.svg" />
+  <link rel="stylesheet" href="${DRAWING_ASSET_PREFIX.slice(1)}drawing.css" />
 </head>
 <body>
 <div id="root"></div>
-<script type="module" src="${DRAWING_ASSET_PREFIX}boot.js"></script>
-<script type="module" src="${DRAWING_ASSET_PREFIX}drawing.js"></script>
+<script type="module" src="${DRAWING_ASSET_PREFIX.slice(1)}boot.js"></script>
+<script type="module" src="${DRAWING_ASSET_PREFIX.slice(1)}drawing.js"></script>
 </body>
 </html>`;
 

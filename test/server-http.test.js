@@ -52,6 +52,18 @@ test("server config resolves env and rejects missing secrets", async () => {
   assert.throws(() => serverModule.resolveServerConfig({ root: "/tmp/memory" }, {}), /API key/);
 });
 
+test("server config derives a path prefix from the public base URL", async () => {
+  const { resolveServerConfig } = await loadServerModule();
+  const resolve = (publicBaseUrl) => resolveServerConfig({ root: "/tmp/memory", apiKeys: ["one"], publicBaseUrl }, {});
+  assert.equal(resolve("https://brain.example.com").basePath, undefined);
+  assert.equal(resolve("https://brain.example.com/").basePath, undefined);
+  assert.equal(resolve("https://brain.example.com/sherpa").basePath, "/sherpa");
+  assert.equal(resolve("https://brain.example.com/team/sherpa/").basePath, "/team/sherpa");
+  for (const invalid of ["brain.example.com/sherpa", "ftp://brain.example.com/x", "https://brain.example.com/sherpa?x=1", "https://brain.example.com/sherpa#x", "https://u:p@brain.example.com/x", "https://brain.example.com//x", "https://brain.example.com/a%20b", "https://brain.example.com/.team", "https://brain.example.com/team/../sherpa", "https://brain.example.com/graph", "https:/brain.example.com/team/../sherpa", "https:brain.example.com/x", "https://brain.example.com\\x"]) {
+    assert.throws(() => resolve(invalid), /public base URL/, invalid);
+  }
+});
+
 test("remote HTTP health is unauthenticated and content-free", async () => {
   const serverModule = await loadServerModule();
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-http-health-"));

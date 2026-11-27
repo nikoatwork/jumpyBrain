@@ -24,9 +24,11 @@ JUMPYBRAIN_SERVER_ROOT=/srv/jumpybrain/memory
 JUMPYBRAIN_SERVER_HOST=127.0.0.1
 JUMPYBRAIN_SERVER_PORT=3787
 JUMPYBRAIN_SERVER_API_KEYS=key-one,key-two
-JUMPYBRAIN_PUBLIC_BASE_URL=https://memory.example.com # optional
+JUMPYBRAIN_PUBLIC_BASE_URL=https://memory.example.com # optional; a path such as /product serves the brain under that prefix
 JUMPYBRAIN_QMD_BIN=/path/to/qmd                     # optional
 ```
+
+When `JUMPYBRAIN_PUBLIC_BASE_URL` (or `--public-base-url`) has a path, the reverse proxy strips that prefix and the server keeps its routes at `/`. The server uses the prefix only for the browser UI's URLs and the session cookie `Path`; see [one hostname, one path per brain](vps-deploy.md#one-hostname-one-path-per-brain).
 
 Server startup should fail if the memory root is missing or incompatible. Use an explicit one-time flag to create it:
 
