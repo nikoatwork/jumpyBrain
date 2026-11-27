@@ -425,7 +425,10 @@ test("read-only remote integration allows reads and sends no mutation requests",
       remoteTargets: [{ origin: started.url, access: "read-only" }],
     }), "utf8");
     const env = { JUMPYBRAIN_API_KEY: "secret", JUMPYBRAIN_CLI_CONFIG: policyPath };
-    const target = ["--target-url", `${started.url}/alias/path?ignored=yes`];
+    // A path in --target-url is a brain's prefix since hosted brains can share one
+    // hostname; origin-wide read-only for prefixed URLs is covered by the
+    // policy matrix in remote-access-policy.test.js. The query stays ignored.
+    const target = ["--target-url", `${started.url}/?ignored=yes`];
 
     assert.equal(JSON.parse(runCli(["status", ...target, "--json"], { env }).stdout).initialized, true);
     assert.doesNotThrow(() => runCli(["tree", ...target, "--json"], { env }));
