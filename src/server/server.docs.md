@@ -28,7 +28,7 @@ writes and retains canonical Saved separately from indexing.
 
 A detached owner must never outlive its ownership. On 2026-11-25 a v0.3.27 daemon
 recorded its shutdown and released its lease during an `upgradeOlder` handoff,
-then stayed alive without a listener for hours; any handle left after the drain
+then stayed alive without a listener until it was stopped by hand; any handle left after the drain
 (timer, socket, child, pending I/O) keeps Node running and its runtime
 generation pinned. `serveDetachedBackend` therefore always exits explicitly
 once `runBackendDaemon` returns or fails, logging the resource types that would
@@ -37,8 +37,8 @@ have kept it alive. `BACKEND_DAEMON_TIMINGS` bound the rest:
 | State | Action |
 | --- | --- |
 | Lost the startup race | Exit at once (no lease, nothing served). |
-| Lease held, not ready within `startupMs` (30 s) | Stop; forced exit after `graceMs` while no descriptor names it (no client work can be in flight), otherwise after `drainMs`. |
-| Ready: lease names another owner/PID, or the root is gone | Stop at the next `checkMs` (1 s) check. |
+| Lease won, not ready within `startupMs` (30 s) of winning it | Stop; forced exit after `graceMs` while no descriptor names it (no client work can be in flight), otherwise after `drainMs`. |
+| Ready: lease absent or naming another owner/PID, or the root is gone | Stop at the next `checkMs` (1 s) check. |
 | Ready: listener closed, lease unreadable, or a check that does not finish | Stop after `graceMs` (5 s) of consecutive such ticks. A healthy result resets it; an event-loop stall yields one late tick, not a stop. The connection descriptor is not checked: a tampered one fails closed for clients rather than making the owner restart over it. |
 | Any stop | Normal drain first (requests, canonical writes, hub, owned children). Forced exit only if the drain exceeds `drainMs` (30 s); a lease it still holds names a dead PID and is reclaimed by the next owner. |
 
