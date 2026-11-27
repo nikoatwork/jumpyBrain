@@ -12,7 +12,8 @@ Open problems found on 2026-11-25 while using published v0.3.28 on the owner's M
 
 - [ ] **P3 — Test runs leave backends running.** Found still running: a `scripts/install-smoke` home from 2026-11-22 (`/private/tmp/jb-smoke-*`, listening on loopback) and the v0.3.28 release's disposable `personal` install (both stopped by hand), plus a worktree's scratch brain. Smoke scripts and the release routine that install into a disposable home should run `jumpybrain backend stop --root <root>` (or stop the owner from `owner.json`) before removing or abandoning the home.
 
-- [ ] **P3 — Remote status suggests a local-only command.** `status --target-url` prints "Optional: index --setup-semantic with the same local root…", which cannot apply to a remote brain; the local wording elsewhere is now `smart-search on`. Show nothing (or a server-operator hint) for remote targets.
+- [x] **P3 — Remote status suggests a local-only command.** `status --target-url` prints "Optional: index --setup-semantic with the same local root…", which cannot apply to a remote brain; the local wording elsewhere is now `smart-search on`. Show nothing (or a server-operator hint) for remote targets.
+  Done 2026-11-27: for a `--target-url` brain, `status` (text and JSON) drops the server's local next step. Working search shows none; a broken one shows a server-operator hint. The wording names the server ("smart search is off on the server", "model is missing on the server"). Local wording is unchanged. Checked by `test/cli-smart-search.test.js` (pure wording) and `test/cli-connections.test.js` (real remote status, text and JSON): 15/15 pass.
 
 ## Not done here
 

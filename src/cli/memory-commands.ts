@@ -16,7 +16,7 @@ import { readStdin } from "./stdin.js";
 import { compactOptions, expansionOptions, printCompactRecall, printExpansion } from "./bounded-reads.js";
 import { normalizeRetrievalDepth } from "../core/retrieval-policy/index.js";
 import { FEWER_KEYWORDS_HINT } from "../core/retrieval-policy/zero-hit.js";
-import { formatSearchLine, searchModeSummary } from "./search-mode.js";
+import { formatSearchLine, remoteSemanticSetup, searchModeSummary } from "./search-mode.js";
 
 export type MemoryCommand =
   | "status"
@@ -78,8 +78,10 @@ export async function runMemoryCommand(
   }
 
   if (command === "status") {
-    const result = target.kind === "remote" ? await target.memory.memoryRootStatus() : await localMemory.memoryRootStatus(target.root);
-    if (args.json) console.log(JSON.stringify({ ...result, ...(result.semanticSetup ? { search: searchModeSummary(result.semanticSetup)!.mode } : {}), target: { kind: target.kind, source: target.source, ...(target.brain ? { brain: target.brain } : {}), ...(target.kind === "local" ? { root: target.root } : { url: target.url, credential: target.credential.summary }) } }, null, 2));
+    const status = target.kind === "remote" ? await target.memory.memoryRootStatus() : await localMemory.memoryRootStatus(target.root);
+    const scope = target.kind;
+    const result = scope === "remote" && status.semanticSetup ? { ...status, semanticSetup: remoteSemanticSetup(status.semanticSetup) } : status;
+    if (args.json) console.log(JSON.stringify({ ...result, ...(result.semanticSetup ? { search: searchModeSummary(result.semanticSetup, scope)!.mode } : {}), target: { kind: target.kind, source: target.source, ...(target.brain ? { brain: target.brain } : {}), ...(target.kind === "local" ? { root: target.root } : { url: target.url, credential: target.credential.summary }) } }, null, 2));
     else {
       console.log(`${target.kind === "remote" ? "Remote memory" : "Memory root"}: ${target.kind === "remote" ? target.url : result.root}`);
       console.log(`Target source: ${target.brain ? `brain ${target.brain}` : target.source}`);
@@ -89,7 +91,7 @@ export async function runMemoryCommand(
       console.log(`Compatible: ${result.compatible ? "yes" : "no"}`);
       if (result.message) console.log(result.message);
       printReadiness(result.readiness);
-      const search = formatSearchLine(result.semanticSetup);
+      const search = formatSearchLine(result.semanticSetup, scope);
       if (search) console.log(search);
       if (result.semanticSetup) console.log(`Semantic setup: ${result.semanticSetup.state}${result.semanticSetup.nextAction ? ". " + result.semanticSetup.nextAction : ""}`);
     }

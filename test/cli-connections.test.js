@@ -168,6 +168,11 @@ test('remote connections from the CLI: key from a variable or stdin, one stored 
   // The CLI's own target resolution follows the app connection's reference.
   const status = JSON.parse((await f.cli(['status', '--target-url', origin, '--json'])).stdout);
   assert.deepEqual([status.target.credential.source, status.target.credential.variable], ['app-connection', 'JUMPYBRAIN_API_KEY']);
+  // A remote brain's search is the server operator's; status never suggests a local-only command for it.
+  if (status.semanticSetup) assert.equal(status.semanticSetup.nextAction, undefined);
+  const remoteText = (await f.cli(['status', '--target-url', origin])).stdout;
+  assert.match(remoteText, /^Search: keyword search \(smart search is off on the server\)$/m);
+  assert.doesNotMatch(remoteText, /smart-search on|setup-semantic|same local root/);
   // Stdin key, the removed --allow-writes flag (accepted, ignored, noted), wrong key: saved as its own copy; test reports rejection without printing it.
   const alias = origin.replace('127.0.0.1', 'localhost');
   const added = exec(process.execPath, [path.join(repo, 'dist/cli.js'), 'connections', 'add', '--name', 'Wrong', '--url', alias, '--key-stdin', '--allow-writes', '--revision=1', '--directory', f.support, '--json'], { cwd: f.temp, env: f.env, timeout: 10000 });

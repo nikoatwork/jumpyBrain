@@ -46,6 +46,21 @@ async function fixture(t) {
   return { temp, home, root, run, ok, model, enableSmartSearch, policy: async () => JSON.parse(await readFile(path.join(root, "jumpybrain.json"), "utf8")).indexing };
 }
 
+test("a remote brain's search wording names the server and never a local-only command", async () => {
+  const { formatSearchLine, remoteSemanticSetup } = await import("../dist/cli/search-mode.js");
+  const localHint = "Restore the device-local model with smart-search on --download-model";
+  assert.equal(remoteSemanticSetup({ state: "lexical", nextAction: "Optional: smart-search on with the same local root" }).nextAction, undefined);
+  assert.equal(remoteSemanticSetup({ state: "ready" }).nextAction, undefined);
+  const missing = remoteSemanticSetup({ state: "unavailable", modelId: "sha256:x", nextAction: localHint });
+  assert.equal(missing.modelId, "sha256:x");
+  assert.match(missing.nextAction, /server's operator/);
+  assert.equal(formatSearchLine({ state: "lexical" }, "remote"), "Search: keyword search (smart search is off on the server)");
+  const line = formatSearchLine(missing, "remote");
+  assert.match(line, /model is missing on the server/);
+  assert.doesNotMatch(line, /this computer|--download-model|smart-search on/);
+  assert.match(formatSearchLine({ state: "lexical" }), /jumpybrain smart-search explains/, "local wording is unchanged");
+});
+
 test("the installer's pinned smart-search model is the CLI's model", () => {
   assert.equal(SMART_SEARCH_MODEL.sha256, SEMANTIC_MODEL.sha256);
   assert.equal(SMART_SEARCH_MODEL.bytes, SEMANTIC_MODEL.bytes);
