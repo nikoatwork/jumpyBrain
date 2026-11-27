@@ -1,6 +1,6 @@
 # Updates move existing installs to the stable Homebrew Node link
 
-Owner request (2026-11-25): fix the updater so existing installs stop pinning a versioned Homebrew `Cellar` Node path. v0.3.28 only fixed this for installer runs (`durableNode` in `integrations/electron/install-shim.mjs`). The GUI update and `jumpybrain update` keep the app's `Configuration.json` Node, the CLI launcher and `install-manifest.json.node`. The owner's Mac showed this after its 0.3.27 → 0.3.28 update. The next `brew upgrade` can then stop the app and CLI from starting. Found during [v0.3.28 real use](../done/2026-11-25_tasks-v0.3.28-real-use-fixes.md); this replaces the P1 item in [the follow-ups](../todo/tasks-v0.3.28-real-use-follow-ups.md).
+Owner request (2026-11-25): fix the updater so existing installs stop pinning a versioned Homebrew `Cellar` Node path. v0.3.28 only fixed this for installer runs (`durableNode` in `integrations/electron/install-shim.mjs`). The GUI update and `jumpybrain update` keep the app's `Configuration.json` Node, the CLI launcher and `install-manifest.json.node`. The owner's Mac showed this after its 0.3.27 → 0.3.28 update. The next `brew upgrade` can then stop the app and CLI from starting. Found during [v0.3.28 real use](../done/2026-11-25_tasks-v0.3.28-real-use-fixes.md); this replaces the P1 item in [the follow-ups](2026-11-27_tasks-v0.3.28-real-use-follow-ups.md).
 
 ## Constraint: mixed versions during one update
 

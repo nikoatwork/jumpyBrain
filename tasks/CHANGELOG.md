@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-27 — v0.3.28 real-use follow-ups closed
+
+- Smart search keeps its model loaded in a per-brain backend worker for 30 idle minutes. On the Mac, repeat searches dropped from about 2 s to under 1 s, with rows identical to before. Old backends now always exit after an update handoff or a lost lease, smoke scripts stop the backends they start, and remote `status` no longer suggests local-only commands. VPS timing is not re-measured. [Outcome, measurements and limits](done/2026-11-27_tasks-v0.3.28-real-use-follow-ups.md)
+
 ## 2026-11-27 — Several hosted brains on one hostname
 
 - A hosted brain can run under a path such as `https://brain.example.com/product`: `--public-base-url` with a path scopes the web UI, live editing and sign-in to that prefix, and the CLI and Mac app accept the prefixed URL. Verified with two brains on one origin in Chromium and on the shared VPS behind Traefik. [Outcome and limits](done/2026-11-27_tasks-hosted-brain-path-prefix.md)
@@ -30,7 +34,7 @@
 
 ## 2026-11-25 — v0.3.28 in real use on the Mac and on Linux
 
-- Updated the owner's Mac to the published v0.3.28 and used it on the real brain. A throwaway Linux install on the VPS covered the installer, a real smart-search model download, browser sessions and invite links on a temporary server, and the hosted Docker image; all of it was removed afterwards. Fixed `jumpybrain update` refusing release-installed Macs, two unclear CLI errors and the Linux engine size estimate. Open: app updates keep the versioned Homebrew Node path, smart search reloads its model per query, and backend processes left behind. [Tests and fixes](done/2026-11-25_tasks-v0.3.28-real-use-fixes.md) · [Follow-ups](todo/tasks-v0.3.28-real-use-follow-ups.md)
+- Updated the owner's Mac to the published v0.3.28 and used it on the real brain. A throwaway Linux install on the VPS covered the installer, a real smart-search model download, browser sessions and invite links on a temporary server, and the hosted Docker image; all of it was removed afterwards. Fixed `jumpybrain update` refusing release-installed Macs, two unclear CLI errors and the Linux engine size estimate. Open: app updates keep the versioned Homebrew Node path, smart search reloads its model per query, and backend processes left behind. [Tests and fixes](done/2026-11-25_tasks-v0.3.28-real-use-fixes.md) · [Follow-ups](done/2026-11-27_tasks-v0.3.28-real-use-follow-ups.md)
 
 ## 2026-11-25 — Browsers stay signed in to shared brains
 
