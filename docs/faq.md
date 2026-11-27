@@ -77,7 +77,7 @@ Restart/reload an already-running agent after installing its integration. If it 
 
 ## Why does jumpyBrain use more memory after a smart search?
 
-With smart search on, the brain's background service keeps the search model loaded for 30 minutes after the last smart search, so searches after the first one are fast (well under a second of model time instead of one to several seconds). It also loads the model in the background when that service starts. While loaded, the model uses a few hundred MB of extra memory, about 210 MB on a tested Mac. It unloads by itself after 30 idle minutes, or when the service stops (`jumpybrain backend stop --root <brain>`). Set `JUMPYBRAIN_SMART_SEARCH_IDLE_MS` before the service starts to change the window (`0` keeps the model loaded while the service runs). Keyword search never loads a model. Nothing is sent anywhere either way.
+With smart search on, the brain's background service keeps the search model loaded for 30 minutes after the last smart search, so searches after the first one are fast (well under a second of model time instead of one to several seconds). It also loads the model in the background when that service starts. While loaded, the model uses a few hundred MB of extra memory: about 210–270 MB on a tested Mac, falling to about 120 MB after five quiet minutes. It unloads by itself after 30 idle minutes, or when the service stops (`jumpybrain backend stop --root <brain>`). Set `JUMPYBRAIN_SMART_SEARCH_IDLE_MS` before the service starts to change the window (`0` keeps the model loaded while the service runs). Keyword search never loads a model. Nothing is sent anywhere either way.
 
 ## My assistant says installation is blocked. What now?
 
