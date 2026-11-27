@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { createCorpus, hashFile, resolveOutputOutside } from './desktop-ram-fixtures.mjs';
+import { stopDisposableBackends } from './disposable-backends.mjs';
 
 const {values}=parseArgs({options:{source:{type:'string'},sampler:{type:'string'},model:{type:'string'},output:{type:'string'}}});
 if(process.platform!=='darwin'||!values.source||!values.sampler||!values.model||!values.output)throw new Error('Use --source SNAPSHOT --sampler BIN --model GGUF --output NEW_DIRECTORY');
@@ -56,4 +57,6 @@ try {
   clearTimeout(watchdog);
   if(child.exitCode===null&&child.signalCode===null)child.kill('SIGTERM');
   if(monitor.exitCode===null&&monitor.signalCode===null)monitor.kill('SIGTERM');
+  // The CLI joins a window-independent root backend; cancellation must not leave it running.
+  await stopDisposableBackends(output,{runtime:path.resolve(values.source,'Resources/runtime')});
 }

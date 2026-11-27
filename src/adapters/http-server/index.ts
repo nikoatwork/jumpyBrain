@@ -351,10 +351,14 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     if (!options.accessStore) access.close();
     // A disconnected socket can be closed while its async route still owns a
     // child/lock. Native close alone is not an application-work drain.
-    close(error => { void Promise.all([stopped, ...handlers]).then(async () => {
-      diagnostics.record({ operation: "shutdown", severity: "info", outcome: "ok", code: "none" });
-      await Promise.all([diagnostics.flush(), logger.flush?.()]); callback?.(error);
-    }, () => callback?.(error)); });
+    // A failed child/hub stop must not report closure while other handlers still
+    // run: a detached owner releases its lease and exits right after this callback.
+    close(error => { void Promise.allSettled([stopped, ...handlers]).then(async results => {
+      if (results.every(result => result.status === "fulfilled")) {
+        diagnostics.record({ operation: "shutdown", severity: "info", outcome: "ok", code: "none" });
+        await Promise.allSettled([diagnostics.flush(), logger.flush?.()]);
+      }
+    }).finally(() => callback?.(error)); });
     return server;
   }) as typeof server.close;
   return server;

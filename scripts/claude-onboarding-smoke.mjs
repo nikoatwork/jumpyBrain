@@ -7,6 +7,7 @@ import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from '
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stopDisposableBackends } from './disposable-backends.mjs';
 
 function summarize(conversations) {
   const [check, remember, recall] = conversations;
@@ -174,6 +175,7 @@ try {
 } finally {
   await writeFile(evidencePath, JSON.stringify(clean(evidence), null, 2) + '\n');
   // Explicit output file retains sanitized evidence; all installed runtime and brain data is disposable.
+  await stopDisposableBackends(temporary);
   if (path.resolve(evidencePath).startsWith(temporary + path.sep)) console.log('Evidence retained in disposable tree: ' + evidencePath);
   else await rm(temporary, { recursive: true, force: true });
 }

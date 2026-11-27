@@ -13,6 +13,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stopDisposableBackends, waitForExit } from './disposable-backends.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const tagIndex = process.argv.indexOf('--legacy-tag');
@@ -163,8 +164,12 @@ try {
     engine: path.relative(root, report.engine), engineSource: report.engineSource, sharedRoot: true, canonicalBytesPreserved: Object.keys(brain).length, retainedPredecessor: true, home }, null, 2));
 } finally {
   const executable = path.join(home, 'Applications/jumpyBrain.app/Contents/MacOS/jumpyBrain');
+  const apps = [];
   for (const row of execFileSync('/bin/ps', ['-axo', 'pid=,comm='], { encoding: 'utf8' }).split('\n').filter(line => line.trim().replace(/^\d+\s+/, '') === executable)) {
-    try { process.kill(Number(row.trim().match(/^\d+/)[0]), 'SIGTERM'); } catch {}
+    try { const pid = Number(row.trim().match(/^\d+/)[0]); process.kill(pid, 'SIGTERM'); apps.push(pid); } catch {}
   }
+  // The app could restart a backend; then drain the brains this fixture started.
+  await waitForExit(apps);
+  await stopDisposableBackends(temporary);
   console.log('Disposable fixture retained at ' + temporary);
 }
