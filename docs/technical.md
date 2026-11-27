@@ -92,6 +92,8 @@ Recall JSON returns:
 
 Set `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` in the local or server environment to change operation deadlines (positive integer milliseconds <=2147483647). Defaults are 60 seconds for search/compact recall and 600 seconds for indexing. Queue/lock waits consume that budget; request JSON cannot override it.
 
+The root backend and `serve` keep the smart-search model loaded in a per-root worker for 30 minutes after the last smart search, capped at two warm roots per process. `JUMPYBRAIN_SMART_SEARCH_IDLE_MS` (whole milliseconds from 0 to 2147483647, where `0` keeps the model loaded while the host runs) changes the window. Warm queries keep the same admission, deadlines, output caps and labeled fallback. See [warm smart search](../src/adapters/qmd/qmd.docs.md#warm-smart-search).
+
 [QMD bounded execution](../src/adapters/qmd/qmd.docs.md#bounded-execution) owns admission, child ceilings, capture limits, cancellation, locking, and platform caveats. [HTTP-client transport](../src/adapters/http-client/http-client.docs.md) owns the separate remote deadline (70 seconds/read, 610 seconds/index); [protocol execution limits](shared-memory-protocol.md#backend-execution-limits) owns wire errors and the separate HTTP receipt timeout. These scopes are not interchangeable. Limits are controls, not measured capacity or recall-speed guarantees.
 
 ## Setup compatibility

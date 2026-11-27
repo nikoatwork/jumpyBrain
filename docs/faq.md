@@ -75,6 +75,10 @@ A new brain is empty, so no matches is expected. Keyword search works immediatel
 
 Restart/reload an already-running agent after installing its integration. If it cannot find the command, use the full path printed by the installer, normally `~/.jumpybrain/bin/jumpybrain`.
 
+## Why does jumpyBrain use more memory after a smart search?
+
+With smart search on, the brain's background service keeps the search model loaded for 30 minutes after the last smart search, so searches after the first one are fast (well under a second of model time instead of one to several seconds). It also loads the model in the background when that service starts. While loaded, the model uses a few hundred MB of extra memory, about 210 MB on a tested Mac. It unloads by itself after 30 idle minutes, or when the service stops (`jumpybrain backend stop --root <brain>`). Set `JUMPYBRAIN_SMART_SEARCH_IDLE_MS` before the service starts to change the window (`0` keeps the model loaded while the service runs). Keyword search never loads a model. Nothing is sent anywhere either way.
+
 ## My assistant says installation is blocked. What now?
 
 An assistant's tool permissions are separate from jumpyBrain. A tool-policy denial does not establish that the installer is malicious, and reading the script does not prove all downloaded dependencies are safe. The assistant should report the actual denial and which steps completed. If its policy permits a manual installation, use the documented command in your own Terminal. Do not disable security controls or disguise commands to evade a restriction.
